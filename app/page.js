@@ -53,35 +53,35 @@ export default function GeographiesDuCalme() {
       text: "Un Japon plus respirable, plus quotidien, plus subtil. Les voyageurs qui reviennent régulièrement au Japon semblent désormais chercher davantage de fluidité que d’intensité.",
       image:
         "https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1800&auto=format&fit=crop",
-      link: "#",
+      link: "/fukuoka",
     },
     {
       title: "Trieste",
       text: "Une Europe introspective où les cafés durent deux heures et où la frontière entre nostalgie et élégance devient délicieusement floue.",
       image:
         "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=1800&auto=format&fit=crop",
-      link: "#",
+      link: "/trieste",
     },
     {
       title: "Mascate",
       text: "Le luxe du silence dans un Golfe saturé de spectaculaire. Mascate semble parfois fonctionner à contre-courant du reste de la région.",
       image:
         "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=1800&auto=format&fit=crop",
-      link: "#",
+      link: "/mascate",
     },
     {
       title: "Jeju",
       text: "Une Corée plus volcanique, plus contemplative, plus lente aussi. Une île qui semble davantage pensée pour respirer que pour performer.",
       image:
         "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1800&auto=format&fit=crop",
-      link: "#",
+      link: "/jeju",
     },
     {
       title: "Aarhus",
       text: "Une Scandinavie plus calme, plus humaine, presque anti-performance. Ce qui devient étonnamment rare.",
       image:
         "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1800&auto=format&fit=crop",
-      link: "#",
+      link: "/aarhus",
     },
   ];
 
@@ -92,8 +92,8 @@ export default function GeographiesDuCalme() {
         style={{
           backgroundImage:
             "url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=2200&auto=format&fit=crop')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
         }}
       >
         <div className="absolute inset-0 bg-black/40" />
@@ -110,7 +110,8 @@ export default function GeographiesDuCalme() {
           </h1>
 
           <p className="max-w-3xl text-xl md:text-2xl leading-relaxed text-stone-100">
-            Le calme devient un critère : la fraîcheur un luxe : la discrétion une nouvelle forme de sophistication.
+            Le calme devient un critère : la fraîcheur un luxe : la discrétion
+            une nouvelle forme de sophistication.
           </p>
         </div>
       </section>
@@ -126,27 +127,44 @@ export default function GeographiesDuCalme() {
 
         <div className="space-y-10 text-xl leading-relaxed text-stone-700">
           <p>
-            Bienvenue dans cette nouvelle édition des Géographies du Calme : une newsletter hebdomadaire imaginée pour celles et ceux qui aiment voyager un peu moins vite : observer davantage : et parfois simplement rester plus longtemps au même endroit.
+            Bienvenue dans cette nouvelle édition des Géographies du Calme : une
+            newsletter hebdomadaire imaginée pour celles et ceux qui aiment
+            voyager un peu moins vite : observer davantage : et parfois
+            simplement rester plus longtemps au même endroit.
           </p>
 
           <p>
-            Cette publication a été pensée par une petite équipe amoureuse du voyage : des cafés qui ferment tard : des hôtels silencieux : des trains un peu trop longs : et des villes où l’on oublie légèrement l’heure qu’il est.
+            Cette publication a été pensée par une petite équipe amoureuse du
+            voyage : des cafés qui ferment tard : des hôtels silencieux : des
+            trains un peu trop longs : et des villes où l’on oublie légèrement
+            l’heure qu’il est.
           </p>
 
           <p>
-            Chaque semaine : nous explorerons plusieurs thèmes récurrents : destinations émergentes : nouvelles sensibilités du luxe : signaux faibles du voyage contemporain : ainsi que quelques opportunités tarifaires discrètement intéressantes.
+            Chaque semaine : nous explorerons plusieurs thèmes récurrents :
+            destinations émergentes : nouvelles sensibilités du luxe : signaux
+            faibles du voyage contemporain : ainsi que quelques opportunités
+            tarifaires discrètement intéressantes.
           </p>
 
           <p>
-            Pendant longtemps : le luxe consistait surtout à accéder à davantage. Mais quelque chose semble discrètement changer. Les voyageurs sophistiqués réorganisent progressivement leurs habitudes autour du confort thermique : de la fatigue sensorielle : et d’un besoin croissant de respiration mentale.
+            Pendant longtemps : le luxe consistait surtout à accéder à davantage.
+            Mais quelque chose semble discrètement changer. Les voyageurs
+            sophistiqués réorganisent progressivement leurs habitudes autour du
+            confort thermique : de la fatigue sensorielle : et d’un besoin
+            croissant de respiration mentale.
           </p>
 
           <blockquote className="border-l border-stone-300 pl-8 italic text-3xl text-stone-900 leading-relaxed">
-            “Beaucoup de voyageurs décrivent désormais une destination comme calme avant de la qualifier de belle.”
+            “Beaucoup de voyageurs décrivent désormais une destination comme
+            calme avant de la qualifier de belle.”
           </blockquote>
 
           <p>
-            Septembre paraît parfois plus luxueux que juillet. Les villes nordiques gagnent du terrain. Même la manière de parler des destinations évolue : le calme devient progressivement un indicateur culturel.
+            Septembre paraît parfois plus luxueux que juillet. Les villes
+            nordiques gagnent du terrain. Même la manière de parler des
+            destinations évolue : le calme devient progressivement un indicateur
+            culturel.
           </p>
         </div>
       </section>
@@ -158,8 +176,9 @@ export default function GeographiesDuCalme() {
               Smart Deals de la semaine
             </p>
 
-            <h2 className="text-5xl font-light">
-              Cette semaine : quelques fenêtres tarifaires particulièrement intéressantes ont retenu notre attention.
+            <h2 className="text-5xl font-light leading-tight max-w-5xl">
+              Cette semaine : quelques fenêtres tarifaires particulièrement
+              intéressantes ont retenu notre attention.
             </h2>
           </div>
 
@@ -203,6 +222,189 @@ export default function GeographiesDuCalme() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-20">
+            <p className="uppercase tracking-[0.3em] text-xs text-stone-500 mb-6">
+              Là où les voyageurs ralentissent
+            </p>
+
+            <h2 className="text-5xl font-light">
+              Certaines destinations semblent aujourd’hui offrir quelque chose de
+              devenu étonnamment rare : un peu plus d’espace mental.
+            </h2>
+          </div>
+
+          <div className="space-y-24">
+            {destinations.map((destination) => (
+              <div
+                key={destination.title}
+                className="grid lg:grid-cols-2 gap-12 items-center"
+              >
+                <img
+                  src={destination.image}
+                  alt={destination.title}
+                  className="rounded-[2rem] h-[520px] w-full object-cover"
+                />
+
+                <div>
+                  <h3 className="text-5xl font-light mb-8">
+                    {destination.title}
+                  </h3>
+
+                  <p className="text-2xl leading-relaxed text-stone-700 mb-8">
+                    {destination.text}
+                  </p>
+
+                  <a
+                    href={destination.link}
+                    className="inline-block border border-stone-300 rounded-full px-5 py-3 text-sm hover:bg-stone-900 hover:text-white transition-all"
+                  >
+                    Découvrir la destination
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-stone-900 text-stone-100 py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-20">
+            <p className="uppercase tracking-[0.3em] text-xs text-stone-400 mb-6">
+              Le luxe devient plus respirable
+            </p>
+
+            <h2 className="text-5xl font-light max-w-5xl leading-tight">
+              Le luxe contemporain semble progressivement quitter l’ère de la
+              démonstration pour revenir vers quelque chose de plus sensoriel :
+              plus calme : presque plus humain.
+            </h2>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=1800&auto=format&fit=crop"
+                className="h-72 w-full object-cover"
+              />
+
+              <div className="p-8">
+                <h3 className="text-3xl font-light mb-6">
+                  Le luxe devient une question de soulagement cognitif
+                </h3>
+
+                <p className="leading-relaxed text-stone-300">
+                  Les hôtels les plus désirables ne sont plus forcément les plus
+                  spectaculaires. Beaucoup de voyageurs semblent désormais
+                  rechercher autre chose : une réduction du bruit mental : des
+                  espaces plus silencieux : des expériences moins performatives.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1800&auto=format&fit=crop"
+                className="h-72 w-full object-cover"
+              />
+
+              <div className="p-8">
+                <h3 className="text-3xl font-light mb-6">
+                  L’hôtellerie s’éloigne enfin de l’ère Instagram
+                </h3>
+
+                <p className="leading-relaxed text-stone-300">
+                  Les établissements qui séduisent aujourd’hui semblent souvent
+                  plus imparfaits : plus chaleureux : moins obsessionnellement
+                  photogéniques. Comme si le luxe redevenait progressivement une
+                  expérience vécue plutôt qu’un décor destiné aux réseaux
+                  sociaux.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1529074963764-98f45c47344b?q=80&w=1800&auto=format&fit=crop"
+                className="h-72 w-full object-cover"
+              />
+
+              <div className="p-8">
+                <h3 className="text-3xl font-light mb-6">
+                  L’aviation à taille humaine devient un vrai signal premium
+                </h3>
+
+                <p className="leading-relaxed text-stone-300">
+                  Dans un monde où voyager devient parfois épuisant : les
+                  compagnies capables de préserver un minimum de fluidité :
+                  d’espace : et de calme émotionnel commencent discrètement à
+                  devenir les nouvelles références du voyage haut de gamme.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-40 px-6">
+        <div className="max-w-5xl mx-auto text-center">
+          <p className="uppercase tracking-[0.3em] text-xs text-stone-500 mb-12">
+            Les citations du voyage de la semaine
+          </p>
+
+          <div className="space-y-32">
+            <blockquote className="text-4xl md:text-5xl font-light italic leading-relaxed text-stone-800">
+              “Beaucoup de voyageurs premium craignent désormais davantage la
+              foule que les prix.”
+            </blockquote>
+
+            <blockquote className="text-4xl md:text-5xl font-light italic leading-relaxed text-stone-800">
+              “Les voyageurs qui retournent régulièrement au Japon descendent de
+              plus en plus vers le sud : et ralentissent.”
+            </blockquote>
+
+            <blockquote className="text-4xl md:text-5xl font-light italic leading-relaxed text-stone-800">
+              “Les hôtels les plus désirables donnent souvent l’impression que
+              personne n’a essayé trop fort.”
+            </blockquote>
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="relative py-40 px-6 text-white"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2200&auto=format&fit=crop')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/60" />
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <p className="uppercase tracking-[0.3em] text-xs text-stone-300 mb-8">
+            Le mot de la fin
+          </p>
+
+          <h2 className="text-5xl md:text-6xl font-light leading-tight mb-10">
+            Les destinations qui émergent aujourd’hui promettent rarement plus.
+          </h2>
+
+          <p className="text-2xl leading-relaxed text-stone-200">
+            Elles promettent souvent autre chose : un peu plus d’espace mental :
+            un peu moins de bruit : parfois simplement la sensation de pouvoir
+            encore habiter pleinement un lieu.
+          </p>
+
+          <p className="mt-20 text-sm tracking-[0.3em] uppercase text-stone-400">
+            Édition suivante : bientôt.
+          </p>
         </div>
       </section>
     </div>
