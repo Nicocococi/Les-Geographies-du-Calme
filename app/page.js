@@ -15,7 +15,7 @@ export default function GeographiesDuCalme() {
       text:
         "Etihad semble actuellement proposer l’un des tarifs les plus cohérents du marché vers Tokyo au départ de Paris, avec des itinéraires relativement confortables pour le Japon.",
       image:
-        "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.etihad.com/",
     },
 
@@ -54,7 +54,7 @@ export default function GeographiesDuCalme() {
         "Même les grandes capitales saturées connaissent encore quelques fenêtres tarifaires relativement cohérentes.",
       image:
         "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?q=80&w=1800&auto=format&fit=crop",
-      link: "https://wwws.airfrance.fr",
+      link: "https://wwww.airfrance.fr",
     },
 
     {
@@ -149,7 +149,7 @@ export default function GeographiesDuCalme() {
       text:
         "Les villes tempérées et marchables semblent gagner discrètement du terrain auprès des voyageurs européens.",
       image:
-        "https://images.unsplash.com/photo-1562790351-d273a961e0e9?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.thewitchery.com/",
     },
 
@@ -168,37 +168,18 @@ export default function GeographiesDuCalme() {
       text:
         "Hydra continue d’incarner une certaine idée du voyage méditerranéen lent et légèrement hors du temps.",
       image:
-        "https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.hydrahotel.gr/",
     },
   ];
 
   const destinations = [
     {
-      title: "Fukuoka",
-      text:
-        "Un Japon plus respirable, plus quotidien et plus subtil.",
-      image:
-        "https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1800&auto=format&fit=crop",
-      link: "/fukuoka",
-    },
-
-    {
       title: "Trieste",
       text:
         "Une Europe adriatique introspective où les cafés semblent parfois durer tout l’après-midi.",
       image:
         "https://images.unsplash.com/photo-1578926375605-eaf7559b1458?q=80&w=1800&auto=format&fit=crop",
-      link: "/trieste",
-    },
-
-    {
-      title: "Mascate",
-      text:
-        "Le luxe du silence dans un Golfe souvent saturé de spectaculaire.",
-      image:
-        "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=1800&auto=format&fit=crop",
-      link: "/mascate",
     },
 
     {
@@ -207,7 +188,6 @@ export default function GeographiesDuCalme() {
         "Une Corée volcanique et balnéaire où beaucoup viennent désormais davantage ralentir que performer.",
       image:
         "https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=1800&auto=format&fit=crop",
-      link: "/jeju",
     },
 
     {
@@ -216,119 +196,6 @@ export default function GeographiesDuCalme() {
         "Une Scandinavie plus calme et plus humaine où la simplicité semble encore exister naturellement.",
       image:
         "https://images.unsplash.com/photo-1519677100203-a0e668c92439?q=80&w=1800&auto=format&fit=crop",
-      link: "/aarhus",
-    },
-  ];
-
-  return (
-    <div className="bg-stone-50 text-stone-800 font-serif">
-      {/* le reste du code reste IDENTIQUE */}
-
-      {/* SMART DEALS CARD */}
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        {deals.map((deal) => (
-          <div
-            key={deal.title}
-            className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500"
-          >
-            <img
-              src={deal.image}
-              alt={deal.title}
-              className="h-80 w-full object-cover"
-            />
-
-            <div className="p-8">
-              <p className="uppercase tracking-[0.25em] text-xs text-stone-400 mb-3">
-                {deal.category}
-              </p>
-
-              <p className="text-sm text-stone-500 mb-2">
-                {deal.operator}
-              </p>
-
-              <p className="text-sm text-stone-500 mb-6">
-                {deal.destination}
-              </p>
-
-              <p className="uppercase tracking-[0.25em] text-xs text-stone-500 mb-4">
-                {deal.period}
-              </p>
-
-              <h3 className="text-3xl font-light mb-4">
-                {deal.title}
-              </h3>
-
-              <p className="text-stone-500 italic mb-6">
-                {deal.price}
-              </p>
-
-              <p className="leading-relaxed text-stone-700 mb-6">
-                {deal.text}
-              </p>
-
-              <div className="mb-8">
-                <p className="text-sm uppercase tracking-[0.2em] text-stone-400 mb-3">
-                  Dates observées
-                </p>
-
-                <div className="space-y-2 text-sm text-stone-600">
-                  {deal.dates.map((date) => (
-                    <p key={date}>{date}</p>
-                  ))}
-                </div>
-              </div>
-
-              <a
-                href={deal.link}
-                target="_blank"
-                className="inline-block border border-stone-300 rounded-full px-5 py-3 text-sm hover:bg-stone-900 hover:text-white transition-all"
-              >
-                Voir l’offre
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-  const destinations = [
-    {
-      title: "Fukuoka",
-      text: "Un Japon plus respirable, plus quotidien et plus subtil.",
-      image:
-        "https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1800&auto=format&fit=crop",
-      link: "/fukuoka",
-    },
-    {
-      title: "Trieste",
-      text: "Une Europe adriatique introspective où les cafés semblent parfois durer tout l’après-midi.",
-      image:
-        "https://images.unsplash.com/photo-1549893074-4bc67f2b7227?q=80&w=1800&auto=format&fit=crop",
-      link: "/trieste",
-    },
-    {
-      title: "Mascate",
-      text: "Le luxe du silence dans un Golfe souvent saturé de spectaculaire.",
-      image:
-        "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=1800&auto=format&fit=crop",
-      link: "/mascate",
-    },
-    {
-      title: "Jeju",
-      text: "Une Corée volcanique et balnéaire où beaucoup viennent désormais davantage ralentir que performer.",
-      image:
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1800&auto=format&fit=crop",
-      link: "/jeju",
-    },
-    {
-      title: "Aarhus",
-      text: "Une Scandinavie plus calme et plus humaine où la simplicité semble encore exister naturellement.",
-      image:
-        "https://images.unsplash.com/photo-1494526585095-c41746248156?q=80&w=1800&auto=format&fit=crop",
-      link: "/aarhus",
     },
   ];
 
@@ -397,7 +264,6 @@ export default function GeographiesDuCalme() {
           </p>
         </div>
       </section>
-
       {/* SMART DEALS */}
 
       <section className="bg-stone-100 py-32 px-6">
@@ -425,6 +291,18 @@ export default function GeographiesDuCalme() {
                 />
 
                 <div className="p-8">
+                  <p className="uppercase tracking-[0.25em] text-xs text-stone-400 mb-3">
+                    {deal.category}
+                  </p>
+
+                  <p className="text-sm text-stone-500 mb-2">
+                    {deal.operator}
+                  </p>
+
+                  <p className="text-sm text-stone-500 mb-6">
+                    {deal.destination}
+                  </p>
+
                   <p className="uppercase tracking-[0.25em] text-xs text-stone-500 mb-4">
                     {deal.period}
                   </p>
@@ -502,12 +380,11 @@ export default function GeographiesDuCalme() {
                     {destination.text}
                   </p>
 
-                  <a
-                    href={destination.link}
+                  <button
                     className="inline-block border border-stone-300 rounded-full px-5 py-3 text-sm hover:bg-stone-900 hover:text-white transition-all"
                   >
                     Découvrir la destination
-                  </a>
+                  </button>
                 </div>
               </div>
             ))}
@@ -542,7 +419,13 @@ export default function GeographiesDuCalme() {
                 </h3>
 
                 <p className="leading-relaxed text-stone-300">
-                  Beaucoup de voyageurs semblent aujourd’hui rechercher des hôtels plus silencieux, plus simples et moins démonstratifs. Une chambre lumineuse avec une belle vue devient parfois plus désirable qu’un établissement conçu uniquement pour impressionner.
+                  Pendant longtemps, beaucoup d’hôtels haut de gamme ont cherché à impressionner. Rooftops spectaculaires, design ultra travaillé, lieux très photogéniques et parfois musique omniprésente. Mais de plus en plus de voyageurs semblent aujourd’hui rechercher autre chose.
+
+                  Beaucoup apprécient désormais les établissements plus sobres, plus silencieux et surtout plus faciles à vivre. Une chambre épurée avec une belle lumière naturelle devient parfois plus attractive qu’un hôtel pensé uniquement pour les réseaux sociaux.
+
+                  On voit également revenir une certaine forme de simplicité dans l’hôtellerie. Des hôtels où l’on peut lire tranquillement, prendre son petit-déjeuner lentement ou simplement entendre un peu moins de bruit autour de soi.
+
+                  Ce changement semble particulièrement visible chez les voyageurs réguliers, souvent fatigués par les expériences trop scénarisées. Le vrai luxe devient parfois simplement la sensation de pouvoir ralentir un peu.
                 </p>
               </div>
             </div>
@@ -559,7 +442,13 @@ export default function GeographiesDuCalme() {
                 </h3>
 
                 <p className="leading-relaxed text-stone-300">
-                  Beaucoup de lieux qui séduisent aujourd’hui semblent plus chaleureux, plus vivants et parfois légèrement imparfaits.
+                  Certains établissements qui séduisent aujourd’hui ne sont plus forcément les plus parfaits visuellement. Beaucoup de voyageurs semblent au contraire apprécier des lieux plus chaleureux, plus vivants et parfois légèrement imparfaits.
+
+                  Des hôtels avec des livres qui traînent dans le salon, des matières naturelles, des chambres pas totalement standardisées ou des espaces qui donnent davantage l’impression d’être habités.
+
+                  Cette évolution est particulièrement visible dans de nombreux boutique hôtels européens ou japonais. L’atmosphère semble progressivement prendre le dessus sur la mise en scène.
+
+                  Cela ne signifie pas que le design disparaît. Mais beaucoup de voyageurs semblent désormais préférer des lieux qui procurent une sensation de confort réel plutôt qu’une succession de décors pensés uniquement pour être photographiés.
                 </p>
               </div>
             </div>
@@ -576,7 +465,13 @@ export default function GeographiesDuCalme() {
                 </h3>
 
                 <p className="leading-relaxed text-stone-300">
-                  Beaucoup de voyageurs privilégient désormais des itinéraires plus simples et des trajets moins épuisants.
+                  Pendant longtemps, beaucoup de voyageurs acceptaient facilement des vols compliqués, des correspondances agressives ou des trajets très fatigants pour réduire les prix ou multiplier les destinations.
+
+                  Mais une certaine fatigue du voyage semble aujourd’hui apparaître. Beaucoup privilégient désormais des itinéraires plus simples, des horaires plus confortables ou des compagnies capables d’offrir une expérience plus fluide.
+
+                  Cela explique aussi le retour progressif du train sur certaines destinations européennes. Le voyage lui-même redevient parfois une partie importante de l’expérience.
+
+                  Même dans l’aérien, certaines compagnies séduisent désormais moins par le prestige que par leur capacité à rendre le déplacement un peu moins épuisant. Et honnêtement, arriver de bonne humeur devient presque un luxe moderne.
                 </p>
               </div>
             </div>
@@ -642,3 +537,4 @@ export default function GeographiesDuCalme() {
     </div>
   );
 }
+
