@@ -8,9 +8,8 @@ export default function GeographiesDuCalme() {
         "12 → 19 septembre",
         "18 → 27 septembre",
         "3 → 10 octobre",
-        "14 → 22 octobre",
       ],
-      text: "Etihad semble actuellement proposer l’un des tarifs les plus cohérents du marché vers Tokyo au départ de Paris. Une option particulièrement intéressante pour les voyageurs qui souhaitent éviter les périodes de très forte tension tarifaire sur le Japon.",
+      text: "Etihad semble actuellement proposer l’un des tarifs les plus cohérents du marché vers Tokyo au départ de Paris.",
       image:
         "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.etihad.com/",
@@ -22,9 +21,8 @@ export default function GeographiesDuCalme() {
       dates: [
         "7 → 15 septembre",
         "18 → 28 septembre",
-        "2 → 10 octobre",
       ],
-      text: "Séoul continue d’attirer une génération de voyageurs fascinés par la culture coréenne mais qui cherchent désormais des expériences plus lentes et plus locales.",
+      text: "Séoul continue d’attirer une génération de voyageurs fascinés par la culture coréenne mais qui cherchent désormais des expériences plus lentes.",
       image:
         "https://images.unsplash.com/photo-1549693578-d683be217e58?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.klm.fr/",
@@ -36,9 +34,8 @@ export default function GeographiesDuCalme() {
       dates: [
         "4 → 11 juin",
         "15 → 22 juin",
-        "7 → 14 juillet",
       ],
-      text: "Même les grandes capitales habituellement saturées connaissent parfois quelques fenêtres tarifaires étonnamment accessibles.",
+      text: "Même les grandes capitales saturées connaissent encore quelques fenêtres tarifaires relativement cohérentes.",
       image:
         "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?q=80&w=1800&auto=format&fit=crop",
       link: "https://wwws.airfrance.fr",
@@ -64,7 +61,7 @@ export default function GeographiesDuCalme() {
         "2 → 8 septembre",
         "12 → 19 septembre",
       ],
-      text: "Paros semble aujourd’hui représenter une alternative plus équilibrée aux Cyclades les plus saturées.",
+      text: "Paros semble aujourd’hui offrir une alternative plus équilibrée aux Cyclades les plus saturées.",
       image:
         "https://images.unsplash.com/photo-1469796466635-455ede028aca?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.thethinkingtraveller.com/greece/cyclades/paros",
@@ -79,7 +76,7 @@ export default function GeographiesDuCalme() {
       ],
       text: "La Sicile continue de séduire les voyageurs qui recherchent davantage de texture culturelle que de perfection touristique.",
       image:
-        "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.booking.com/",
     },
     {
@@ -103,7 +100,7 @@ export default function GeographiesDuCalme() {
         "3 → 7 septembre",
         "18 → 24 septembre",
       ],
-      text: "Les villes plus tempérées et plus marchables semblent gagner discrètement du terrain auprès des voyageurs européens.",
+      text: "Les villes tempérées et marchables semblent gagner discrètement du terrain auprès des voyageurs européens.",
       image:
         "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.thewitchery.com/",
@@ -118,7 +115,7 @@ export default function GeographiesDuCalme() {
       ],
       text: "Hydra continue d’incarner une certaine idée du voyage méditerranéen lent et légèrement hors du temps.",
       image:
-        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1504609813442-a8924e83f76e?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.hydrahotel.gr/",
     },
   ];
@@ -126,7 +123,7 @@ export default function GeographiesDuCalme() {
   const destinations = [
     {
       title: "Fukuoka",
-      text: "Un Japon plus respirable, plus quotidien et plus subtil. Les voyageurs qui reviennent régulièrement au Japon semblent désormais chercher davantage de fluidité que d’intensité.",
+      text: "Un Japon plus respirable, plus quotidien et plus subtil.",
       image:
         "https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1800&auto=format&fit=crop",
       link: "/fukuoka",
@@ -135,7 +132,7 @@ export default function GeographiesDuCalme() {
       title: "Trieste",
       text: "Une Europe adriatique introspective où les cafés semblent parfois durer tout l’après-midi.",
       image:
-        "https://images.unsplash.com/photo-1504609813442-a8924e83f76e?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1549893074-4bc67f2b7227?q=80&w=1800&auto=format&fit=crop",
       link: "/trieste",
     },
     {
@@ -163,6 +160,8 @@ export default function GeographiesDuCalme() {
 
   return (
     <div className="bg-stone-50 text-stone-800 font-serif">
+      {/* HERO */}
+
       <section
         className="relative h-screen flex items-end"
         style={{
@@ -211,9 +210,17 @@ export default function GeographiesDuCalme() {
             Cette publication a été pensée par une petite équipe amoureuse du voyage où l'on aime prendre son temps, des cafés qui ferment tard, des hôtels silencieux, des déplacements en train et des villes dans lesquelles on oublie légèrement l'heure qu'il est.
           </p>
 
+          <p>
+            Chaque semaine, nous explorerons plusieurs thèmes récurrents : destinations émergentes, nouvelles thématiques liées au voyage ainsi que nos smart deals de la semaine.
+          </p>
+
           <blockquote className="border-l border-stone-300 pl-8 italic text-3xl text-stone-900 leading-relaxed">
             “Beaucoup de voyageurs décrivent désormais une destination comme calme avant de la qualifier de belle.”
           </blockquote>
+
+          <p>
+            Depuis quelques années, quelque chose semble doucement évoluer dans la manière dont beaucoup de personnes voyagent. Certains voyageurs cherchent moins à accumuler les destinations qu’à mieux habiter les lieux.
+          </p>
         </div>
       </section>
 
@@ -283,6 +290,179 @@ export default function GeographiesDuCalme() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* DESTINATIONS */}
+
+      <section className="bg-white py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-20">
+            <p className="uppercase tracking-[0.3em] text-xs text-stone-500 mb-6">
+              Là où les voyageurs ralentissent
+            </p>
+
+            <h2 className="text-5xl font-light max-w-5xl leading-tight">
+              Certaines destinations semblent aujourd’hui offrir quelque chose de devenu étonnamment rare : un peu plus d’espace mental.
+            </h2>
+          </div>
+
+          <div className="space-y-24">
+            {destinations.map((destination) => (
+              <div
+                key={destination.title}
+                className="grid lg:grid-cols-2 gap-12 items-center"
+              >
+                <img
+                  src={destination.image}
+                  alt={destination.title}
+                  className="rounded-[2rem] h-[520px] w-full object-cover"
+                />
+
+                <div>
+                  <h3 className="text-5xl font-light mb-8">
+                    {destination.title}
+                  </h3>
+
+                  <p className="text-2xl leading-relaxed text-stone-700 mb-8">
+                    {destination.text}
+                  </p>
+
+                  <a
+                    href={destination.link}
+                    className="inline-block border border-stone-300 rounded-full px-5 py-3 text-sm hover:bg-stone-900 hover:text-white transition-all"
+                  >
+                    Découvrir la destination
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* THEMATIQUES */}
+
+      <section className="bg-stone-900 text-stone-100 py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-20">
+            <p className="uppercase tracking-[0.3em] text-xs text-stone-400 mb-6">
+              Thématiques voyage de la semaine
+            </p>
+
+            <h2 className="text-5xl font-light max-w-5xl leading-tight">
+              De nouvelles attentes semblent progressivement transformer la manière dont beaucoup de voyageurs choisissent leurs destinations, leurs hôtels et même leurs moyens de transport.
+            </h2>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?q=80&w=1800&auto=format&fit=crop"
+                className="h-72 w-full object-cover"
+              />
+
+              <div className="p-8">
+                <h3 className="text-3xl font-light mb-6">
+                  Les hôtels calmes deviennent plus désirables
+                </h3>
+
+                <p className="leading-relaxed text-stone-300">
+                  Beaucoup de voyageurs semblent aujourd’hui rechercher des hôtels plus silencieux, plus simples et moins démonstratifs. Une chambre lumineuse avec une belle vue devient parfois plus désirable qu’un établissement conçu uniquement pour impressionner.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1800&auto=format&fit=crop"
+                className="h-72 w-full object-cover"
+              />
+
+              <div className="p-8">
+                <h3 className="text-3xl font-light mb-6">
+                  L’hôtellerie s’éloigne progressivement de l’esthétique Instagram
+                </h3>
+
+                <p className="leading-relaxed text-stone-300">
+                  Beaucoup de lieux qui séduisent aujourd’hui semblent plus chaleureux, plus vivants et parfois légèrement imparfaits.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=1800&auto=format&fit=crop"
+                className="h-72 w-full object-cover"
+              />
+
+              <div className="p-8">
+                <h3 className="text-3xl font-light mb-6">
+                  Voyager confortablement redevient un vrai critère
+                </h3>
+
+                <p className="leading-relaxed text-stone-300">
+                  Beaucoup de voyageurs privilégient désormais des itinéraires plus simples et des trajets moins épuisants.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CITATIONS */}
+
+      <section className="bg-white py-40 px-6">
+        <div className="max-w-5xl mx-auto text-center">
+          <p className="uppercase tracking-[0.3em] text-xs text-stone-500 mb-12">
+            Les citations du voyage de la semaine
+          </p>
+
+          <div className="space-y-32">
+            <blockquote className="text-4xl md:text-5xl font-light italic leading-relaxed text-stone-800">
+              “Beaucoup de voyageurs premium craignent désormais davantage la foule que les prix.”
+            </blockquote>
+
+            <blockquote className="text-4xl md:text-5xl font-light italic leading-relaxed text-stone-800">
+              “Les voyageurs qui retournent régulièrement au Japon descendent de plus en plus vers le sud et ralentissent.”
+            </blockquote>
+
+            <blockquote className="text-4xl md:text-5xl font-light italic leading-relaxed text-stone-800">
+              “Les hôtels les plus désirables donnent souvent l’impression que personne n’a essayé trop fort.”
+            </blockquote>
+          </div>
+        </div>
+      </section>
+
+      {/* MOT DE LA FIN */}
+
+      <section
+        className="relative py-40 px-6 text-white"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2200&auto=format&fit=crop')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/60" />
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <p className="uppercase tracking-[0.3em] text-xs text-stone-300 mb-8">
+            Le mot de la fin
+          </p>
+
+          <h2 className="text-5xl md:text-6xl font-light leading-tight mb-10">
+            Les destinations qui émergent aujourd’hui promettent rarement plus.
+          </h2>
+
+          <p className="text-2xl leading-relaxed text-stone-200">
+            Elles promettent souvent autre chose. Un peu plus d’espace mental, un peu moins de bruit et parfois simplement la sensation de pouvoir encore habiter pleinement un lieu.
+          </p>
+
+          <p className="mt-20 text-sm tracking-[0.3em] uppercase text-stone-400">
+            Édition suivante : bientôt.
+          </p>
         </div>
       </section>
     </div>
