@@ -4,34 +4,54 @@ export default function GeographiesDuCalme() {
       title: "Paris → Tokyo avec Etihad Airways",
       price: "À partir de 759€ A/R",
       period: "Automne 2026",
-      text: "Etihad semble actuellement proposer l’un des tarifs les plus cohérents du marché vers Tokyo. Une option intéressante pour éviter les pics tarifaires habituels du Japon.",
+      dates: [
+        "12 → 19 septembre",
+        "18 → 27 septembre",
+        "3 → 10 octobre",
+        "14 → 22 octobre",
+      ],
+      text: "Etihad semble actuellement proposer l’un des tarifs les plus cohérents du marché vers Tokyo au départ de Paris. Une option particulièrement intéressante pour les voyageurs qui souhaitent éviter les périodes de très forte tension tarifaire sur le Japon.",
       image:
-        "https://images.unsplash.com/photo-1542051841857-5f90071e7989?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.etihad.com/",
     },
     {
       title: "Paris → Séoul",
       price: "À partir de 690€ A/R",
       period: "Septembre + octobre 2026",
-      text: "Séoul continue d’attirer une génération de voyageurs fascinés par la culture coréenne, mais qui cherchent désormais des expériences plus lentes et plus locales.",
+      dates: [
+        "7 → 15 septembre",
+        "18 → 28 septembre",
+        "2 → 10 octobre",
+      ],
+      text: "Séoul continue d’attirer une génération de voyageurs fascinés par la culture coréenne mais qui cherchent désormais des expériences plus lentes et plus locales.",
       image:
-        "https://images.unsplash.com/photo-1538485399081-7191377e8241?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1549693578-d683be217e58?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.klm.fr/",
     },
     {
       title: "New York",
       price: "445–510€ A/R",
       period: "Juin + juillet 2026",
-      text: "Même les grandes capitales saturées connaissent encore quelques fenêtres tarifaires étonnamment cohérentes hors très haute saison.",
+      dates: [
+        "4 → 11 juin",
+        "15 → 22 juin",
+        "7 → 14 juillet",
+      ],
+      text: "Même les grandes capitales habituellement saturées connaissent parfois quelques fenêtres tarifaires étonnamment accessibles.",
       image:
-        "https://images.unsplash.com/photo-1496588152823-86ff7695e68f?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?q=80&w=1800&auto=format&fit=crop",
       link: "https://wwws.airfrance.fr",
     },
     {
       title: "Minorque",
       price: "170–200€ / nuit",
       period: "Juin + septembre 2026",
-      text: "Certaines îles méditerranéennes redeviennent désirables précisément lorsqu’elles redeviennent respirables.",
+      dates: [
+        "9 → 14 juin",
+        "15 → 21 septembre",
+      ],
+      text: "Certaines îles méditerranéennes semblent redevenir désirables précisément lorsqu’elles redeviennent respirables.",
       image:
         "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.menorcaexperimental.com/",
@@ -40,7 +60,11 @@ export default function GeographiesDuCalme() {
       title: "Paros",
       price: "205–242€ / nuit",
       period: "Septembre 2026",
-      text: "Paros semble aujourd’hui offrir une alternative plus équilibrée aux Cyclades les plus saturées.",
+      dates: [
+        "2 → 8 septembre",
+        "12 → 19 septembre",
+      ],
+      text: "Paros semble aujourd’hui représenter une alternative plus équilibrée aux Cyclades les plus saturées.",
       image:
         "https://images.unsplash.com/photo-1469796466635-455ede028aca?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.thethinkingtraveller.com/greece/cyclades/paros",
@@ -49,15 +73,23 @@ export default function GeographiesDuCalme() {
       title: "Syracuse",
       price: "160–210€ / nuit",
       period: "Automne 2026",
+      dates: [
+        "18 → 23 septembre",
+        "4 → 10 octobre",
+      ],
       text: "La Sicile continue de séduire les voyageurs qui recherchent davantage de texture culturelle que de perfection touristique.",
       image:
-        "https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.booking.com/",
     },
     {
       title: "Copenhague",
       price: "220–250€ / nuit",
       period: "Été 2026",
+      dates: [
+        "11 → 15 juin",
+        "6 → 11 juillet",
+      ],
       text: "Le nord de l’Europe attire désormais des voyageurs qui cherchent davantage de fraîcheur et de simplicité.",
       image:
         "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?q=80&w=1800&auto=format&fit=crop",
@@ -67,6 +99,10 @@ export default function GeographiesDuCalme() {
       title: "Édimbourg",
       price: "145–190€ / nuit",
       period: "Septembre 2026",
+      dates: [
+        "3 → 7 septembre",
+        "18 → 24 septembre",
+      ],
       text: "Les villes plus tempérées et plus marchables semblent gagner discrètement du terrain auprès des voyageurs européens.",
       image:
         "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?q=80&w=1800&auto=format&fit=crop",
@@ -76,9 +112,13 @@ export default function GeographiesDuCalme() {
       title: "Hydra",
       price: "210–260€ / nuit",
       period: "Septembre + octobre 2026",
-      text: "Hydra continue d’incarner une certaine idée du voyage méditerranéen lent, silencieux et légèrement hors du temps.",
+      dates: [
+        "9 → 14 septembre",
+        "2 → 8 octobre",
+      ],
+      text: "Hydra continue d’incarner une certaine idée du voyage méditerranéen lent et légèrement hors du temps.",
       image:
-        "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.hydrahotel.gr/",
     },
   ];
@@ -95,7 +135,7 @@ export default function GeographiesDuCalme() {
       title: "Trieste",
       text: "Une Europe adriatique introspective où les cafés semblent parfois durer tout l’après-midi.",
       image:
-        "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1504609813442-a8924e83f76e?q=80&w=1800&auto=format&fit=crop",
       link: "/trieste",
     },
     {
@@ -109,7 +149,7 @@ export default function GeographiesDuCalme() {
       title: "Jeju",
       text: "Une Corée volcanique et balnéaire où beaucoup viennent désormais davantage ralentir que performer.",
       image:
-        "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1800&auto=format&fit=crop",
       link: "/jeju",
     },
     {
@@ -151,6 +191,8 @@ export default function GeographiesDuCalme() {
         </div>
       </section>
 
+      {/* PREAMBULE */}
+
       <section className="max-w-5xl mx-auto px-6 py-32">
         <p className="uppercase tracking-[0.3em] text-xs text-stone-500 mb-6">
           Préambule
@@ -169,15 +211,13 @@ export default function GeographiesDuCalme() {
             Cette publication a été pensée par une petite équipe amoureuse du voyage où l'on aime prendre son temps, des cafés qui ferment tard, des hôtels silencieux, des déplacements en train et des villes dans lesquelles on oublie légèrement l'heure qu'il est.
           </p>
 
-          <p>
-            Chaque semaine, nous explorerons plusieurs thèmes récurrents : destinations émergentes, nouvelles thématiques liées au voyage ainsi que nos smart deals de la semaine.
-          </p>
-
           <blockquote className="border-l border-stone-300 pl-8 italic text-3xl text-stone-900 leading-relaxed">
             “Beaucoup de voyageurs décrivent désormais une destination comme calme avant de la qualifier de belle.”
           </blockquote>
         </div>
       </section>
+
+      {/* SMART DEALS */}
 
       <section className="bg-stone-100 py-32 px-6">
         <div className="max-w-7xl mx-auto">
@@ -216,9 +256,21 @@ export default function GeographiesDuCalme() {
                     {deal.price}
                   </p>
 
-                  <p className="leading-relaxed text-stone-700 mb-8">
+                  <p className="leading-relaxed text-stone-700 mb-6">
                     {deal.text}
                   </p>
+
+                  <div className="mb-8">
+                    <p className="text-sm uppercase tracking-[0.2em] text-stone-400 mb-3">
+                      Dates observées
+                    </p>
+
+                    <div className="space-y-2 text-sm text-stone-600">
+                      {deal.dates.map((date) => (
+                        <p key={date}>{date}</p>
+                      ))}
+                    </div>
+                  </div>
 
                   <a
                     href={deal.link}
@@ -230,119 +282,6 @@ export default function GeographiesDuCalme() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-20">
-            <p className="uppercase tracking-[0.3em] text-xs text-stone-500 mb-6">
-              Là où les voyageurs ralentissent
-            </p>
-
-            <h2 className="text-5xl font-light">
-              Certaines destinations semblent aujourd’hui offrir quelque chose de devenu étonnamment rare : un peu plus d’espace mental.
-            </h2>
-          </div>
-
-          <div className="space-y-24">
-            {destinations.map((destination) => (
-              <div
-                key={destination.title}
-                className="grid lg:grid-cols-2 gap-12 items-center"
-              >
-                <img
-                  src={destination.image}
-                  alt={destination.title}
-                  className="rounded-[2rem] h-[520px] w-full object-cover"
-                />
-
-                <div>
-                  <h3 className="text-5xl font-light mb-8">
-                    {destination.title}
-                  </h3>
-
-                  <p className="text-2xl leading-relaxed text-stone-700 mb-8">
-                    {destination.text}
-                  </p>
-
-                  <a
-                    href={destination.link}
-                    className="inline-block border border-stone-300 rounded-full px-5 py-3 text-sm hover:bg-stone-900 hover:text-white transition-all"
-                  >
-                    Découvrir la destination
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-stone-900 text-stone-100 py-32 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-20">
-            <p className="uppercase tracking-[0.3em] text-xs text-stone-400 mb-6">
-              Thématiques voyage de la semaine
-            </p>
-
-            <h2 className="text-5xl font-light max-w-5xl leading-tight">
-              De nouvelles attentes semblent progressivement transformer la manière dont beaucoup de voyageurs choisissent leurs destinations et leurs hôtels.
-            </h2>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1522798514-97ceb8c4f1c8?q=80&w=1800&auto=format&fit=crop"
-                className="h-72 w-full object-cover"
-              />
-
-              <div className="p-8">
-                <h3 className="text-3xl font-light mb-6">
-                  Les hôtels calmes deviennent plus désirables
-                </h3>
-
-                <p className="leading-relaxed text-stone-300">
-                  Beaucoup de voyageurs semblent aujourd’hui rechercher des hôtels plus silencieux, plus simples et moins démonstratifs. Une chambre lumineuse avec une belle vue ou un petit-déjeuner tranquille devient parfois plus désirable qu’un hôtel conçu uniquement pour impressionner.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1800&auto=format&fit=crop"
-                className="h-72 w-full object-cover"
-              />
-
-              <div className="p-8">
-                <h3 className="text-3xl font-light mb-6">
-                  L’hôtellerie s’éloigne progressivement de l’esthétique Instagram
-                </h3>
-
-                <p className="leading-relaxed text-stone-300">
-                  Beaucoup de lieux qui séduisent aujourd’hui semblent plus chaleureux, plus vivants et parfois légèrement imparfaits. L’atmosphère reprend progressivement le dessus sur la mise en scène.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-stone-800 rounded-[2rem] overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=1800&auto=format&fit=crop"
-                className="h-72 w-full object-cover"
-              />
-
-              <div className="p-8">
-                <h3 className="text-3xl font-light mb-6">
-                  Voyager confortablement redevient un vrai critère
-                </h3>
-
-                <p className="leading-relaxed text-stone-300">
-                  Beaucoup de voyageurs privilégient désormais des itinéraires plus simples, des horaires plus confortables et des trajets moins épuisants. Le voyage lui-même redevient progressivement une partie importante de l’expérience.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </section>
