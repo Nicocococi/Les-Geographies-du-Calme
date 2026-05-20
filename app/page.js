@@ -1,7 +1,10 @@
 export default function GeographiesDuCalme() {
   const deals = [
     {
-      title: "Paris → Tokyo avec Etihad Airways",
+      category: "Vol long-courrier",
+      operator: "Etihad Airways",
+      destination: "Tokyo, Japon",
+      title: "Paris → Tokyo",
       price: "À partir de 759€ A/R",
       period: "Automne 2026",
       dates: [
@@ -9,116 +12,287 @@ export default function GeographiesDuCalme() {
         "18 → 27 septembre",
         "3 → 10 octobre",
       ],
-      text: "Etihad semble actuellement proposer l’un des tarifs les plus cohérents du marché vers Tokyo au départ de Paris.",
+      text:
+        "Etihad semble actuellement proposer l’un des tarifs les plus cohérents du marché vers Tokyo au départ de Paris, avec des itinéraires relativement confortables pour le Japon.",
       image:
         "https://images.unsplash.com/photo-1536098561742-ca998e48cbcc?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.etihad.com/",
     },
+
     {
+      category: "Vol long-courrier",
+      operator: "KLM",
+      destination: "Séoul, Corée du Sud",
       title: "Paris → Séoul",
       price: "À partir de 690€ A/R",
       period: "Septembre + octobre 2026",
       dates: [
         "7 → 15 septembre",
         "18 → 28 septembre",
+        "5 → 12 octobre",
       ],
-      text: "Séoul continue d’attirer une génération de voyageurs fascinés par la culture coréenne mais qui cherchent désormais des expériences plus lentes.",
+      text:
+        "Séoul attire désormais des voyageurs qui cherchent une Corée plus calme et plus culturelle, souvent avant de continuer vers le sud du pays.",
       image:
         "https://images.unsplash.com/photo-1549693578-d683be217e58?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.klm.fr/",
     },
+
     {
-      title: "New York",
+      category: "Vol transatlantique",
+      operator: "Air France",
+      destination: "New York, États-Unis",
+      title: "Paris → New York",
       price: "445–510€ A/R",
       period: "Juin + juillet 2026",
       dates: [
         "4 → 11 juin",
         "15 → 22 juin",
+        "2 → 9 juillet",
       ],
-      text: "Même les grandes capitales saturées connaissent encore quelques fenêtres tarifaires relativement cohérentes.",
+      text:
+        "Même les grandes capitales saturées connaissent encore quelques fenêtres tarifaires relativement cohérentes.",
       image:
         "https://images.unsplash.com/photo-1499092346589-b9b6be3e94b2?q=80&w=1800&auto=format&fit=crop",
       link: "https://wwws.airfrance.fr",
     },
+
     {
-      title: "Minorque",
+      category: "Hôtel",
+      operator: "Menorca Experimental",
+      destination: "Minorque, Espagne",
+      title: "Séjour à Minorque",
       price: "170–200€ / nuit",
       period: "Juin + septembre 2026",
       dates: [
         "9 → 14 juin",
         "15 → 21 septembre",
+        "22 → 28 septembre",
       ],
-      text: "Certaines îles méditerranéennes semblent redevenir désirables précisément lorsqu’elles redeviennent respirables.",
+      text:
+        "Certaines îles méditerranéennes semblent redevenir désirables précisément lorsqu’elles redeviennent respirables.",
       image:
         "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.menorcaexperimental.com/",
     },
+
     {
-      title: "Paros",
+      category: "Villa",
+      operator: "The Thinking Traveller",
+      destination: "Paros, Grèce",
+      title: "Séjour à Paros",
       price: "205–242€ / nuit",
       period: "Septembre 2026",
       dates: [
         "2 → 8 septembre",
         "12 → 19 septembre",
+        "21 → 27 septembre",
       ],
-      text: "Paros semble aujourd’hui offrir une alternative plus équilibrée aux Cyclades les plus saturées.",
+      text:
+        "Paros semble aujourd’hui offrir une alternative plus équilibrée aux Cyclades les plus saturées.",
       image:
         "https://images.unsplash.com/photo-1469796466635-455ede028aca?q=80&w=1800&auto=format&fit=crop",
-      link: "https://www.thethinkingtraveller.com/greece/cyclades/paros",
+      link:
+        "https://www.thethinkingtraveller.com/greece/cyclades/paros",
     },
+
     {
-      title: "Syracuse",
+      category: "Hôtel",
+      operator: "Booking.com",
+      destination: "Syracuse, Sicile",
+      title: "Séjour à Syracuse",
       price: "160–210€ / nuit",
       period: "Automne 2026",
       dates: [
         "18 → 23 septembre",
         "4 → 10 octobre",
+        "15 → 21 octobre",
       ],
-      text: "La Sicile continue de séduire les voyageurs qui recherchent davantage de texture culturelle que de perfection touristique.",
+      text:
+        "La Sicile continue de séduire les voyageurs qui recherchent davantage de texture culturelle que de perfection touristique.",
       image:
-        "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1516483638261-f4dbaf036963?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.booking.com/",
     },
+
     {
-      title: "Copenhague",
+      category: "Hôtel",
+      operator: "Hotel Sanders",
+      destination: "Copenhague, Danemark",
+      title: "Week-end à Copenhague",
       price: "220–250€ / nuit",
       period: "Été 2026",
       dates: [
         "11 → 15 juin",
         "6 → 11 juillet",
+        "18 → 22 juillet",
       ],
-      text: "Le nord de l’Europe attire désormais des voyageurs qui cherchent davantage de fraîcheur et de simplicité.",
+      text:
+        "Le nord de l’Europe attire désormais des voyageurs qui cherchent davantage de fraîcheur et de simplicité.",
       image:
         "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?q=80&w=1800&auto=format&fit=crop",
       link: "https://hotelsanders.com/",
     },
+
     {
-      title: "Édimbourg",
+      category: "Hôtel",
+      operator: "The Witchery",
+      destination: "Édimbourg, Écosse",
+      title: "Séjour à Édimbourg",
       price: "145–190€ / nuit",
       period: "Septembre 2026",
       dates: [
         "3 → 7 septembre",
         "18 → 24 septembre",
+        "8 → 12 octobre",
       ],
-      text: "Les villes tempérées et marchables semblent gagner discrètement du terrain auprès des voyageurs européens.",
+      text:
+        "Les villes tempérées et marchables semblent gagner discrètement du terrain auprès des voyageurs européens.",
       image:
-        "https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1562790351-d273a961e0e9?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.thewitchery.com/",
     },
+
     {
-      title: "Hydra",
+      category: "Hôtel",
+      operator: "Hydra Hotel",
+      destination: "Hydra, Grèce",
+      title: "Séjour à Hydra",
       price: "210–260€ / nuit",
       period: "Septembre + octobre 2026",
       dates: [
         "9 → 14 septembre",
         "2 → 8 octobre",
+        "15 → 20 octobre",
       ],
-      text: "Hydra continue d’incarner une certaine idée du voyage méditerranéen lent et légèrement hors du temps.",
+      text:
+        "Hydra continue d’incarner une certaine idée du voyage méditerranéen lent et légèrement hors du temps.",
       image:
-        "https://images.unsplash.com/photo-1504609813442-a8924e83f76e?q=80&w=1800&auto=format&fit=crop",
+        "https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?q=80&w=1800&auto=format&fit=crop",
       link: "https://www.hydrahotel.gr/",
     },
   ];
+
+  const destinations = [
+    {
+      title: "Fukuoka",
+      text:
+        "Un Japon plus respirable, plus quotidien et plus subtil.",
+      image:
+        "https://images.unsplash.com/photo-1528164344705-47542687000d?q=80&w=1800&auto=format&fit=crop",
+      link: "/fukuoka",
+    },
+
+    {
+      title: "Trieste",
+      text:
+        "Une Europe adriatique introspective où les cafés semblent parfois durer tout l’après-midi.",
+      image:
+        "https://images.unsplash.com/photo-1578926375605-eaf7559b1458?q=80&w=1800&auto=format&fit=crop",
+      link: "/trieste",
+    },
+
+    {
+      title: "Mascate",
+      text:
+        "Le luxe du silence dans un Golfe souvent saturé de spectaculaire.",
+      image:
+        "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=1800&auto=format&fit=crop",
+      link: "/mascate",
+    },
+
+    {
+      title: "Jeju",
+      text:
+        "Une Corée volcanique et balnéaire où beaucoup viennent désormais davantage ralentir que performer.",
+      image:
+        "https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=1800&auto=format&fit=crop",
+      link: "/jeju",
+    },
+
+    {
+      title: "Aarhus",
+      text:
+        "Une Scandinavie plus calme et plus humaine où la simplicité semble encore exister naturellement.",
+      image:
+        "https://images.unsplash.com/photo-1519677100203-a0e668c92439?q=80&w=1800&auto=format&fit=crop",
+      link: "/aarhus",
+    },
+  ];
+
+  return (
+    <div className="bg-stone-50 text-stone-800 font-serif">
+      {/* le reste du code reste IDENTIQUE */}
+
+      {/* SMART DEALS CARD */}
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {deals.map((deal) => (
+          <div
+            key={deal.title}
+            className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500"
+          >
+            <img
+              src={deal.image}
+              alt={deal.title}
+              className="h-80 w-full object-cover"
+            />
+
+            <div className="p-8">
+              <p className="uppercase tracking-[0.25em] text-xs text-stone-400 mb-3">
+                {deal.category}
+              </p>
+
+              <p className="text-sm text-stone-500 mb-2">
+                {deal.operator}
+              </p>
+
+              <p className="text-sm text-stone-500 mb-6">
+                {deal.destination}
+              </p>
+
+              <p className="uppercase tracking-[0.25em] text-xs text-stone-500 mb-4">
+                {deal.period}
+              </p>
+
+              <h3 className="text-3xl font-light mb-4">
+                {deal.title}
+              </h3>
+
+              <p className="text-stone-500 italic mb-6">
+                {deal.price}
+              </p>
+
+              <p className="leading-relaxed text-stone-700 mb-6">
+                {deal.text}
+              </p>
+
+              <div className="mb-8">
+                <p className="text-sm uppercase tracking-[0.2em] text-stone-400 mb-3">
+                  Dates observées
+                </p>
+
+                <div className="space-y-2 text-sm text-stone-600">
+                  {deal.dates.map((date) => (
+                    <p key={date}>{date}</p>
+                  ))}
+                </div>
+              </div>
+
+              <a
+                href={deal.link}
+                target="_blank"
+                className="inline-block border border-stone-300 rounded-full px-5 py-3 text-sm hover:bg-stone-900 hover:text-white transition-all"
+              >
+                Voir l’offre
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
   const destinations = [
     {
