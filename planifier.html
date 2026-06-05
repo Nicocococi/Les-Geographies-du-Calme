@@ -634,34 +634,25 @@ body.gate-mode { background: transparent; }
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
 /* TRANCHES — cartes éditoriaux */
-/* FIL VERTICAL D'ITINÉRAIRE */
+/* MARQUEURS D'ITINÉRAIRE */
 .itineraire-fil {
   position: relative;
-  padding-left: 1.5em;
-}
-.itineraire-fil::before {
-  content: '';
-  position: absolute;
-  left: 0.38em;
-  top: 1.2em;
-  bottom: 1.2em;
-  width: 1.5px;
-  background: linear-gradient(to bottom, transparent 0%, #AFA99F 5%, #AFA99F 95%, transparent 100%);
+  padding-left: 1.6em;
 }
 .fil-item {
   position: relative;
-  margin-bottom: 1.1em;
+  margin-bottom: 1em;
 }
 .fil-item::before {
   content: '';
   position: absolute;
-  left: -1.4em;
-  top: 1.1em;
-  width: 9px;
-  height: 9px;
+  left: -1.05em;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--beige);
-  border: 2px solid #9A8878;
+  background: #C4B09A;
   z-index: 2;
 }
 
@@ -1874,9 +1865,10 @@ function buildPointsHtml(points_chute) {
   </div>`;
 }
 
-function stripQuartier(nom, quartier) {
-  if (!nom || !quartier) return nom || '';
-  return nom.replace(new RegExp(',\\s*' + quartier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'i'), '').trim();
+function stripNom(nom) {
+  if (!nom) return '';
+  const i = nom.indexOf(',');
+  return i > 0 ? nom.substring(0, i).trim() : nom;
 }
 
 function renderTrancheBlock(t, jourKey, panel, quartier) {
@@ -1885,13 +1877,14 @@ function renderTrancheBlock(t, jourKey, panel, quartier) {
   const div = document.createElement('div');
   div.className = 'tranche-block';
   div.id = 'tblock-'+jourKey+'-'+t.id;
-  const nom = stripQuartier(t.nom, quartier);
-  const heureStr = getDuree(t.heure, t.heure_fin);
+  const nom = stripNom(t.nom);
+  const dureeStr = getDuree(t.heure, t.heure_fin);
+  const heureHtml = dureeStr ? '<div class="tranche-heure-sous">' + dureeStr + '</div>' : '';
   const pointsHtml = buildPointsHtml(t.points_chute);
   div.innerHTML = `
     <div class="tranche-body">
       <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${nom}</div>
-      ${heureStr ? `<div class="tranche-heure-sous">🕒 ${heureStr}</div>` : ''}
+      ${heureHtml}
       <div class="tranche-texte" id="texte-${jourKey}-${t.id}">${t.texte||''}</div>
       <div id="points-${jourKey}-${t.id}">${pointsHtml}</div>
     </div>
