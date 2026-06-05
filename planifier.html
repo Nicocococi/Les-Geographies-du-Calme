@@ -616,8 +616,6 @@ body.gate-mode { background: transparent; }
 .jour-tab.done.active { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
 .jour-panel { display: none; }
 .jour-panel.active { display: block; }
-.jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
-
 .jour-quartier-header {
   font-family: var(--font-serif);
   font-size: 1.05em;
@@ -633,6 +631,7 @@ body.gate-mode { background: transparent; }
   border-bottom: 1px solid var(--bordure);
   margin-bottom: 1.4em;
 }
+.jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
 /* TRANCHES — cartes éditoriaux */
 .tranche-block {
@@ -1066,7 +1065,7 @@ const MODEL = 'claude-haiku-4-5-20251001';
 const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresses se mettent en place…','On trace le rythme de la journée…','Derniers ajustements avant le départ…','On choisit les tables qui valent le détour…','L\'itinéraire prend forme…'];
 
 // ── MONITORING ──────────────────────────────────────────
-const LIMITS = { none: 0, lecteur: 2, voyageur: 20 };
+const LIMITS = { none: 2, lecteur: 5, voyageur: 20 };
 const URL_ABONNEMENT = 'https://geocalme.com/abonnement/#/portal/signup';
 let memberTier = 'none'; // sera mis à jour par checkMember()
 
@@ -1312,7 +1311,25 @@ function selectTheme(el) {
 let mapboxToken = null;
 const dayMaps = {}; // jourKey → { map, markers: { trancheId: mapboxgl.Marker } }
 const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11';
-const TRANCHE_COLORS = { 'Matin': '#E89A3C', 'Midi': '#D96B52', 'Après-midi': '#5B8A7A', 'Soir': '#4A4280' };
+// Couleur dynamique selon l'heure de début (indépendant du label texte)
+function getTrancheColor(heure) {
+  const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
+  if (h < 10) return '#F5D78E';   // 06h-10h → or clair
+  if (h < 14) return '#C9A84C';   // 10h-14h → doré
+  if (h < 18) return '#E8953A';   // 14h-18h → ambre
+  if (h < 22) return '#B5652A';   // 18h-22h → cuivre
+  return '#2D3561';               // 22h-02h → bleu nuit
+}
+function getTrancheIcon(heure) {
+  const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
+  if (h < 10) return '🌅';
+  if (h < 12) return '☀️';
+  if (h < 15) return '🍽️';
+  if (h < 19) return '🌇';
+  if (h < 21) return '🌆';
+  return '🌙';
+}
+const TRANCHE_COLORS = {}; // conservé pour compatibilité carte Mapbox
 
 function loadMapboxGL() {
   return new Promise((resolve, reject) => {
@@ -1360,10 +1377,10 @@ async function geocodePlace(placeName, destination) {
   return null;
 }
 
-function createMarkerEl(label, nom) {
+function createMarkerEl(label, nom, heure) {
   const el = document.createElement('div');
-  const color = TRANCHE_COLORS[label] || '#B5976A';
-  const emoji = TRANCHE_ICONS[label] || '📍';
+  const color = getTrancheColor(heure || '') || '#B5976A';
+  const emoji = getTrancheIcon(heure || '') || '📍';
   el.style.cssText = 'width:30px;height:30px;border-radius:50%;background:' + color + ';border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;transition:transform 0.18s;';
   el.textContent = emoji;
   el.title = nom;
@@ -1425,7 +1442,7 @@ async function initDayMap(jourKey, tranches, destination) {
     });
     // Markers
     valid.forEach(r => {
-      const el = createMarkerEl(r.t.label, r.t.nom);
+      const el = createMarkerEl(r.t.label, r.t.nom, r.t.heure);
       const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
         .setLngLat([r.coords.lng, r.coords.lat])
         .setPopup(new mapboxgl.Popup({ offset: 18, closeButton: false })
@@ -1652,17 +1669,24 @@ function buildPromptTranches(dest, duree, budget, periode, styleLabel, numJour, 
     : '';
   const isGastro = themes.includes('Gastronomie et Terroirs');
   const regleRepas = isGastro
-    ? '- Gastronomie : les 4 tranches peuvent tourner autour de la table, des marchés, des caves'
-    : '- Repas : 1 seul moment "repas" autorisé sur les 4 tranches (Midi OU Soir, pas les deux). La tranche Matin n\'est jamais un restaurant ou marché alimentaire.';
+    ? '- Gastronomie : plusieurs tranches peuvent tourner autour de la table, des marchés, des caves'
+    : '- Repas : 1 seul moment "repas" autorisé par journée (entre 12h00 et 22h00). Avant 10h00, ne jamais proposer restaurant ou marché alimentaire.';
 
-  return `Génère exactement 4 tranches horaires pour ${prefixeJour}${dest}.
+  return `Génère un programme heure par heure pour ${prefixeJour}${dest}.
 Budget : ${budgetDesc}. Style : ${styleLabel}. Période : ${periode}.
 ${quartierClause}
 ${activiteClause}
 ${historiqueClause}
 
+PRINCIPE FONDAMENTAL : chaque bloc = UNE activité spécifique avec une durée calée sur sa nature réelle. La journée se lit comme un vrai programme de visite, activité par activité.
+
 RÈGLES :
-- 4 tranches : Matin, Midi, Après-midi, Soir
+- INTERDIT d'utiliser "Matin", "Midi", "Après-midi", "Soir" comme label — ce sont des activités concrètes, pas des moments de la journée
+- STRICTEMENT entre 6 et 8 blocs par journée (jamais plus de 8, jamais moins de 6), couvrant ~8h00 à ~22h30
+- Chaque label = le nom de l'activité (4 à 6 mots max), ex : "Petit déjeuner au salon de thé", "Visite de Notre-Dame", "Flânerie rue Saint-Louis", "Bateau-mouche sur la Seine", "Dîner au bistrot local"
+- Durées réalistes : café/petit déj = 45min à 1h30 ; visite monument = 1h30 à 2h30 ; marché/flânerie = 1h à 2h ; repas = 1h à 1h30 ; balade = 1h à 2h
+- Les blocs sont continus : fin d'un bloc = début du suivant (±15 min de trajet)
+- Le dernier bloc peut être "Retour à l'hébergement / temps libre" sans lieu précis
 - Toutes les adresses dans le quartier indiqué, cohérentes géographiquement
 - Le style "${styleLabel}" dicte les activités :
   "Gastronomie et Terroirs" → marchés alimentaires, épiceries fines, bars à vins, restaurants, caves
@@ -1673,45 +1697,41 @@ RÈGLES :
   "Vie Locale et Festivité" → bars musicaux, live music, fêtes locales, marchés nocturnes
   "Bien-être & Déconnexion" → spas, hammams, yoga, promenades lentes — rythme lent
 ${regleRepas}
-- Chaque tranche propose un TYPE d'activité différent des autres tranches du même jour
-- Ton : factuel et précis. Adresse exacte, prix en monnaie locale, quartier obligatoires. Anecdote courte si vérifiable. Aucun enthousiasme artificiel, aucun tutoiement.
-- Prix : si le montant exact n'est pas certain, utiliser "aux alentours de X€" pour les petits montants (moins de 15€), et "entre X€ et Y€" (fourchette courte et réaliste) pour les montants supérieurs à 15€. Ne jamais inventer un prix précis si incertain.
-- 60 mots max par texte
+- Ton : factuel et précis. Adresse exacte, prix en monnaie locale, quartier obligatoires. Conseil pratique si pertinent (billet coupe-file, réservation, rue à ne pas manquer). Aucun enthousiasme artificiel, aucun tutoiement.
+- Prix : "aux alentours de X€" si moins de 15€ et incertain, "entre X€ et Y€" si plus de 15€. Ne jamais inventer un prix précis.
+- 70 mots max par texte
 
-Réponds UNIQUEMENT avec ce format exact :
-TRANCHE|Matin|7h00|10h00
-NOM|Nom exact du lieu, quartier
-TITRE|Titre court
-TEXTE|texte avec prix en monnaie locale
-POINT|Lieu exact, quartier|Détail concret avec prix
-POINT|Lieu exact, quartier|Détail concret avec prix
+Réponds UNIQUEMENT avec ce format (LABEL = nom de l'activité, jamais Matin/Midi/Après-midi/Soir) :
+TRANCHE|Petit déjeuner au salon de thé|8h00|9h30
+NOM|Salon de thé Mariage Frères, Île de la Cité
+TITRE|Croissant pistache et thé du matin
+TEXTE|Salon de thé fondé en 1854, spécialisé dans les thés d'origine. Croissant fourré à la pistache aux alentours de 4,50 €, formule petit déjeuner entre 14 € et 18 €. Arriver tôt, les places sont limitées.
+POINT|30 rue du Bourg-Tibourg, Marais|Ouvert dès 8h, service au comptoir possible pour aller plus vite
 ---
-TRANCHE|Midi|12h00|14h00
-NOM|Nom exact du lieu, quartier
-TITRE|Titre court
-TEXTE|texte avec prix
-POINT|Lieu exact, quartier|Détail avec prix
+TRANCHE|Visite de Notre-Dame de Paris|9h45|11h30
+NOM|Cathédrale Notre-Dame, Île de la Cité
+TITRE|L'incontournable restaurée
+TEXTE|Rouverte en décembre 2024 après l'incendie de 2019. Entrée gratuite, billet coupe-file recommandé (réservation sur notredamedeparis.fr). Construite entre 1163 et 1345. Prévoir 1h30 de visite minimum pour les tours et la nef.
+POINT|6 Parvis Notre-Dame, Île de la Cité|Billet tours : aux alentours de 10 €, réservable en ligne
 ---
-TRANCHE|Après-midi|14h30|18h00
-NOM|Nom exact du lieu, quartier
-TITRE|Titre court
-TEXTE|texte avec prix
-POINT|Lieu exact, quartier|Détail avec prix
----
-TRANCHE|Soir|19h00|22h00
-NOM|Nom exact du lieu, quartier
-TITRE|Titre court
-TEXTE|texte avec prix
-POINT|Lieu exact, quartier|Détail avec prix`;
+TRANCHE|Flânerie dans les rues du Vieux Paris|11h45|13h30
+NOM|Île de la Cité et alentours, Paris 1er
+TITRE|Déambulation dans le Paris médiéval
+TEXTE|Longer le quai aux Fleurs, traverser la place Dauphine, descendre la rue de Lutèce. Ne pas manquer la Sainte-Chapelle (billet entre 11 € et 13 €) ni le marché aux fleurs le dimanche.
+POINT|Rue de Lutèce, Île de la Cité|La rue conserve plusieurs façades médiévales
+POINT|Place Dauphine, Paris 1er|L'une des plus calmes du quartier, idéale pour une pause`;
 }
 
 function buildPromptAlternatives(dest, budget, periode, styleLabel, tranches, quartier) {
-  const tranchesList = tranches.map(t => `${t.id}|${t.label}|${t.nom}`).join('\n');
+  const tranchesList = tranches.map(t => `${t.id}|${t.label}|${t.heure}–${t.heure_fin}|${t.nom}`).join('\n');
   const quartierClause = quartier ? `Quartier du jour : ${quartier}. Toutes les alternatives restent dans ce quartier.` : '';
   return `Génère les alternatives B et C pour chaque tranche de l'itinéraire de ${dest}. Budget : ${budget}. Style : ${styleLabel}.
 ${quartierClause}
 
-RÈGLES : B et C complètement différentes de A et entre elles (type d'activité différent, pas seulement une autre adresse du même type), dans le même quartier. Adresses précises avec prix en monnaie locale. Prix : "aux alentours de X€" si moins de 15€ et incertain, "entre X€ et Y€" si plus de 15€. 60 mots max. Ton factuel, pas de tutoiement, pas d'enthousiasme artificiel.
+RÈGLES :
+- B et C complètement différentes de A et entre elles (type d'activité différent, pas seulement une autre adresse du même type), dans le même quartier
+- CRITIQUE : les alternatives B et C couvrent EXACTEMENT la même plage horaire que l'option A (mêmes heures de début et de fin indiquées dans TRANCHES ci-dessous). Ne pas modifier les horaires.
+- Adresses précises avec prix en monnaie locale. Prix : "aux alentours de X€" si moins de 15€ et incertain, "entre X€ et Y€" si plus de 15€. 60 mots max. Ton factuel, pas de tutoiement, pas d'enthousiasme artificiel.
 
 TRANCHES :
 ${tranchesList}
@@ -1819,7 +1839,7 @@ function parseOneTranche(bloc, idx) {
   return t.nom ? t : null;
 }
 
-const TRANCHE_ICONS = { 'Matin': '🌅', 'Midi': '☀️', 'Après-midi': '🌇', 'Soir': '🌙' };
+const TRANCHE_ICONS = {}; // remplacé par getTrancheIcon(heure)
 
 function buildPointsHtml(points_chute) {
   if (!points_chute || !points_chute.length) return '';
@@ -1833,16 +1853,14 @@ function renderTrancheBlock(t, jourKey, panel) {
   const div = document.createElement('div');
   div.className = 'tranche-block';
   div.id = 'tblock-'+jourKey+'-'+t.id;
-  const icon = TRANCHE_ICONS[t.label] || '';
-  const color = TRANCHE_COLORS[t.label] || '#B5976A';
+  const color = getTrancheColor(t.heure);
   const pointsHtml = buildPointsHtml(t.points_chute);
   div.innerHTML = `
     <div class="tranche-header">
       <div class="tranche-label-wrap">
-        <span class="tranche-icon">${icon}</span>
         <span class="tranche-label">${t.label}</span>
       </div>
-      <div class="tranche-time" style="background:${color};">${t.heure}${t.heure_fin?' – '+t.heure_fin:''}</div>
+      <div class="tranche-time" style="background:${color};">${t.heure}</div>
     </div>
     <div class="tranche-body">
       <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${t.nom||''}</div>
@@ -2038,14 +2056,14 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     }
     if (tranches.length === 0) throw new Error('Aucune tranche');
 
-    tranches.forEach(t => { if (t.nom) historiqueActivites.push(t.nom); });
-
-    // Résumé du jour dans le bandeau
+    // Update day summary
     const sumEl = document.getElementById('summary-j' + num);
     if (sumEl && tranches.length > 0) {
       const t0 = tranches[0], tN = tranches[tranches.length - 1];
-      sumEl.textContent = `${tranches.length} tranche${tranches.length > 1 ? 's' : ''} · ${t0.heure || ''}${tN && tN.heure_fin ? ' → ' + tN.heure_fin : ''}`;
+      sumEl.textContent = `${tranches.length} activité${tranches.length > 1 ? 's' : ''} · ${t0.heure || ''}${tN && tN.heure_fin ? ' → ' + tN.heure_fin : ''}`;
     }
+
+    tranches.forEach(t => { if (t.nom) historiqueActivites.push(t.nom); });
 
     // Carte du jour — ajout du conteneur
     const mapWrap = document.createElement('div');
