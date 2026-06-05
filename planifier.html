@@ -1080,22 +1080,31 @@ function getRemainingGenerations() {
 }
 
 async function checkMember() {
-  try {
-    const res = await fetch('/members/api/member', { credentials: 'include' });
-    if (!res.ok) { memberTier = 'none'; return; }
-    const data = await res.json();
-    // Paid member = has active subscription OR complementary access
-    if (
-      data.comped === true ||
-      (data.subscriptions && data.subscriptions.some(s => s.status === 'active' || s.status === 'comped'))
-    ) {
-      memberTier = 'voyageur';
-    } else {
-      memberTier = 'lecteur';
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { memberTier = 'none'; resolve(); }, 4000);
+    function handler(e) {
+      if (e.data && e.data.type === 'member-status') {
+        clearTimeout(timer);
+        window.removeEventListener('message', handler);
+        const data = e.data.data;
+        if (data) {
+          if (
+            data.comped === true ||
+            (data.subscriptions && data.subscriptions.some(s => s.status === 'active' || s.status === 'comped'))
+          ) {
+            memberTier = 'voyageur';
+          } else {
+            memberTier = 'lecteur';
+          }
+        } else {
+          memberTier = 'none';
+        }
+        resolve();
+      }
     }
-  } catch(e) {
-    memberTier = 'none';
-  }
+    window.addEventListener('message', handler);
+    window.parent.postMessage('request-member-status', '*');
+  });
 }
 
 function showGate() {
