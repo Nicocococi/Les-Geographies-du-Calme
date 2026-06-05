@@ -690,6 +690,8 @@ body.gate-mode { background: transparent; }
   margin-bottom: 0.9em;
 }
 .points-chute {
+  border-left: 3px solid var(--or);
+  padding-left: 0.9em;
   margin-bottom: 0.8em;
 }
 .points-titre {
@@ -1314,9 +1316,9 @@ const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11';
 // Couleur dynamique selon l'heure de début (indépendant du label texte)
 function getTrancheColor(heure) {
   const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
-  if (h < 10) return '#F5D78E';   // 06h-10h → or clair
-  if (h < 14) return '#C9A84C';   // 10h-14h → doré
-  if (h < 18) return '#E8953A';   // 14h-18h → ambre
+  if (h < 10) return '#C9A84C';   // 06h-10h → doré lisible
+  if (h < 14) return '#B8883A';   // 10h-14h → ambre chaud
+  if (h < 18) return '#E8953A';   // 14h-18h → ambre vif
   if (h < 22) return '#B5652A';   // 18h-22h → cuivre
   return '#2D3561';               // 22h-02h → bleu nuit
 }
@@ -1860,7 +1862,7 @@ function renderTrancheBlock(t, jourKey, panel) {
       <div class="tranche-label-wrap">
         <span class="tranche-label">${t.label}</span>
       </div>
-      <div class="tranche-time" style="background:${color};">${t.heure}</div>
+      <div class="tranche-time" style="background:${color};">${t.heure}${t.heure_fin?' – '+t.heure_fin:''}</div>
     </div>
     <div class="tranche-body">
       <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${t.nom||''}</div>
@@ -2036,7 +2038,7 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     if (quartier) {
       const qh = document.createElement('div');
       qh.className = 'jour-quartier-header';
-      qh.innerHTML = `📍 Jour ${num} — ${quartier}`;
+      qh.innerHTML = `Jour ${num} — ${quartier}`;
       panel.appendChild(qh);
     }
     // Day summary placeholder
