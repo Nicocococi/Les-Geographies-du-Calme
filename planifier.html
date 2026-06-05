@@ -634,54 +634,75 @@ body.gate-mode { background: transparent; }
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
 /* TRANCHES — cartes éditoriaux */
+/* FIL VERTICAL D'ITINÉRAIRE */
+.itineraire-fil {
+  position: relative;
+  padding-left: 2em;
+}
+.itineraire-fil::before {
+  content: '';
+  position: absolute;
+  left: 0.5em;
+  top: 1.2em;
+  bottom: 1.2em;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent 0%, #D4C9B8 8%, #D4C9B8 92%, transparent 100%);
+}
+.fil-item {
+  position: relative;
+  margin-bottom: 1.4em;
+}
+.fil-item::before {
+  content: '';
+  position: absolute;
+  left: -1.32em;
+  top: 1.15em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #FFF8F0;
+  border: 1.5px solid #C4B09A;
+  z-index: 2;
+}
+
 .tranche-block {
   background: var(--blanc);
   border: 1.5px solid #D9CFC0;
   border-radius: 8px;
-  margin-bottom: 1.4em;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   transition: box-shadow 0.2s;
 }
 .tranche-block:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.11); }
 
-.tranche-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75em 1.4em;
-  border-bottom: 1px solid var(--bordure);
-  background: #FDFCF9;
-}
-.tranche-label-wrap { display: flex; align-items: center; gap: 0.5em; }
-.tranche-icon { font-size: 0.9em; line-height: 1; }
-.tranche-label {
-  font-size: 0.58em;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--or);
-}
-.tranche-time {
-  font-size: 0.62em;
-  color: #fff;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  padding: 0.28em 0.8em;
-  border-radius: 100px;
-  letter-spacing: 0.05em;
-}
-
-/* Corps tranche — option A principale */
+/* Corps tranche */
 .tranche-body { padding: 1.3em 1.4em 1em; }
+.tranche-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  margin-bottom: 0.45em;
+}
 .tranche-nom {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
   font-size: 1.18em;
   color: var(--noir);
-  margin-bottom: 0.45em;
   line-height: 1.25;
+  flex: 1;
+}
+.tranche-time-inline {
+  font-size: 0.6em;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: 0.22em 0.72em;
+  border-radius: 100px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .tranche-texte {
   font-size: 0.84em;
@@ -1852,20 +1873,19 @@ function buildPointsHtml(points_chute) {
 }
 
 function renderTrancheBlock(t, jourKey, panel) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'fil-item';
   const div = document.createElement('div');
   div.className = 'tranche-block';
   div.id = 'tblock-'+jourKey+'-'+t.id;
   const color = getTrancheColor(t.heure);
   const pointsHtml = buildPointsHtml(t.points_chute);
   div.innerHTML = `
-    <div class="tranche-header">
-      <div class="tranche-label-wrap">
-        <span class="tranche-label">${t.label}</span>
-      </div>
-      <div class="tranche-time" style="background:${color};">${t.heure}${t.heure_fin?' – '+t.heure_fin:''}</div>
-    </div>
     <div class="tranche-body">
-      <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${t.nom||''}</div>
+      <div class="tranche-title-row">
+        <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${t.nom||''}</div>
+        <div class="tranche-time-inline" style="background:${color};">${t.heure}${t.heure_fin?' – '+t.heure_fin:''}</div>
+      </div>
       <div class="tranche-texte" id="texte-${jourKey}-${t.id}">${t.texte||''}</div>
       <div id="points-${jourKey}-${t.id}">${pointsHtml}</div>
     </div>
@@ -1878,7 +1898,8 @@ function renderTrancheBlock(t, jourKey, panel) {
       </div>
     </div>
     <div class="passe2-bar visible" id="p2bar-${jourKey}-${t.id}"><div class="p2dot"></div><div class="p2dot"></div><div class="p2dot"></div> Alternatives en cours de composition…</div>`;
-  panel.appendChild(div);
+  wrapper.appendChild(div);
+  panel.appendChild(wrapper);
   div.style.opacity = '0'; div.style.transform = 'translateY(8px)'; div.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
   requestAnimationFrame(() => { div.style.opacity = '1'; div.style.transform = 'translateY(0)'; });
 }
@@ -2047,13 +2068,19 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     summaryEl.id = 'summary-j' + num;
     panel.appendChild(summaryEl);
 
+    // Fil vertical d'itinéraire
+    const filEl = document.createElement('div');
+    filEl.className = 'itineraire-fil';
+    filEl.id = 'fil-j' + num;
+    panel.appendChild(filEl);
+
     for (let i = 0; i < parts.length; i++) {
       const tranche = parseOneTranche(parts[i], i);
       if (tranche) {
         tranches.push(tranche);
         joursData[jourKey][tranche.id] = { a: tranche };
         await new Promise(r => setTimeout(r, i === 0 ? 0 : 180));
-        renderTrancheBlock(tranche, jourKey, panel);
+        renderTrancheBlock(tranche, jourKey, filEl);
       }
     }
     if (tranches.length === 0) throw new Error('Aucune tranche');
