@@ -619,20 +619,20 @@ body.gate-mode { background: transparent; }
 .jour-quartier-header {
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 1.35em;
+  font-size: 1.6em;
   font-weight: 400;
   color: var(--noir);
-  padding: 1.4em 1.4em 0.2em;
-  letter-spacing: -0.01em;
+  padding: 1.4em 1.4em 0.15em;
+  letter-spacing: -0.02em;
 }
 .jour-day-summary {
-  font-size: 0.75em;
+  font-size: 0.72em;
   color: var(--gris);
-  padding: 0.15em 1.4em 1.4em;
-  letter-spacing: 0.06em;
+  padding: 0.1em 1.4em 1.2em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border-bottom: 1px solid var(--bordure);
-  margin-bottom: 1.6em;
+  margin-bottom: 1.4em;
 }
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
@@ -640,62 +640,63 @@ body.gate-mode { background: transparent; }
 /* MARQUEURS D'ITINÉRAIRE */
 .itineraire-fil {
   position: relative;
-  padding-left: 2em;
+  padding-left: 2.2em;
 }
 .itineraire-fil::before {
   content: '';
   position: absolute;
-  left: 0.62em;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: #D8CFC6;
+  left: 0.72em;
+  top: 0.5em;
+  bottom: 0.5em;
+  width: 2px;
+  background: #C8BAA8;
   z-index: 0;
 }
 .fil-item {
   position: relative;
-  margin-bottom: 0.7em;
+  margin-bottom: 0.8em;
 }
 .fil-item::before {
   content: '';
   position: absolute;
-  left: -1.42em;
-  top: 1.15em;
-  width: 7px;
-  height: 7px;
+  left: -1.58em;
+  top: 1.0em;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #B59768;
   border: 2px solid var(--beige);
   z-index: 2;
+  box-shadow: 0 0 0 1px #C8BAA8;
 }
 
 .tranche-block {
   background: var(--blanc);
-  border: 1px solid #EAE4DC;
-  border-radius: 4px;
+  border: none;
+  border-bottom: 1px solid #EDE8E1;
+  border-radius: 0;
   overflow: hidden;
   box-shadow: none;
-  transition: box-shadow 0.2s;
 }
-.tranche-block:hover { box-shadow: 0 1px 8px rgba(0,0,0,0.05); }
+.tranche-block:hover { background: #FDFCFA; }
 
 /* Corps tranche */
-.tranche-body { padding: 0.75em 1em 0.5em; }
+.tranche-body { padding: 0.9em 1em 0.5em; }
 .tranche-nom {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 1.55em;
+  font-size: 1.7em;
   color: var(--noir);
   line-height: 1.2;
-  margin-bottom: 0.2em;
+  margin-bottom: 0.25em;
 }
 .tranche-heure-sous {
   font-family: var(--font-sans);
-  font-size: 0.78em;
-  color: #7A7A7A;
-  margin-bottom: 0.75em;
-  letter-spacing: 0.01em;
+  font-size: 0.82em;
+  color: #8B7355;
+  margin-bottom: 1em;
+  letter-spacing: 0.02em;
 }
 .tranche-texte {
   font-size: 0.84em;
