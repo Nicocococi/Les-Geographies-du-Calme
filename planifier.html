@@ -1084,8 +1084,11 @@ async function checkMember() {
     const res = await fetch('/members/api/member', { credentials: 'include' });
     if (!res.ok) { memberTier = 'none'; return; }
     const data = await res.json();
-    // Paid member = has active subscription
-    if (data.subscriptions && data.subscriptions.some(s => s.status === 'active')) {
+    // Paid member = has active subscription OR complementary access
+    if (
+      data.comped === true ||
+      (data.subscriptions && data.subscriptions.some(s => s.status === 'active' || s.status === 'comped'))
+    ) {
       memberTier = 'voyageur';
     } else {
       memberTier = 'lecteur';
