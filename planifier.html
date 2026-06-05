@@ -618,16 +618,33 @@ body.gate-mode { background: transparent; }
 .jour-panel.active { display: block; }
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
+.jour-quartier-header {
+  font-family: var(--font-serif);
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--texte);
+  padding: 1em 1.4em 0.3em;
+}
+.jour-day-summary {
+  font-size: 0.78em;
+  color: var(--gris);
+  padding: 0 1.4em 1.2em;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--bordure);
+  margin-bottom: 1.4em;
+}
+
 /* TRANCHES — cartes éditoriaux */
 .tranche-block {
   background: var(--blanc);
-  border: 1px solid var(--bordure);
+  border: 1.5px solid #D9CFC0;
   border-radius: 8px;
-  margin-bottom: 1.2em;
+  margin-bottom: 1.4em;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   transition: box-shadow 0.2s;
 }
-.tranche-block:hover { box-shadow: 0 3px 16px rgba(0,0,0,0.05); }
+.tranche-block:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.11); }
 
 .tranche-header {
   display: flex;
@@ -647,14 +664,13 @@ body.gate-mode { background: transparent; }
   color: var(--or);
 }
 .tranche-time {
-  font-size: 0.6em;
-  color: var(--gris);
+  font-size: 0.62em;
+  color: #fff;
   font-variant-numeric: tabular-nums;
-  background: var(--beige);
-  padding: 0.2em 0.65em;
+  font-weight: 700;
+  padding: 0.28em 0.8em;
   border-radius: 100px;
-  border: 1px solid var(--bordure);
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
 }
 
 /* Corps tranche — option A principale */
@@ -1818,6 +1834,7 @@ function renderTrancheBlock(t, jourKey, panel) {
   div.className = 'tranche-block';
   div.id = 'tblock-'+jourKey+'-'+t.id;
   const icon = TRANCHE_ICONS[t.label] || '';
+  const color = TRANCHE_COLORS[t.label] || '#B5976A';
   const pointsHtml = buildPointsHtml(t.points_chute);
   div.innerHTML = `
     <div class="tranche-header">
@@ -1825,7 +1842,7 @@ function renderTrancheBlock(t, jourKey, panel) {
         <span class="tranche-icon">${icon}</span>
         <span class="tranche-label">${t.label}</span>
       </div>
-      <div class="tranche-time">${t.heure}${t.heure_fin?' – '+t.heure_fin:''}</div>
+      <div class="tranche-time" style="background:${color};">${t.heure}${t.heure_fin?' – '+t.heure_fin:''}</div>
     </div>
     <div class="tranche-body">
       <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${t.nom||''}</div>
@@ -1997,6 +2014,19 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     if (loading) loading.style.display = 'none';
     if (parts.length === 0) throw new Error('Aucune tranche');
 
+    // Quartier header
+    if (quartier) {
+      const qh = document.createElement('div');
+      qh.className = 'jour-quartier-header';
+      qh.innerHTML = `📍 Jour ${num} — ${quartier}`;
+      panel.appendChild(qh);
+    }
+    // Day summary placeholder
+    const summaryEl = document.createElement('div');
+    summaryEl.className = 'jour-day-summary';
+    summaryEl.id = 'summary-j' + num;
+    panel.appendChild(summaryEl);
+
     for (let i = 0; i < parts.length; i++) {
       const tranche = parseOneTranche(parts[i], i);
       if (tranche) {
@@ -2009,6 +2039,13 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     if (tranches.length === 0) throw new Error('Aucune tranche');
 
     tranches.forEach(t => { if (t.nom) historiqueActivites.push(t.nom); });
+
+    // Résumé du jour dans le bandeau
+    const sumEl = document.getElementById('summary-j' + num);
+    if (sumEl && tranches.length > 0) {
+      const t0 = tranches[0], tN = tranches[tranches.length - 1];
+      sumEl.textContent = `${tranches.length} tranche${tranches.length > 1 ? 's' : ''} · ${t0.heure || ''}${tN && tN.heure_fin ? ' → ' + tN.heure_fin : ''}`;
+    }
 
     // Carte du jour — ajout du conteneur
     const mapWrap = document.createElement('div');
