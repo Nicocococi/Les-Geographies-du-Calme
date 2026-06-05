@@ -618,18 +618,21 @@ body.gate-mode { background: transparent; }
 .jour-panel.active { display: block; }
 .jour-quartier-header {
   font-family: var(--font-serif);
-  font-size: 1.05em;
-  font-weight: 600;
-  color: var(--texte);
-  padding: 1em 1.4em 0.3em;
+  font-style: italic;
+  font-size: 1.35em;
+  font-weight: 400;
+  color: var(--noir);
+  padding: 1.4em 1.4em 0.2em;
+  letter-spacing: -0.01em;
 }
 .jour-day-summary {
-  font-size: 0.78em;
+  font-size: 0.75em;
   color: var(--gris);
-  padding: 0 1.4em 1.2em;
-  letter-spacing: 0.02em;
+  padding: 0.15em 1.4em 1.4em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   border-bottom: 1px solid var(--bordure);
-  margin-bottom: 1.4em;
+  margin-bottom: 1.6em;
 }
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
@@ -637,63 +640,73 @@ body.gate-mode { background: transparent; }
 /* MARQUEURS D'ITINÉRAIRE */
 .itineraire-fil {
   position: relative;
-  padding-left: 1.6em;
+  padding-left: 2em;
+}
+.itineraire-fil::before {
+  content: '';
+  position: absolute;
+  left: 0.62em;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #D8CFC6;
+  z-index: 0;
 }
 .fil-item {
   position: relative;
-  margin-bottom: 1em;
+  margin-bottom: 0.7em;
 }
 .fil-item::before {
   content: '';
   position: absolute;
-  left: -1.05em;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 6px;
+  left: -1.42em;
+  top: 1.15em;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #C4B09A;
+  background: #B59768;
+  border: 2px solid var(--beige);
   z-index: 2;
 }
 
 .tranche-block {
   background: var(--blanc);
-  border: 1px solid #E2D9CE;
-  border-radius: 6px;
+  border: 1px solid #EAE4DC;
+  border-radius: 4px;
   overflow: hidden;
   box-shadow: none;
   transition: box-shadow 0.2s;
 }
-.tranche-block:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+.tranche-block:hover { box-shadow: 0 1px 8px rgba(0,0,0,0.05); }
 
 /* Corps tranche */
-.tranche-body { padding: 0.85em 1.1em 0.65em; }
+.tranche-body { padding: 0.75em 1em 0.5em; }
 .tranche-nom {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 1.5em;
+  font-size: 1.55em;
   color: var(--noir);
   line-height: 1.2;
-  margin-bottom: 0.18em;
+  margin-bottom: 0.2em;
 }
 .tranche-heure-sous {
   font-family: var(--font-sans);
-  font-size: 0.74em;
-  color: #8A8A8A;
-  margin-bottom: 0.55em;
+  font-size: 0.78em;
+  color: #7A7A7A;
+  margin-bottom: 0.75em;
   letter-spacing: 0.01em;
 }
 .tranche-texte {
   font-size: 0.84em;
-  line-height: 1.75;
+  line-height: 1.72;
   color: #4a4a4a;
-  margin-bottom: 0.55em;
+  margin-bottom: 0.45em;
 }
 .points-chute {
-  border-left: 3px solid var(--or);
-  padding-left: 0.75em;
-  margin-bottom: 0.5em;
+  border-left: 2px solid var(--or);
+  padding-left: 0.65em;
+  margin-bottom: 0.35em;
 }
 .points-titre {
   font-size: 0.55em;
@@ -717,7 +730,7 @@ body.gate-mode { background: transparent; }
 
 /* OPTIONS alternatives — section restructurée */
 .alts-row {
-  padding: 0.6em 1.1em;
+  padding: 0.5em 1em;
   border-top: 1px solid var(--bordure);
   background: #FAFAF8;
 }
@@ -1879,7 +1892,7 @@ function renderTrancheBlock(t, jourKey, panel, quartier) {
   div.id = 'tblock-'+jourKey+'-'+t.id;
   const nom = stripNom(t.nom);
   const dureeStr = getDuree(t.heure, t.heure_fin);
-  const heureHtml = dureeStr ? '<div class="tranche-heure-sous">' + dureeStr + '</div>' : '';
+  const heureHtml = dureeStr ? '<div class="tranche-heure-sous">🕒 ' + dureeStr + '</div>' : '';
   const pointsHtml = buildPointsHtml(t.points_chute);
   div.innerHTML = `
     <div class="tranche-body">
@@ -2054,11 +2067,11 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     if (loading) loading.style.display = 'none';
     if (parts.length === 0) throw new Error('Aucune tranche');
 
-    // Quartier header
-    if (quartier) {
+    // Quartier header — une seule fois
+    if (!panel.querySelector('.jour-quartier-header')) {
       const qh = document.createElement('div');
       qh.className = 'jour-quartier-header';
-      qh.innerHTML = `Jour ${num} — ${quartier}`;
+      qh.innerHTML = quartier ? `Jour ${num} — ${quartier}` : `Jour ${num}`;
       panel.appendChild(qh);
     }
     // Day summary placeholder
