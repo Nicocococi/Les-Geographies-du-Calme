@@ -648,6 +648,18 @@ body.gate-mode { background: transparent; }
 }
 .jour-day-summary .summary-sep { opacity: 0.35; }
 .jour-day-summary .summary-hours { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 560px) {
+  .jour-day-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2em;
+    padding: 0.9em 1em 0.8em;
+  }
+  .jour-day-summary {
+    font-size: 0.85em;
+  }
+}
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
 /* TRANCHES — cartes éditoriaux */
@@ -1943,17 +1955,32 @@ function stripNom(nom) {
 
 function getTimeSlotColor(heure) {
   const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
-  if (h < 11) return '#E8C84A';  // matin → jaune doux
-  if (h < 14) return '#C8893A';  // midi → ambre
-  if (h < 18) return '#E07A3A';  // après-midi → orange doux
-  if (h < 22) return '#3D4E8A';  // soirée → bleu nuit
-  return '#5A6A8A';               // nuit → bleu foncé
+  if (h >= 6  && h < 12) return '#D4B24C';  // matin → jaune doux
+  if (h >= 12 && h < 15) return '#D9A441';  // midi → ambre
+  if (h >= 15 && h < 19) return '#C98A4A';  // après-midi → orange doux
+  if (h >= 19 && h < 23) return '#3F5873';  // soirée → bleu nuit
+  return '#1F2C3A';                           // nuit → bleu très sombre
+}
+
+function buildClockSvg(heure, color) {
+  const parts = heure.replace('h',':').split(':');
+  const h = parseInt(parts[0], 10) % 12;
+  const m = parseInt(parts[1] || '0', 10);
+  const angle = (h * 30 + m * 0.5 - 90) * Math.PI / 180;
+  const cx = 10, cy = 10, handLen = 5.5;
+  const x2 = (cx + handLen * Math.cos(angle)).toFixed(2);
+  const y2 = (cy + handLen * Math.sin(angle)).toFixed(2);
+  return '<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;vertical-align:middle">'
+    + '<circle cx="10" cy="10" r="9" fill="' + color + '"/>'
+    + '<line x1="10" y1="10" x2="' + x2 + '" y2="' + y2 + '" stroke="rgba(255,255,255,0.95)" stroke-width="2" stroke-linecap="round"/>'
+    + '<circle cx="10" cy="10" r="1.3" fill="rgba(255,255,255,0.95)"/>'
+    + '</svg>';
 }
 
 function buildHeureHtml(heure, heure_fin) {
   if (!heure) return '';
   const color = getTimeSlotColor(heure);
-  const dot = `<span class="time-dot" style="background:${color}"></span>`;
+  const dot = buildClockSvg(heure, color);
   let dureeStr = '';
   if (heure_fin) {
     try {
@@ -2199,10 +2226,11 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     // Update day summary
     const sumEl = document.getElementById('summary-j' + num);
     if (sumEl && tranches.length > 0) {
-      const t0 = tranches[0], tN = tranches[tranches.length - 1];
       const count = `${tranches.length} activité${tranches.length > 1 ? 's' : ''}`;
-      const h0 = t0.heure || '';
-      const hN = tN.heure_fin || tN.heure || '';
+      const firstWithHeure = tranches.find(t => t.heure) || tranches[0];
+      const lastWithHeure = [...tranches].reverse().find(t => t.heure_fin || t.heure) || tranches[tranches.length - 1];
+      const h0 = firstWithHeure.heure || '';
+      const hN = lastWithHeure.heure_fin || lastWithHeure.heure || '';
       const heureSpan = (h0 && hN) ? `<span class="summary-sep">·</span><span class="summary-hours">${h0} → ${hN}</span>` : '';
       sumEl.innerHTML = `<span>${count}</span>${heureSpan}`;
     }
