@@ -674,7 +674,7 @@ body.gate-mode { background: transparent; }
   content: '';
   position: absolute;
   left: -1.52em;
-  top: 0.9em;
+  top: 1.4em;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -708,7 +708,7 @@ body.gate-mode { background: transparent; }
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 1.6em;
+  font-size: 1.3em;
   color: var(--noir);
   line-height: 1.2;
   flex: 1;
@@ -1259,6 +1259,10 @@ const INTRO_PROFILS = {
   "famille":    ["en famille", "pour un voyage en famille"],
   "entre amis": ["entre amis", "pour un groupe d’amis"]
 };
+function nettoyerEt(str) {
+  // Remplace tous les " et " sauf le dernier par ", "
+  return str.replace(/ et (?=.*\bet\b)/g, ‘, ‘);
+}
 function genererIntroEditoriale(destination, duree, themes, voyageCat) {
   const profil = (INTRO_PROFILS[voyageCat] || [""])[Math.floor(Math.random() * 2)];
   const joursStr = duree === 1 ? "une journée" : (duree + " jours");
@@ -1272,7 +1276,8 @@ function genererIntroEditoriale(destination, duree, themes, voyageCat) {
   } else {
     themeFocus = "à votre rythme";
   }
-  return joursStr.charAt(0).toUpperCase() + joursStr.slice(1) + " " + profil + " à " + destination + ", " + themeFocus + ".";
+  const intro = joursStr.charAt(0).toUpperCase() + joursStr.slice(1) + " " + profil + " à " + destination + ", " + themeFocus + ".";
+  return nettoyerEt(intro);
 }
 
 // ── CORRESPONDANCE THÈME → CODE ──────────────────────────
