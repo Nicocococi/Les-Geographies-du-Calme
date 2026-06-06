@@ -616,36 +616,38 @@ body.gate-mode { background: transparent; }
 .jour-tab.done.active { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
 .jour-panel { display: none; }
 .jour-panel.active { display: block; }
+.jour-day-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 1.2em 1.2em 1em;
+  border-bottom: 1px solid var(--bordure);
+  margin-bottom: 1.4em;
+}
 .jour-quartier-header {
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 1.75em;
+  font-size: 1.6em;
   font-weight: 400;
   color: var(--noir);
-  padding: 1.2em 1.2em 0.1em;
   letter-spacing: -0.02em;
-  display: flex;
-  align-items: baseline;
-  gap: 0.3em;
-}
-.jour-quartier-header .qh-pin {
-  font-style: normal;
-  font-size: 0.6em;
-  color: var(--or);
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 .jour-day-summary {
-  font-size: 0.7em;
+  font-family: var(--font-sans);
+  font-size: 0.72em;
   color: var(--gris);
-  padding: 0.05em 1.2em 1.2em;
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--bordure);
-  margin-bottom: 1.4em;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 0.35em;
   display: flex;
   align-items: center;
-  gap: 0.6em;
+  gap: 0.4em;
 }
-.jour-day-summary .summary-sep { opacity: 0.4; }
+.jour-day-summary .summary-sep { opacity: 0.35; }
 .jour-day-summary .summary-hours { font-variant-numeric: tabular-nums; }
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
@@ -661,26 +663,27 @@ body.gate-mode { background: transparent; }
   left: 0.72em;
   top: 0.5em;
   bottom: 0.5em;
-  width: 2px;
-  background: #B8AA98;
+  width: 1px;
+  background: #D5CCC0;
   z-index: 0;
 }
 .fil-item {
   position: relative;
-  margin-bottom: 0.8em;
+  margin-bottom: 1.4em;
 }
 .fil-item::before {
   content: '';
   position: absolute;
-  left: -1.6em;
-  top: 0.9em;
-  width: 12px;
-  height: 12px;
+  left: -1.52em;
+  top: 1.0em;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #C4A46A;
-  border: 2px solid var(--beige);
+  background: #C0392B;
+  border: 1.5px solid var(--beige);
   z-index: 2;
-  box-shadow: 0 0 0 2px #B8AA98;
+  transform: translateX(-50%);
+  margin-left: 0.5px;
 }
 
 .tranche-block {
@@ -1934,11 +1937,11 @@ function stripNom(nom) {
 
 function getTimeSlotColor(heure) {
   const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
-  if (h < 11) return '#C9A84C';  // matin → doré
-  if (h < 14) return '#B8883A';  // midi → ambre
-  if (h < 18) return '#6B9E78';  // après-midi → vert doux
+  if (h < 11) return '#E8C84A';  // matin → jaune doux
+  if (h < 14) return '#C8893A';  // midi → ambre
+  if (h < 18) return '#E07A3A';  // après-midi → orange doux
   if (h < 22) return '#3D4E8A';  // soirée → bleu nuit
-  return '#7A8A9E';               // nuit → gris bleuté
+  return '#5A6A8A';               // nuit → bleu foncé
 }
 
 function buildHeureHtml(heure, heure_fin) {
@@ -2155,20 +2158,20 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     if (loading) loading.style.display = 'none';
     if (parts.length === 0) throw new Error('Aucune tranche');
 
-    // Quartier header — une seule fois
-    if (!panel.querySelector('.jour-quartier-header')) {
+    // Quartier + métadonnées sur une seule ligne
+    if (!panel.querySelector('.jour-day-header-row')) {
+      const row = document.createElement('div');
+      row.className = 'jour-day-header-row';
       const qh = document.createElement('div');
       qh.className = 'jour-quartier-header';
-      qh.innerHTML = quartier
-        ? `<span class="qh-pin">📍</span>${quartier}`
-        : `<span class="qh-pin">📍</span>Jour ${num}`;
-      panel.appendChild(qh);
+      qh.textContent = quartier || `Jour ${num}`;
+      const sumEl = document.createElement('div');
+      sumEl.className = 'jour-day-summary';
+      sumEl.id = 'summary-j' + num;
+      row.appendChild(qh);
+      row.appendChild(sumEl);
+      panel.appendChild(row);
     }
-    // Day summary placeholder
-    const summaryEl = document.createElement('div');
-    summaryEl.className = 'jour-day-summary';
-    summaryEl.id = 'summary-j' + num;
-    panel.appendChild(summaryEl);
 
     // Fil vertical d'itinéraire
     const filEl = document.createElement('div');
