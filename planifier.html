@@ -573,16 +573,16 @@ body.gate-mode { background: transparent; }
 /* ONGLETS JOURS */
 .jours-tabs {
   display: flex;
-  gap: 0.5em;
+  gap: 0.4em;
   flex-wrap: nowrap;
-  overflow-x: auto;
+  overflow-x: visible;
   margin-bottom: 1.8em;
   padding-bottom: 0;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
 }
-.jours-tabs::-webkit-scrollbar { display: none; }
 .jour-tab {
-  padding: 0.55em 1.2em 0.6em;
+  flex: 1;
+  padding: 0.55em 0.5em 0.6em;
   border: 1.5px solid var(--bordure);
   border-radius: 8px;
   font-size: 0.68em;
@@ -594,9 +594,9 @@ body.gate-mode { background: transparent; }
   background: var(--blanc);
   transition: all 0.18s;
   white-space: nowrap;
-  flex-shrink: 0;
-  text-align: left;
+  text-align: center;
   line-height: 1.3;
+  min-width: 0;
 }
 .jour-tab-num { display: block; }
 .jour-tab-sub {
@@ -619,21 +619,34 @@ body.gate-mode { background: transparent; }
 .jour-quartier-header {
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 1.6em;
+  font-size: 1.75em;
   font-weight: 400;
   color: var(--noir);
-  padding: 1.4em 1.4em 0.15em;
+  padding: 1.2em 1.2em 0.1em;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+}
+.jour-quartier-header .qh-pin {
+  font-style: normal;
+  font-size: 0.6em;
+  color: var(--or);
+  flex-shrink: 0;
 }
 .jour-day-summary {
-  font-size: 0.72em;
+  font-size: 0.7em;
   color: var(--gris);
-  padding: 0.1em 1.4em 1.2em;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  padding: 0.05em 1.2em 1.2em;
+  letter-spacing: 0.06em;
   border-bottom: 1px solid var(--bordure);
   margin-bottom: 1.4em;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
 }
+.jour-day-summary .summary-sep { opacity: 0.4; }
+.jour-day-summary .summary-hours { font-variant-numeric: tabular-nums; }
 .jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
 
 /* TRANCHES — cartes éditoriaux */
@@ -686,17 +699,39 @@ body.gate-mode { background: transparent; }
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 1.7em;
+  font-size: 1.85em;
   color: var(--noir);
   line-height: 1.2;
-  margin-bottom: 0.25em;
+  margin-bottom: 0.3em;
 }
 .tranche-heure-sous {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
   font-family: var(--font-sans);
-  font-size: 0.82em;
-  color: #8B7355;
-  margin-bottom: 1em;
-  letter-spacing: 0.02em;
+  font-size: 0.8em;
+  margin-bottom: 0.9em;
+  letter-spacing: 0.01em;
+}
+.time-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+  opacity: 0.9;
+}
+.time-heure {
+  font-weight: 600;
+  color: #3A3A3A;
+}
+.time-sep {
+  color: #AAAAAA;
+  font-weight: 300;
+}
+.time-duree {
+  color: #8A8A8A;
+  font-size: 0.92em;
 }
 .tranche-texte {
   font-size: 0.84em;
@@ -1881,8 +1916,40 @@ function buildPointsHtml(points_chute) {
 
 function stripNom(nom) {
   if (!nom) return '';
-  const i = nom.indexOf(',');
-  return i > 0 ? nom.substring(0, i).trim() : nom;
+  const iComma = nom.indexOf(',');
+  const iPipe = nom.indexOf('|');
+  let cut = -1;
+  if (iComma > 0) cut = iComma;
+  if (iPipe > 0 && (cut < 0 || iPipe < cut)) cut = iPipe;
+  return cut > 0 ? nom.substring(0, cut).trim() : nom.trim();
+}
+
+function getTimeSlotColor(heure) {
+  const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
+  if (h < 11) return '#C9A84C';  // matin → doré
+  if (h < 14) return '#B8883A';  // midi → ambre
+  if (h < 18) return '#C4956A';  // après-midi → sable chaud
+  if (h < 22) return '#A0622A';  // soirée → cuivre
+  return '#3D4E7A';               // nuit → bleu nuit
+}
+
+function buildHeureHtml(heure, heure_fin) {
+  if (!heure) return '';
+  const color = getTimeSlotColor(heure);
+  const dot = `<span class="time-dot" style="background:${color}"></span>`;
+  let dureeStr = '';
+  if (heure_fin) {
+    try {
+      const parse = h => { const p = h.replace('h',':').split(':'); return parseInt(p[0],10)*60+(parseInt(p[1],10)||0); };
+      const diff = parse(heure_fin) - parse(heure);
+      if (diff > 0) {
+        const hh = Math.floor(diff/60), mm = diff%60;
+        dureeStr = hh > 0 ? `${hh}h${mm > 0 ? String(mm).padStart(2,'0') : ''}` : `${mm}min`;
+      }
+    } catch(e) {}
+  }
+  const dureeHtml = dureeStr ? `<span class="time-sep">•</span><span class="time-duree">~${dureeStr}</span>` : '';
+  return `<div class="tranche-heure-sous">${dot}<span class="time-heure">${heure}</span>${dureeHtml}</div>`;
 }
 
 function renderTrancheBlock(t, jourKey, panel, quartier) {
@@ -1892,8 +1959,7 @@ function renderTrancheBlock(t, jourKey, panel, quartier) {
   div.className = 'tranche-block';
   div.id = 'tblock-'+jourKey+'-'+t.id;
   const nom = stripNom(t.nom);
-  const dureeStr = getDuree(t.heure, t.heure_fin);
-  const heureHtml = dureeStr ? '<div class="tranche-heure-sous">🕒 ' + dureeStr + '</div>' : '';
+  const heureHtml = buildHeureHtml(t.heure, t.heure_fin);
   const pointsHtml = buildPointsHtml(t.points_chute);
   div.innerHTML = `
     <div class="tranche-body">
@@ -2011,6 +2077,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   const tabsHtml = Array.from({length: duree}, (_, i) => i+1).map(n =>
     `<button class="jour-tab${n===1?' active':''}" id="tab-j${n}" onclick="switchJour(${n})"><span class="jour-tab-num">${duree>1?'Jour '+n:'Journée'}</span></button>`
   ).join('');
+  // Note: flex: 1 in CSS ensures tabs fill full width automatically
   const panelsHtml = Array.from({length: duree}, (_, i) => i+1).map(n =>
     `<div class="jour-panel${n===1?' active':''}" id="panel-j${n}">
       <div class="jour-panel-loading" id="loading-j${n}">
@@ -2034,7 +2101,17 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
     if (!joursGeneres[num]) genererJourPanel(num, dest, budget, periode, styleLabel, joursGeneres, quartiersMap[num]||null);
   };
 
-  genererJourPanel(1, dest, budget, periode, styleLabel, joursGeneres, quartiersMap[1]||null);
+  genererJourPanel(1, dest, budget, periode, styleLabel, joursGeneres, quartiersMap[1]||null).then(() => {
+    // Préchargement des jours suivants en arrière-plan
+    for (let n = 2; n <= duree; n++) {
+      const delay = (n - 1) * 3500;
+      setTimeout(() => {
+        if (!joursGeneres[n]) {
+          genererJourPanel(n, dest, budget, periode, styleLabel, joursGeneres, quartiersMap[n]||null);
+        }
+      }, delay);
+    }
+  }).catch(() => {});
 }
 
 async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGeneres, quartier) {
@@ -2072,7 +2149,9 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     if (!panel.querySelector('.jour-quartier-header')) {
       const qh = document.createElement('div');
       qh.className = 'jour-quartier-header';
-      qh.innerHTML = quartier ? `Jour ${num} — ${quartier}` : `Jour ${num}`;
+      qh.innerHTML = quartier
+        ? `<span class="qh-pin">📍</span>${quartier}`
+        : `<span class="qh-pin">📍</span>Jour ${num}`;
       panel.appendChild(qh);
     }
     // Day summary placeholder
@@ -2102,7 +2181,11 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
     const sumEl = document.getElementById('summary-j' + num);
     if (sumEl && tranches.length > 0) {
       const t0 = tranches[0], tN = tranches[tranches.length - 1];
-      sumEl.textContent = `${tranches.length} activité${tranches.length > 1 ? 's' : ''}`;
+      const count = `${tranches.length} activité${tranches.length > 1 ? 's' : ''}`;
+      const h0 = t0.heure || '';
+      const hN = tN.heure_fin || tN.heure || '';
+      const heureSpan = (h0 && hN) ? `<span class="summary-sep">·</span><span class="summary-hours">${h0} → ${hN}</span>` : '';
+      sumEl.innerHTML = `<span>${count}</span>${heureSpan}`;
     }
 
     tranches.forEach(t => { if (t.nom) historiqueActivites.push(t.nom); });
