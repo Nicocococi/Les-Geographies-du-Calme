@@ -1261,7 +1261,9 @@ const INTRO_PROFILS = {
 };
 function nettoyerEt(str) {
   // Remplace tous les " et " sauf le dernier par ", "
-  return str.replace(/ et (?=.*\bet\b)/g, ‘, ‘);
+  var parts = str.split(‘ et ‘);
+  if (parts.length <= 2) return str;
+  return parts.slice(0, -1).join(‘, ‘) + ‘ et ‘ + parts[parts.length - 1];
 }
 function genererIntroEditoriale(destination, duree, themes, voyageCat) {
   const profil = (INTRO_PROFILS[voyageCat] || [""])[Math.floor(Math.random() * 2)];
