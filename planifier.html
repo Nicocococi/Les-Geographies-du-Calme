@@ -662,7 +662,7 @@ body.gate-mode { background: transparent; }
   top: 0.5em;
   bottom: 0.5em;
   width: 2px;
-  background: #C8BAA8;
+  background: #B8AA98;
   z-index: 0;
 }
 .fil-item {
@@ -672,15 +672,15 @@ body.gate-mode { background: transparent; }
 .fil-item::before {
   content: '';
   position: absolute;
-  left: -1.58em;
-  top: 1.0em;
-  width: 10px;
-  height: 10px;
+  left: -1.6em;
+  top: 0.9em;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #B59768;
+  background: #C4A46A;
   border: 2px solid var(--beige);
   z-index: 2;
-  box-shadow: 0 0 0 1px #C8BAA8;
+  box-shadow: 0 0 0 2px #B8AA98;
 }
 
 .tranche-block {
@@ -694,44 +694,52 @@ body.gate-mode { background: transparent; }
 .tranche-block:hover { background: #FDFCFA; }
 
 /* Corps tranche */
-.tranche-body { padding: 0.9em 1em 0.5em; }
+.tranche-body { padding: 0.85em 1em 0.5em; }
+.tranche-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8em;
+  margin-bottom: 0.55em;
+}
 .tranche-nom {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 1.85em;
+  font-size: 1.6em;
   color: var(--noir);
   line-height: 1.2;
-  margin-bottom: 0.3em;
+  flex: 1;
+  min-width: 0;
 }
-.tranche-heure-sous {
+.tranche-heure-inline {
   display: flex;
   align-items: center;
-  gap: 0.45em;
+  gap: 0.35em;
   font-family: var(--font-sans);
-  font-size: 0.8em;
-  margin-bottom: 0.9em;
-  letter-spacing: 0.01em;
+  font-size: 0.72em;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-top: 0.3em;
 }
 .time-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
   display: inline-block;
-  opacity: 0.9;
 }
 .time-heure {
   font-weight: 600;
   color: #3A3A3A;
+  letter-spacing: 0.01em;
 }
 .time-sep {
-  color: #AAAAAA;
+  color: #BBBBBB;
   font-weight: 300;
 }
 .time-duree {
-  color: #8A8A8A;
-  font-size: 0.92em;
+  color: #9A9A9A;
 }
 .tranche-texte {
   font-size: 0.84em;
@@ -766,20 +774,20 @@ body.gate-mode { background: transparent; }
 
 /* OPTIONS alternatives — section restructurée */
 .alts-row {
-  padding: 0.5em 1em;
-  border-top: 1px solid var(--bordure);
-  background: #FAFAF8;
+  padding: 0.4em 1em 0.5em;
+  border-top: 1px solid #F0EBE4;
+  background: transparent;
 }
 .alts-label {
-  font-size: 0.56em;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-size: 0.52em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--gris);
-  margin-bottom: 0.35em;
+  color: #B0A898;
+  margin-bottom: 0.3em;
   display: block;
 }
-.alts-pills { display: flex; gap: 0.45em; flex-wrap: wrap; align-items: center; }
+.alts-pills { display: flex; gap: 0.4em; flex-wrap: wrap; align-items: center; }
 
 /* Pilule A — dominante */
 .alt-pill {
@@ -1928,9 +1936,9 @@ function getTimeSlotColor(heure) {
   const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
   if (h < 11) return '#C9A84C';  // matin → doré
   if (h < 14) return '#B8883A';  // midi → ambre
-  if (h < 18) return '#C4956A';  // après-midi → sable chaud
-  if (h < 22) return '#A0622A';  // soirée → cuivre
-  return '#3D4E7A';               // nuit → bleu nuit
+  if (h < 18) return '#6B9E78';  // après-midi → vert doux
+  if (h < 22) return '#3D4E8A';  // soirée → bleu nuit
+  return '#7A8A9E';               // nuit → gris bleuté
 }
 
 function buildHeureHtml(heure, heure_fin) {
@@ -1948,8 +1956,8 @@ function buildHeureHtml(heure, heure_fin) {
       }
     } catch(e) {}
   }
-  const dureeHtml = dureeStr ? `<span class="time-sep">•</span><span class="time-duree">~${dureeStr}</span>` : '';
-  return `<div class="tranche-heure-sous">${dot}<span class="time-heure">${heure}</span>${dureeHtml}</div>`;
+  const dureeHtml = dureeStr ? `<span class="time-sep">·</span><span class="time-duree">~${dureeStr}</span>` : '';
+  return `<div class="tranche-heure-inline">${dot}<span class="time-heure">${heure}</span>${dureeHtml}</div>`;
 }
 
 function renderTrancheBlock(t, jourKey, panel, quartier) {
@@ -1963,8 +1971,10 @@ function renderTrancheBlock(t, jourKey, panel, quartier) {
   const pointsHtml = buildPointsHtml(t.points_chute);
   div.innerHTML = `
     <div class="tranche-body">
-      <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${nom}</div>
-      ${heureHtml}
+      <div class="tranche-header-row">
+        <div class="tranche-nom" id="nom-${jourKey}-${t.id}">${nom}</div>
+        ${heureHtml}
+      </div>
       <div class="tranche-texte" id="texte-${jourKey}-${t.id}">${t.texte||''}</div>
       <div id="points-${jourKey}-${t.id}">${pointsHtml}</div>
     </div>
