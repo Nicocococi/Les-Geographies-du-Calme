@@ -1196,33 +1196,71 @@ const MODEL = 'claude-haiku-4-5-20251001';
 const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresses se mettent en place…','On trace le rythme de la journée…','Derniers ajustements avant le départ…','On choisit les tables qui valent le détour…','L\'itinéraire prend forme…'];
 
 // ── MONITORING ──────────────────────────────────────────
-const LIMITS = { none: 0, lecteur: 2, voyageur: 20 };
+// Les limites sont chargées depuis le Worker KV au démarrage (modifiables sans toucher au code)
+let LIMITS = { none: 0, lecteur: 2, voyageur: 20 }; // valeurs par défaut, écrasées par /config
 const URL_ABONNEMENT = 'https://geocalme.com/abonnement/#/portal/signup';
+const WORKER_URL = 'https://geocalme-counter.nicolas-chevreau.workers.dev';
 let memberTier = 'none'; // sera mis à jour par checkMember()
+let memberEmail = '';    // sera mis à jour par checkMember()
 
-function getMonthKey() {
-  const d = new Date();
-  return 'gc_gen_' + d.getFullYear() + '_' + (d.getMonth() + 1);
-}
-
-function getCount() {
+async function loadLimitsFromWorker() {
   try {
-    return parseInt(localStorage.getItem(getMonthKey()) || '0', 10);
+    const r = await fetch(`${WORKER_URL}/config`);
+    const data = await r.json();
+    if (data.limits) {
+      LIMITS = { none: 0, ...data.limits };
+    }
   } catch(e) {
-    return 0;
+    // Garde les valeurs par défaut si le Worker est inaccessible
   }
 }
 
-function incrementCount() {
-  try {
-    const key = getMonthKey();
-    localStorage.setItem(key, (getCount() + 1).toString());
-  } catch(e) {}
+function getMonth() {
+  return new Date().toISOString().slice(0, 7); // "2026-06"
 }
 
-function getRemainingGenerations() {
-  const limit = LIMITS[memberTier] || 0;
-  return Math.max(0, limit - getCount());
+// ── WORKER : vérifier le quota actuel (sans incrémenter) ──
+async function getWorkerCount() {
+  if (!memberEmail || memberTier === 'none') return { count: 0, allowed: false };
+  try {
+    const r = await fetch(`${WORKER_URL}/count?email=${encodeURIComponent(memberEmail)}&month=${getMonth()}`);
+    const data = await r.json();
+    if (data.unlimited) return { count: 0, allowed: true, unlimited: true };
+    const limit = LIMITS[memberTier] || 0;
+    return { count: data.count, allowed: data.count < limit };
+  } catch(e) {
+    // Fallback localStorage si le Worker est inaccessible
+    const key = 'gc_fallback_' + getMonth();
+    const count = parseInt(localStorage.getItem(key) || '0', 10);
+    const limit = LIMITS[memberTier] || 0;
+    return { count, allowed: count < limit };
+  }
+}
+
+// ── WORKER : incrémenter et vérifier en une seule requête ──
+async function tryIncrementWorker() {
+  if (!memberEmail || memberTier === 'none') return { allowed: false, count: 0 };
+  try {
+    const r = await fetch(`${WORKER_URL}/increment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: memberEmail, tier: memberTier, month: getMonth() })
+    });
+    return await r.json();
+  } catch(e) {
+    // Fallback localStorage si le Worker est inaccessible
+    const key = 'gc_fallback_' + getMonth();
+    const count = parseInt(localStorage.getItem(key) || '0', 10);
+    const limit = LIMITS[memberTier] || 0;
+    if (count >= limit) return { allowed: false, count };
+    localStorage.setItem(key, (count + 1).toString());
+    return { allowed: true, count: count + 1 };
+  }
+}
+
+async function canGenerate() {
+  const { allowed } = await getWorkerCount();
+  return allowed;
 }
 
 async function checkMember() {
@@ -1234,6 +1272,7 @@ async function checkMember() {
         window.removeEventListener('message', handler);
         const data = e.data.data;
         if (data) {
+          memberEmail = data.email || '';
           if (
             data.comped === true ||
             (data.subscriptions && data.subscriptions.some(s => s.status === 'active' || s.status === 'comped'))
@@ -1243,6 +1282,7 @@ async function checkMember() {
             memberTier = 'lecteur';
           }
         } else {
+          memberEmail = '';
           memberTier = 'none';
         }
         resolve();
@@ -1253,7 +1293,7 @@ async function checkMember() {
   });
 }
 
-function showGate() {
+function showGate(count = 0) {
   document.getElementById('form-card').style.display = 'none';
   document.body.classList.add('gate-mode');
   const wrap = document.getElementById('gate-wrap');
@@ -1261,7 +1301,6 @@ function showGate() {
   sendHeight();
 
   const limit = LIMITS[memberTier] || 0;
-  const count = getCount();
 
   if (memberTier === 'none') {
     wrap.innerHTML = `<div class="gate-intro">
@@ -1309,12 +1348,6 @@ function showGate() {
       <div style="font-size:0.72em;color:#6E6A64;font-style:italic;">Vos générations se réinitialisent le 1er du mois.</div>
     </div>`;
   }
-}
-
-function canGenerate() {
-  const limit = LIMITS[memberTier] || 0;
-  if (limit === 0) return false;
-  return getCount() < limit;
 }
 
 // ── INTRO ÉDITORIALE CÔTÉ CLIENT ────────────────────────
@@ -1653,11 +1686,13 @@ async function updateMapPin(jourKey, trancheId, opt) {
 // ── INIT ────────────────────────────────────────────────
 async function init() {
   fetchActivities();
+  await loadLimitsFromWorker(); // charge les quotas depuis KV avant tout
   await checkMember();
 
   // Si accès refusé dès le départ, afficher le gate immédiatement
-  if (!canGenerate()) {
-    showGate();
+  const { allowed: initAllowed, count: initCount } = await getWorkerCount();
+  if (!initAllowed) {
+    showGate(initCount);
     return;
   }
 
@@ -1677,7 +1712,7 @@ function valider() {
   document.getElementById('btn-generate').disabled = dest.length < 2;
 }
 
-function resetForm() {
+async function resetForm() {
   // Réinitialiser wizard
   document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
   document.getElementById('wstep-1').classList.add('active');
@@ -1686,8 +1721,9 @@ function resetForm() {
   document.getElementById('next-1').disabled = true;
 
   // Si la limite est atteinte, rester sur le gate
-  if (!canGenerate()) {
-    showGate();
+  const { allowed: resetAllowed, count: resetCount } = await getWorkerCount();
+  if (!resetAllowed) {
+    showGate(resetCount);
     return;
   }
   document.getElementById('gate-wrap').classList.remove('visible');
@@ -2110,13 +2146,12 @@ function afficherEtapesChemin(etapes) {
 
 // ── GÉNÉRATION PRINCIPALE ────────────────────────────────
 async function generer() {
-  // Vérification monitoring avant génération
-  if (!canGenerate()) {
-    showGate();
+  // Vérification monitoring avant génération (atomique : vérifie + incrémente)
+  const genResult = await tryIncrementWorker();
+  if (!genResult.allowed) {
+    showGate(genResult.count);
     return;
   }
-  // Incrémenter le compteur
-  incrementCount();
 
   const destination = document.getElementById('destination').value.trim();
   const destinationB = document.getElementById('destination-b').value.trim();
