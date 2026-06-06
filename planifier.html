@@ -1247,23 +1247,22 @@ function canGenerate() {
 const INTRO_THEMES = {
   "Gastronomie et Terroirs": ["les tables locales et les marchés", "la gastronomie et les terroirs", "une exploration culinaire"],
   "Nature et Paysages":      ["les paysages naturels et les sentiers", "la nature et les grands espaces", "randonnées et horizons sauvages"],
-  "Culture et Patrimoine":   ["le patrimoine et les musées", "l’histoire et l’architecture", "les monuments et quartiers historiques"],
-  "Bouger & Explorer":       ["les activités sportives et l’exploration", "le grand air et les défis physiques", "randonnées et aventures"],
-  "Villes et Art de Vivre":  ["la vie urbaine et les quartiers créatifs", "les cafés de quartier et l’art de rue", "l’art de vivre local"],
-  "Vie Locale et Festivité": ["la musique live et les fêtes locales", "la scène locale et les bars musicaux", "les festivités et l’ambiance nocturne"],
+  "Culture et Patrimoine":   ["le patrimoine et les musées", "l'histoire et l'architecture", "les monuments et quartiers historiques"],
+  "Bouger & Explorer":       ["les activités sportives et l'exploration", "le grand air et les défis physiques", "randonnées et aventures"],
+  "Villes et Art de Vivre":  ["la vie urbaine et les quartiers créatifs", "les cafés de quartier et l'art de rue", "l'art de vivre local"],
+  "Vie Locale et Festivité": ["la musique live et les fêtes locales", "la scène locale et les bars musicaux", "les festivités et l'ambiance nocturne"],
   "Bien-être & Déconnexion": ["le calme, les spas et la déconnexion", "le slow travel et le bien-être", "les bains thermaux et la pleine nature"]
 };
 const INTRO_PROFILS = {
   "duo":        ["en couple", "à deux"],
   "solo":       ["en solo", "pour un voyageur solo"],
   "famille":    ["en famille", "pour un voyage en famille"],
-  "entre amis": ["entre amis", "pour un groupe d’amis"]
+  "entre amis": ["entre amis", "pour un groupe d'amis"]
 };
 function nettoyerEt(str) {
-  // Remplace tous les " et " sauf le dernier par ", "
-  var parts = str.split(‘ et ‘);
+  var parts = str.split(' et ');
   if (parts.length <= 2) return str;
-  return parts.slice(0, -1).join(‘, ‘) + ‘ et ‘ + parts[parts.length - 1];
+  return parts.slice(0, -1).join(', ') + ' et ' + parts[parts.length - 1];
 }
 function genererIntroEditoriale(destination, duree, themes, voyageCat) {
   const profil = (INTRO_PROFILS[voyageCat] || [""])[Math.floor(Math.random() * 2)];
@@ -1274,7 +1273,7 @@ function genererIntroEditoriale(destination, duree, themes, voyageCat) {
     const t2 = (INTRO_THEMES[themes[1]] || [""])[0];
     themeFocus = "entre " + t1 + " et " + t2;
   } else if (themes.length === 1) {
-    themeFocus = "autour de " + (INTRO_THEMES[themes[0]] || ["l’essentiel"])[0];
+    themeFocus = "autour de " + (INTRO_THEMES[themes[0]] || ["l'essentiel"])[0];
   } else {
     themeFocus = "à votre rythme";
   }
