@@ -457,6 +457,63 @@ body.gate-mode { background: transparent; }
 }
 .gate-signin a:hover { border-color: #B89562; }
 
+/* Bloc "Se connecter" mis en avant — Cas 1 */
+.gate-connect-box {
+  background: #FAF8F4;
+  border: 1px solid #E8E2D8;
+  border-radius: 10px;
+  padding: 1.4em 1.8em;
+  margin-bottom: 1.6em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2em;
+  flex-wrap: wrap;
+}
+.gate-connect-text {
+  font-size: 0.88em;
+  color: #3A3A3A;
+  line-height: 1.45;
+}
+.gate-connect-text strong {
+  display: block;
+  font-size: 1em;
+  color: #1A1A1A;
+  margin-bottom: 0.2em;
+}
+.gate-connect-btn {
+  display: inline-block;
+  padding: 0.55em 1.4em;
+  background: #1A1A1A;
+  color: #fff !important;
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.18s;
+  flex-shrink: 0;
+}
+.gate-connect-btn:hover { background: #333; }
+.gate-or-divider {
+  text-align: center;
+  font-size: 0.75em;
+  color: #B0A898;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.4em;
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+.gate-or-divider::before,
+.gate-or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E8E2D8;
+}
+
 /* Variante : limite atteinte (Lecteur) */
 .gate-limit-card {
   max-width: 420px;
@@ -1210,7 +1267,14 @@ function showGate() {
   if (memberTier === 'none') {
     wrap.innerHTML = `<div class="gate-intro">
       <div class="gate-heading">Planifiez à votre rythme</div>
-      <p class="gate-subhead">Un accès hebdomadaire aux meilleures destinations slow travel, et un outil pour composer vos voyages selon vos envies, votre durée et votre façon de voyager.</p>
+      <div class="gate-connect-box">
+        <div class="gate-connect-text">
+          <strong>Vous avez déjà un compte ?</strong>
+          Connectez-vous pour accéder directement au générateur d'itinéraires.
+        </div>
+        <a class="gate-connect-btn" href="https://geocalme.com/#/portal/signin" target="_top">Se connecter</a>
+      </div>
+      <div class="gate-or-divider">Pas encore abonné·e ?</div>
       <div class="gate-cards">
         <div class="gate-offer">
           <div class="gate-offer-title">Lecteur</div>
@@ -1234,7 +1298,6 @@ function showGate() {
           <a class="gate-offer-btn gold" href="${URL_ABONNEMENT}" target="_top">Devenir Voyageur — 5€/mois</a>
         </div>
       </div>
-      <p class="gate-signin">Vous avez déjà un compte ? <a href="https://geocalme.com/#/portal/signin" target="_top">Se connecter</a></p>
     </div>
     `;
   } else if (memberTier === 'lecteur') {
