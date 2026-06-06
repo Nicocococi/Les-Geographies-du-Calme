@@ -521,12 +521,12 @@ body.gate-mode { background: transparent; }
 .error-state.visible { display: block; }
 
 /* ── RESULT ──────────────────────────────────────────────── */
-.result-wrap { display: none; max-width: 820px; margin: 0 auto; padding: 2.5em 1.2em 5em; }
+.result-wrap { display: none; max-width: 820px; margin: 0 auto; padding: 1em 1.2em 5em; }
 .result-wrap.visible { display: block; }
 
 /* En-tête résultat — éditorial, clair */
 .result-header {
-  padding: 2.2em 0 1.8em;
+  padding: 0.8em 0 1.8em;
   border-bottom: 1px solid var(--bordure);
   margin-bottom: 2em;
 }
@@ -585,7 +585,7 @@ body.gate-mode { background: transparent; }
   padding: 0.55em 0.5em 0.6em;
   border: 1.5px solid var(--bordure);
   border-radius: 8px;
-  font-size: 0.68em;
+  font-size: 0.82em;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -636,16 +636,15 @@ body.gate-mode { background: transparent; }
   min-width: 0;
 }
 .jour-day-summary {
-  font-family: var(--font-sans);
-  font-size: 0.72em;
-  color: var(--gris);
-  letter-spacing: 0.04em;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.1em;
+  color: var(--noir);
   white-space: nowrap;
   flex-shrink: 0;
-  padding-top: 0.35em;
   display: flex;
-  align-items: center;
-  gap: 0.4em;
+  align-items: baseline;
+  gap: 0.35em;
 }
 .jour-day-summary .summary-sep { opacity: 0.35; }
 .jour-day-summary .summary-hours { font-variant-numeric: tabular-nums; }
@@ -675,12 +674,12 @@ body.gate-mode { background: transparent; }
   content: '';
   position: absolute;
   left: -1.52em;
-  top: 1.0em;
-  width: 7px;
-  height: 7px;
+  top: 0.9em;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #C0392B;
-  border: 1.5px solid var(--beige);
+  border: 2px solid var(--beige);
   z-index: 2;
   transform: translateX(-50%);
   margin-left: 0.5px;
@@ -719,11 +718,12 @@ body.gate-mode { background: transparent; }
   display: flex;
   align-items: center;
   gap: 0.35em;
-  font-family: var(--font-sans);
-  font-size: 0.72em;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1em;
   flex-shrink: 0;
   white-space: nowrap;
-  padding-top: 0.3em;
+  padding-top: 0.1em;
 }
 .time-dot {
   width: 7px;
