@@ -1198,7 +1198,8 @@ const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresse
 // ── MONITORING ──────────────────────────────────────────
 // Les limites sont chargées depuis le Worker KV au démarrage (modifiables sans toucher au code)
 let LIMITS = { none: 0, lecteur: 2, voyageur: 20 }; // valeurs par défaut, écrasées par /config
-const URL_ABONNEMENT = 'https://geocalme.com/abonnement/#/portal/signup';
+const URL_LECTEUR   = 'https://geocalme.com/#/portal/signup';
+const URL_VOYAGEUR  = 'https://geocalme.com/#/portal/signup/6a1270ceea1fd70008a4026f';
 const WORKER_URL = 'https://geocalme-counter.nicolas-chevreau.workers.dev';
 let memberTier = 'none'; // sera mis à jour par checkMember()
 let memberEmail = '';    // sera mis à jour par checkMember()
@@ -1322,7 +1323,7 @@ function showGate(count = 0) {
             <li>Accès aux Smart Deals</li>
             <li>2 itinéraires gratuits par mois</li>
           </ul>
-          <a class="gate-offer-btn outline" href="${URL_ABONNEMENT}" target="_top">Commencer gratuitement</a>
+          <a class="gate-offer-btn outline" href="${URL_LECTEUR}" target="_top">Commencer gratuitement</a>
         </div>
         <div class="gate-offer featured">
           <span class="gate-offer-badge">Recommandé</span>
@@ -1333,7 +1334,7 @@ function showGate(count = 0) {
             <li>20 itinéraires personnalisés par mois</li>
             <li>Accès prioritaire aux futures fonctionnalités</li>
           </ul>
-          <a class="gate-offer-btn gold" href="${URL_ABONNEMENT}" target="_top">Devenir Voyageur — 5€/mois</a>
+          <a class="gate-offer-btn gold" href="${URL_VOYAGEUR}" target="_top">Devenir Voyageur — 5€/mois</a>
         </div>
       </div>
     </div>
@@ -1343,9 +1344,23 @@ function showGate(count = 0) {
       <div class="gate-limit-badge">${count} / ${limit} générations ce mois-ci</div>
       <div class="gate-limit-title">Vous avez exploré vos destinations du mois</div>
       <p class="gate-limit-text">Passez Voyageur pour générer jusqu'à 20 itinéraires par mois, sans limite de destination.</p>
-      <a class="gate-limit-btn" href="${URL_ABONNEMENT}" target="_top">Devenir Voyageur — 5€/mois</a>
+      <a class="gate-limit-btn" href="${URL_VOYAGEUR}" target="_top">Devenir Voyageur — 5€/mois</a>
       <div class="gate-limit-divider"></div>
       <div style="font-size:0.72em;color:#6E6A64;font-style:italic;">Vos générations se réinitialisent le 1er du mois.</div>
+    </div>`;
+  } else if (memberTier === 'voyageur') {
+    const resetDate = (() => {
+      const d = new Date();
+      const mois = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      return `1er ${mois[next.getMonth()]}`;
+    })();
+    wrap.innerHTML = `<div class="gate-limit-card">
+      <div class="gate-limit-badge">${count} / ${limit} générations ce mois-ci</div>
+      <div class="gate-limit-title">Vous avez utilisé tous vos itinéraires du mois</div>
+      <p class="gate-limit-text">Votre quota de ${limit} itinéraires est épuisé pour ce mois-ci. Il se renouvellera automatiquement le <strong>${resetDate}</strong>.</p>
+      <div class="gate-limit-divider"></div>
+      <div style="font-size:0.72em;color:#6E6A64;font-style:italic;">À très bientôt pour de nouvelles escapades.</div>
     </div>`;
   }
 }
