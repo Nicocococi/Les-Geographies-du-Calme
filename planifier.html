@@ -598,9 +598,10 @@ body.gate-mode { background: transparent; }
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(1.9em, 5.5vw, 2.8em);
+  font-size: clamp(2.2em, 6vw, 3.2em);
   color: var(--noir);
-  line-height: 1.15;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   margin-bottom: 0.5em;
 }
 .result-intro {
@@ -743,11 +744,12 @@ body.gate-mode { background: transparent; }
   position: absolute;
   left: -1.52em;
   top: 1.4em;
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: #C0392B;
+  background: var(--noir);
   border: 2px solid var(--beige);
+  box-shadow: 0 0 0 1px rgba(181,151,106,0.5);
   z-index: 2;
   transform: translateX(-50%);
   margin-left: 0.5px;
@@ -756,15 +758,15 @@ body.gate-mode { background: transparent; }
 .tranche-block {
   background: var(--blanc);
   border: none;
-  border-bottom: 1px solid #EDE8E1;
-  border-radius: 0;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: none;
+  box-shadow: 0 4px 18px -10px rgba(40,32,20,0.18);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
-.tranche-block:hover { background: #FDFCFA; }
+.tranche-block:hover { box-shadow: 0 12px 30px -12px rgba(40,32,20,0.24); transform: translateY(-2px); }
 
 /* Corps tranche */
-.tranche-body { padding: 0.85em 1em 0.5em; }
+.tranche-body { padding: 1.2em 1.35em 0.9em; }
 .tranche-header-row {
   display: flex;
   align-items: baseline;
@@ -776,9 +778,10 @@ body.gate-mode { background: transparent; }
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 1.3em;
+  font-size: 1.5em;
   color: var(--noir);
-  line-height: 1.2;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
   flex: 1;
   min-width: 0;
 }
@@ -813,10 +816,10 @@ body.gate-mode { background: transparent; }
   color: #9A9A9A;
 }
 .tranche-texte {
-  font-size: 0.84em;
-  line-height: 1.72;
+  font-size: 0.9em;
+  line-height: 1.8;
   color: #4a4a4a;
-  margin-bottom: 0.45em;
+  margin-bottom: 0.6em;
 }
 .points-chute {
   border-left: 2px solid var(--or);
@@ -845,17 +848,17 @@ body.gate-mode { background: transparent; }
 
 /* OPTIONS alternatives — section restructurée */
 .alts-row {
-  padding: 0.4em 1em 0.5em;
+  padding: 0.7em 1.35em 1em;
   border-top: 1px solid #F0EBE4;
   background: transparent;
 }
 .alts-label {
-  font-size: 0.52em;
-  font-weight: 600;
+  font-size: 0.58em;
+  font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #B0A898;
-  margin-bottom: 0.3em;
+  color: var(--or);
+  margin-bottom: 0.5em;
   display: block;
 }
 .alts-pills { display: flex; gap: 0.4em; flex-wrap: wrap; align-items: center; }
@@ -865,16 +868,16 @@ body.gate-mode { background: transparent; }
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
-  padding: 0.38em 0.8em;
+  padding: 0.5em 1em;
   border: 1px solid var(--bordure);
   border-radius: 100px;
   background: var(--blanc);
   cursor: pointer;
   transition: all 0.15s;
-  font-size: 0.75em;
+  font-size: 0.82em;
   color: var(--gris);
   font-family: var(--font-sans);
-  max-width: 210px;
+  max-width: 230px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -962,13 +965,14 @@ body.gate-mode { background: transparent; }
 
 /* ── MAP ─────────────────────────────────────────────────── */
 .jour-map-wrap {
-  margin: 1.4em 0 0.6em;
-  border-radius: 8px;
+  margin: 0 0 1.8em;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid var(--bordure);
-  height: 280px;
+  border: none;
+  height: 300px;
   position: relative;
   background: var(--beige);
+  box-shadow: 0 10px 34px -14px rgba(40,32,20,0.28);
 }
 .map-loading-overlay {
   position: absolute;
@@ -1581,14 +1585,12 @@ async function geocodePlace(placeName, destination) {
   return null;
 }
 
-function createMarkerEl(label, nom, heure) {
+function createMarkerEl(num, nom) {
   const el = document.createElement('div');
-  const color = getTrancheColor(heure || '') || '#B5976A';
-  const emoji = getTrancheIcon(heure || '') || '📍';
-  el.style.cssText = 'width:30px;height:30px;border-radius:50%;background:' + color + ';border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;transition:transform 0.18s;';
-  el.textContent = emoji;
-  el.title = nom;
-  el.addEventListener('mouseover', () => { el.style.transform = 'scale(1.25)'; });
+  el.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#1A1A1A;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center;font:700 13px/1 Inter,-apple-system,sans-serif;cursor:pointer;transition:transform 0.18s;';
+  el.textContent = num;
+  el.title = nom || '';
+  el.addEventListener('mouseover', () => { el.style.transform = 'scale(1.2)'; });
   el.addEventListener('mouseout', () => { el.style.transform = 'scale(1)'; });
   return el;
 }
@@ -1645,8 +1647,8 @@ async function initDayMap(jourKey, tranches, destination) {
       paint: { 'line-color': '#B5976A', 'line-width': 2, 'line-dasharray': [3, 2], 'line-opacity': 0.55 }
     });
     // Markers
-    valid.forEach(r => {
-      const el = createMarkerEl(r.t.label, r.t.nom, r.t.heure);
+    valid.forEach((r, idx) => {
+      const el = createMarkerEl(idx + 1, r.t.nom);
       const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
         .setLngLat([r.coords.lng, r.coords.lat])
         .setPopup(new mapboxgl.Popup({ offset: 18, closeButton: false })
@@ -1906,41 +1908,81 @@ RÈGLES :
 ${regleRepas}
 - Ton : factuel et précis. Adresse exacte, prix en monnaie locale, quartier obligatoires. Conseil pratique si pertinent (billet coupe-file, réservation, rue à ne pas manquer). Aucun enthousiasme artificiel, aucun tutoiement.
 - Prix : "aux alentours de X€" si moins de 15€ et incertain, "entre X€ et Y€" si plus de 15€. Ne jamais inventer un prix précis.
+
+RÈGLES D'ÉCRITURE (impératives, mêmes que pour les alternatives) :
+- PHRASES COMPLÈTES, grammaticalement correctes et fluides (français irréprochable). INTERDIT le style télégraphique haché ("Menu 19h30 idéal. Pas terrasse.") et les fragments sans verbe ("Pas menu écrit", "Départ 21h30 optimal", "Couple propriétaire"). Articles obligatoires : "servant UNE cuisine…", jamais "servant cuisine…". Relatives correctes : "un musée QUI expose…", jamais "un musée expose…".
+- PRIVILÉGIER L'UTILE, PAS L'ENCYCLOPÉDIE : ce que c'est, le prix, comment y accéder, à quoi s'attendre. Une seule courte incise historique maximum, et seulement si elle aide à choisir. Pas de cours d'histoire (dates de construction, styles, contenu détaillé des collections).
+- VOCABULAIRE SIMPLE et accessible à un voyageur non spécialiste. INTERDIT les mots rares, savants ou pompeux ("aristocratique", "incunables", "recueillie", "polychrome", "liturgique"). INTERDIT les adjectifs creux sans information vérifiable ("visite confortable", "visite flexible", "ambiance silencieuse et concentrée").
+- INTERDIT d'inventer une justification creuse ("optimal", "idéal", "parfait pour", "moment idéal") : n'affirme qu'un fait vérifiable.
+- DÉPLACEMENTS : entre deux blocs du même quartier, c'est À PIED — ne mentionne aucun transport pour un trajet faisable à pied. N'évoque un mode de transport QUE si le lieu est réellement éloigné, et n'emploie que des transports qui existent vraiment dans cette ville (métro, tram, bus, funiculaire, ferry, tuk-tuk, songthaew… selon la ville) — n'invente JAMAIS un métro ou une ligne dans une ville qui n'en a pas.
 - 70 mots max par texte
 
-Réponds UNIQUEMENT avec ce format (LABEL = nom de l'activité, jamais Matin/Midi/Après-midi/Soir) :
-TRANCHE|Petit déjeuner au salon de thé|8h00|9h30
-NOM|Salon de thé Mariage Frères, Île de la Cité
-TITRE|Croissant pistache et thé du matin
-TEXTE|Salon de thé fondé en 1854, spécialisé dans les thés d'origine. Croissant fourré à la pistache aux alentours de 4,50 €, formule petit déjeuner entre 14 € et 18 €. Arriver tôt, les places sont limitées.
-POINT|30 rue du Bourg-Tibourg, Marais|Ouvert dès 8h, service au comptoir possible pour aller plus vite
+EXEMPLES DU NIVEAU ATTENDU (d'AUTRES villes — pour calibrer la précision et le concret ; NE PAS réutiliser ces lieux ni cette ville) :
+
+Exemple, Séville :
+TRANCHE|Petit déjeuner au Mercado de Triana|8h30|9h30
+NOM|Mercado de Triana, quartier de Triana
+TITRE|Tostada et café au marché couvert
+TEXTE|Marché installé sur les ruines du château de San Jorge. Tostada con tomate aux alentours de 3 €, café solo autour de 1,50 €. Comptoirs ouverts dès le matin. Entrer par la Plaza del Altozano, beaucoup plus calme avant 10h.
+POINT|Plaza del Altozano, Triana|Ouvre à 8h, les comptoirs de jambon servent aussi le matin
+
+Exemple, Kyoto :
+TRANCHE|Marche matinale à Fushimi Inari|8h00|10h00
+NOM|Sanctuaire Fushimi Inari-taisha, sud de Kyoto
+TITRE|Les milliers de torii avant la foule
+TEXTE|Entrée gratuite, accessible 24h. Monter les torii vermillon avant 9h pour les avoir au calme. Boucle complète jusqu'au sommet du mont Inari en 2h. Accès par la JR Nara Line, station Inari.
+POINT|68 Fukakusa Yabunouchicho|Persévérer au-delà du premier mirador : la foule se dissipe nettement en montant
+
+Reproduis EXACTEMENT ce niveau de concret (adresse réelle, prix au bon format, une astuce pratique utile) pour ${dest}.
+
+Réponds UNIQUEMENT avec ce format exact, une tranche par bloc séparé par --- (LABEL = nom de l'activité, jamais Matin/Midi/Après-midi/Soir) :
+TRANCHE|Nom de l'activité|HhMM|HhMM
+NOM|Lieu précis, quartier
+TITRE|Titre court et concret
+TEXTE|2 à 4 phrases factuelles : ce que c'est, prix au bon format, une astuce pratique.
+POINT|Adresse, quartier|Conseil utile
 ---
-TRANCHE|Visite de Notre-Dame de Paris|9h45|11h30
-NOM|Cathédrale Notre-Dame, Île de la Cité
-TITRE|L'incontournable restaurée
-TEXTE|Rouverte en décembre 2024 après l'incendie de 2019. Entrée gratuite, billet coupe-file recommandé (réservation sur notredamedeparis.fr). Construite entre 1163 et 1345. Prévoir 1h30 de visite minimum pour les tours et la nef.
-POINT|6 Parvis Notre-Dame, Île de la Cité|Billet tours : aux alentours de 10 €, réservable en ligne
----
-TRANCHE|Flânerie dans les rues du Vieux Paris|11h45|13h30
-NOM|Île de la Cité et alentours, Paris 1er
-TITRE|Déambulation dans le Paris médiéval
-TEXTE|Longer le quai aux Fleurs, traverser la place Dauphine, descendre la rue de Lutèce. Ne pas manquer la Sainte-Chapelle (billet entre 11 € et 13 €) ni le marché aux fleurs le dimanche.
-POINT|Rue de Lutèce, Île de la Cité|La rue conserve plusieurs façades médiévales
-POINT|Place Dauphine, Paris 1er|L'une des plus calmes du quartier, idéale pour une pause`;
+[répéter pour 6 à 8 tranches]`;
 }
 
 function buildPromptAlternatives(dest, budget, periode, styleLabel, tranches, quartier) {
-  const tranchesList = tranches.map(t => `${t.id}|${t.label}|${t.heure}–${t.heure_fin}|${t.nom}`).join('\n');
-  const quartierClause = quartier ? `Quartier du jour : ${quartier}. Toutes les alternatives restent dans ce quartier.` : '';
-  return `Génère les alternatives B et C pour chaque tranche de l'itinéraire de ${dest}. Budget : ${budget}. Style : ${styleLabel}.
+  const tranchesList = tranches.map(t =>
+    `${t.id} | ${t.heure}–${t.heure_fin} | OPTION A : ${t.label} — ${t.nom}\n   Ce que propose A : ${t.titre||''}. ${t.texte||''}`
+  ).join('\n');
+  const quartierClause = quartier ? `Quartier du jour : ${quartier}. Toutes les alternatives restent OBLIGATOIREMENT dans ce quartier.\n` : '';
+  return `Pour chaque tranche de l'itinéraire de ${dest}, génère deux alternatives B et C à l'option A décrite. Budget : ${budget}. Style : ${styleLabel}.
 ${quartierClause}
+Tu vois ci-dessous l'option A EN DÉTAIL pour chaque créneau. Tu t'en sers pour proposer deux activités vraiment différentes — mais le détail de A sert UNIQUEMENT à t'aider à varier : il ne doit JAMAIS apparaître ni être mentionné dans ta réponse.
 
-RÈGLES :
-- B et C complètement différentes de A et entre elles (type d'activité différent, pas seulement une autre adresse du même type), dans le même quartier
-- CRITIQUE : les alternatives B et C couvrent EXACTEMENT la même plage horaire que l'option A (mêmes heures de début et de fin indiquées dans TRANCHES ci-dessous). Ne pas modifier les horaires.
-- Adresses précises avec prix en monnaie locale. Prix : "aux alentours de X€" si moins de 15€ et incertain, "entre X€ et Y€" si plus de 15€. 60 mots max. Ton factuel, pas de tutoiement, pas d'enthousiasme artificiel.
+RÈGLES DE CONTENU :
+- B et C proposent des LIEUX et des EXPÉRIENCES différents de A et entre eux : pas le même endroit, pas une simple autre adresse du même type. Ce sont de vraies alternatives, pas des doublons.
+- MAIS B et C restent COHÉRENTS avec le(s) thème(s) choisi(s). La diversité doit servir le thème, pas le trahir : si le thème est sportif ("Bouger & Explorer"), les alternatives sont d'AUTRES activités actives (escalade, kayak, autre parcours vélo, accrobranche, course…) — c'est exactement le bon choix. NE change PAS de registre pour être "différent" : ne propose jamais une visite de musée ou une marche contemplative en alternative à du vélo si le thème est sportif. L'alternative idéale = même esprit thématique, autre activité/lieu.
+- MÊME QUARTIER, STRICT : B et C sont OBLIGATOIREMENT dans le quartier de A (celui indiqué). Aucune option ne sort de ce quartier, même si cela limite la variété. Si le quartier est petit, propose des activités plus proches plutôt que de changer de quartier.
+- B et C couvrent EXACTEMENT la même plage horaire que A. Ne pas modifier les horaires.
+- B et C aussi différentes l'une de l'autre.
 
-TRANCHES :
+RÈGLES D'ÉCRITURE (impératives) :
+- INTERDIT ABSOLU de comparer ou de commenter l'alternative par rapport à A ou à une autre option. Chaque texte décrit le lieu proposé comme s'il était présenté SEUL, sans savoir qu'il existe d'autres options. Sont notamment INTERDITS : "l'option A", "comme en cervejaria/institution/…", "pas d'attente comme", "moins/plus de file que", "contraste avec", "vs", "remplace", "à la place de", "même quartier que A", "à X min de l'option…", et toute tournure qui suppose un point de comparaison. Si tu te surprends à écrire "comme", "que", "moins", "plus" pour comparer à autre chose : supprime.
+- DISTANCE : si tu indiques une distance, exprime-la par rapport à un repère connu (un monument, une place, le centre du quartier) — JAMAIS par rapport à "l'option A" ou à une autre étape. Le plus souvent, ne mets pas de distance du tout.
+- Écrire en PHRASES COMPLÈTES, grammaticalement correctes et fluides (français irréprochable). INTERDIT le style télégraphique haché ("Menu 19h30 idéal. Pas terrasse."). Articles obligatoires : "servant UNE cuisine…", jamais "servant cuisine…". Relatives correctes : "un musée QUI expose…", jamais "un musée expose…".
+- PRIVILÉGIER L'UTILE, PAS L'ENCYCLOPÉDIE : ce que c'est en une phrase, le prix, comment y accéder, à quoi s'attendre. Une seule courte incise historique maximum, et seulement si elle aide à choisir. Pas de cours d'histoire (dates de construction, styles architecturaux, contenu détaillé des collections : à éviter).
+- VOCABULAIRE SIMPLE et accessible à un voyageur non spécialiste. INTERDIT les mots rares, savants ou pompeux (ex à bannir : "aristocratique", "incunables", "recueillie", "polychrome", "liturgique"). Si un terme technique est indispensable, l'expliquer en mots courants.
+- INTERDIT les adjectifs creux qui ne donnent aucune information vérifiable : "visite confortable", "visite flexible", "ambiance silencieuse et concentrée", "ambiance intime et aristocratique", etc. Si un mot ne renseigne pas concrètement le voyageur, le supprimer.
+- DÉPLACEMENTS — par défaut, les étapes d'une même journée sont dans le même quartier et se rejoignent À PIED : ne mentionne AUCUN transport pour un trajet faisable à pied (c'est le cas le plus fréquent). N'évoque un mode de transport QUE si le lieu est réellement éloigné et qu'il faut l'expliquer. Dans ce cas uniquement, sois précis ET n'emploie que des transports qui existent vraiment dans cette ville (métro, tram, bus, funiculaire, ferry, tuk-tuk, songthaew… selon la ville) — n'invente JAMAIS un métro ou une ligne dans une ville qui n'en a pas. En cas de doute, ne mentionne pas de transport. Ne jamais exprimer une distance par rapport à une autre option (voir règle DISTANCE).
+- PRÉCISION : quand tu donnes un horaire, une rue ou une station, donne le nom/l'heure exacts (pas "vers le centre", pas "une station proche").
+- INTERDIT d'inventer une justification creuse ("optimal", "idéal", "parfait pour", "moment idéal") : n'affirme qu'un fait vérifiable. Si tu n'as pas de vraie raison, ne mets pas de commentaire.
+- LONGUEUR : 1 à 3 PHRASES COMPLÈTES, environ 50 mots. Chaque phrase a un verbe — INTERDIT les fragments nominaux du type "Pas menu écrit", "Départ 21h30 optimal", "Couple propriétaire". Écris "Le menu n'est pas affiché, on choisit sur place", "Tenu par un couple", etc.
+- Prix en monnaie locale au bon format, entre parenthèses. Pas de tutoiement, pas d'enthousiasme artificiel.
+
+Exemple du style ATTENDU :
+"Restaurant à taille humaine (20 couverts), cuisine régionale traditionnelle (plats 14-17€, vin au verre 6-8€). Pas de terrasse mais ambiance chaleureuse. Réservation conseillée le soir."
+
+Exemple À PROSCRIRE (trop encyclopédique, mots pompeux, adjectifs creux, français bancal, accès flou) :
+"Ancien palais du XVIIIe siècle reconverti en musée. Collections de gravures et objets urbains depuis le Moyen Âge. Ambiance intime et aristocratique, visite confortable. Un petit musée attenant expose ornements liturgiques. Accès direct par métro."
+
+RELECTURE OBLIGATOIRE avant de répondre : pour chaque texte, vérifie qu'il (1) reste dans le quartier de A, (2) reste cohérent avec le thème choisi, (3) ne mentionne ni ne compare aucune autre option, (4) ne contient aucun fragment sans verbe, (5) n'a aucune faute d'article ou de grammaire, (6) ne donne une distance que par rapport à un repère connu. Corrige avant d'écrire la réponse finale.
+
+TRANCHES (le détail de l'option A est une AIDE pour varier — ne jamais le reproduire ni y faire référence) :
 ${tranchesList}
 
 Réponds UNIQUEMENT avec ce format exact :
@@ -1949,12 +1991,12 @@ OPT_B
 NOM|Nom exact, quartier
 TITRE|Titre court
 TEXTE|texte avec prix
-POINT|Lieu exact, quartier|Détail avec prix
+POINT|Lieu exact, quartier|Détail utile
 OPT_C
 NOM|Nom exact, quartier
 TITRE|Titre court
 TEXTE|texte avec prix
-POINT|Lieu exact, quartier|Détail avec prix
+POINT|Lieu exact, quartier|Détail utile
 ===
 TRANCHE_ID|t2
 [etc]`;
@@ -1963,7 +2005,10 @@ TRANCHE_ID|t2
 function buildPromptQuartiers(dest, duree, budget, periode, styleLabel) {
   return `Pour un séjour de ${duree} jour${duree>1?'s':''} à ${dest} (style : ${styleLabel}, période : ${periode}, budget : ${budget}), génère un plan de quartiers — un quartier différent par jour, logiquement organisés.
 
-RÈGLES : ${duree} quartiers DISTINCTS, aucun répété. Quartiers réels de ${dest}. Ordre logique géographiquement.
+RÈGLES :
+- ${duree} quartiers DISTINCTS, aucun répété. Quartiers réels de ${dest}. Ordre logique géographiquement (limiter les trajets d'un jour à l'autre).
+- COHÉRENCE AVEC LE THÈME "${styleLabel}" : choisis en priorité les quartiers qui permettent VRAIMENT de vivre ce thème. Ex : thème nature/plein air → quartiers proches des parcs, bords d'eau, collines, départs de balade ; thème gastronomie → quartiers de marchés, rues de restaurants, halles ; thème culture/patrimoine → quartiers historiques, musées, monuments ; thème vie locale/festif → quartiers animés le soir. Ne retiens pas un quartier qui n'offre rien pour le thème choisi.
+- COHÉRENCE AVEC LA SAISON / PÉRIODE "${periode}" : tiens compte du climat et de la saison. En hiver ou par mauvais temps, privilégie des quartiers où l'on peut profiter d'activités même couvertes ; en plein été dans une ville chaude, privilégie les quartiers ombragés, près de l'eau ou animés en soirée. Évite de placer un quartier dont l'intérêt principal (plage, jardin, terrasse, marché de plein air) sera inaccessible ou fermé à cette période.
 
 Réponds UNIQUEMENT avec ce format :
 JOUR|1
@@ -2318,6 +2363,15 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
       panel.appendChild(row);
     }
 
+    // Carte du jour — conteneur placé EN HAUT (au-dessus de la timeline)
+    if (!document.getElementById('map-' + jourKey)) {
+      const mapWrap = document.createElement('div');
+      mapWrap.className = 'jour-map-wrap';
+      mapWrap.id = 'map-' + jourKey;
+      mapWrap.innerHTML = '<div class="map-loading-overlay">Localisation des adresses…</div>';
+      panel.appendChild(mapWrap);
+    }
+
     // Fil vertical d'itinéraire
     const filEl = document.createElement('div');
     filEl.className = 'itineraire-fil';
@@ -2349,17 +2403,15 @@ async function genererJourPanel(num, dest, budget, periode, styleLabel, joursGen
 
     tranches.forEach(t => { if (t.nom) historiqueActivites.push(t.nom); });
 
-    // Carte du jour — ajout du conteneur
-    const mapWrap = document.createElement('div');
-    mapWrap.className = 'jour-map-wrap';
-    mapWrap.id = 'map-' + jourKey;
-    mapWrap.innerHTML = '<div class="map-loading-overlay">Localisation des adresses…</div>';
-    panel.appendChild(mapWrap);
-    // Initialisation asynchrone (non-bloquante)
+    // Carte du jour — initialisation (le conteneur est déjà placé en haut du panel)
     initDayMap(jourKey, tranches, dest).catch(() => {
       const mw = document.getElementById('map-' + jourKey);
       if (mw) mw.style.display = 'none';
     });
+    // Filet de sécurité hauteur iframe (corrige le 1er jour parfois vide au chargement)
+    setTimeout(sendHeight, 150);
+    setTimeout(sendHeight, 600);
+    setTimeout(sendHeight, 1400);
 
     // Note prix en pied de journée
     const prixNote = document.createElement('p');
