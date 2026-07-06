@@ -2427,6 +2427,7 @@ function adaptDayToJours(day){
       texte: step.texte || '',
       adresse: step.adresse || null,
       image: step.image || null,
+      libre: !!step.libre,
       points_chute: [],
       _coords: (step.lat!=null && step.lng!=null) ? {lat: step.lat, lng: step.lng, precision:'exact'} : null
     };
@@ -3856,11 +3857,16 @@ async function ivGeocodeStep(num, tid, name, opt, repere) {
   const qc = await ivQuartierCenter(num);
   const quartier = ivCleanQuartier(IV.quartiers[num] || '');
   const RADIUS = 2.0; // km — tolérance resserrée (≈ 15-20 min à pied) → limite la dérive inter-quartiers
-  // « Confirmé » (pin rouge) = bon type, DANS le rayon, pertinence forte (≥0,7), ET soit un match
-  // très sûr (≥0,85) soit un vrai mot propre commun entre nom demandé et nom trouvé. Élimine les
-  // faux-confirmés type « piste cyclable de la rivière Aude » → « Rue de la Rivière » (0,57).
+  // BUG 7 : point de référence TOUJOURS présent = centre du quartier, sinon centre-ville. Un résultat de
+  // géocodage n'est accepté QUE s'il tombe dans cette zone -> jamais un homonyme à l'autre bout de l'Europe
+  // (avant : « !qc || … » bypassait le contrôle quand le centre du quartier était inconnu).
+  const cityRef = qc || (IV.center ? { lat: IV.center[1], lng: IV.center[0] } : null);
+  const CITY_RADIUS = 30; // km — enveloppe de la ville (métropole) quand on n'a que le centre-ville
+  const inZone = f => !!cityRef && ivHaversine(cityRef.lat, cityRef.lng, f.lat, f.lng) <= (qc ? RADIUS : CITY_RADIUS);
+  // « Confirmé » (pin rouge) = bon type, DANS la zone (jamais hors ville), pertinence forte (≥0,7), ET soit
+  // un match très sûr (≥0,85) soit un vrai mot propre commun entre nom demandé et nom trouvé.
   const ok = f => f && (f.type === 'poi' || f.type === 'address' || f.type === 'street') &&
-    (f.relevance || 0) >= 0.7 && (!qc || ivHaversine(qc.lat, qc.lng, f.lat, f.lng) <= RADIUS) &&
+    (f.relevance || 0) >= 0.7 && inZone(f) &&
     ((f.relevance || 0) >= 0.85 || ivShareToken(name, f.name));
   // 1) ADRESSE EXACTE : nom + ville, puis nom + quartier + ville
   let c = await ivGeoQuery(name + ', ' + IV.dest, 'poi,address');
@@ -3870,7 +3876,7 @@ async function ivGeocodeStep(num, tid, name, opt, repere) {
   if (repere) {
     let r = await ivGeoQuery(repere + ', ' + IV.dest, 'address,place,poi');
     if (!r && quartier) r = await ivGeoQuery(repere + ', ' + quartier + ', ' + IV.dest, 'address,place');
-    if (r && (!qc || ivHaversine(qc.lat, qc.lng, r.lat, r.lng) <= RADIUS)) return { lat: r.lat, lng: r.lng, precision: 'approx' };
+    if (r && inZone(r)) return { lat: r.lat, lng: r.lng, precision: 'approx' }; // BUG 7 : jamais hors ville (avant : bypass si qc null)
   }
   // 3) dernier recours : centre RÉEL du quartier (jamais une position inventée)
   if (qc) return { lat: qc.lat, lng: qc.lng, precision: 'approx' };
@@ -3927,7 +3933,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.</p>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v174</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
         `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
@@ -4211,6 +4217,7 @@ async function ivCoords(num, tid, opt) {
   let d = ivOpt(num, tid, opt);
   if (!d) d = ivOpt(num, tid, 'a'); // repli : variante sans données (ex. tronquée) → on garde l'option A
   if (!d) return null;
+  if (d.libre) return null; // BUG 7 : « Temps libre » = trou horaire sans lieu -> AUCUN pin (avant : géocodait « Temps libre » -> pin au hasard)
   if (d._coords) return d._coords;
   const repere = (d.points_chute && d.points_chute[0] && d.points_chute[0].lieu) || '';
   const c = await ivGeocodeStep(num, tid, d.nom, opt, repere); if (c) d._coords = c; return c;
