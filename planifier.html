@@ -1385,7 +1385,7 @@ const MODEL = 'claude-haiku-4-5-20251001';
 const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresses se mettent en place…','On trace le rythme de la journée…','Derniers ajustements avant le départ…','On choisit les tables qui valent le détour…','L\'itinéraire prend forme…'];
 
 /* ============================================================
-   ==== MOTEUR À VRAIS LIEUX — greffé depuis planifier_archi_test.html (v163) ====
+   ==== MOTEUR À VRAIS LIEUX — greffé depuis archive/planifier_archi_test.html (v163) ====
    Tout ce bloc lit de VRAIS lieux via le Worker et construit la variable globale DAYS.
    La belle UI (generer/initJoursTabs/iv*) lit ensuite DAYS via adaptDayToJours().
    ============================================================ */
@@ -1425,7 +1425,7 @@ const EXPERIENCE=/canoe|kayak|rafting|paddle|nautique|escalade|via.?ferrata|accr
 const FACILITY=/gymnase|complexe sportif|cit[eé] des sports|salle de sports?|salle des sports|\bstade\b|tennis club|club de tennis|boulodrome|halle des sports|\bdojo\b/i;
 const SHARE=/^(lime|pony|dott|tier|bird|bolt|voi|jump|v[eé]lib|donkey|zoov|knot)\b/i;
 // FAMILLE — catégories enfants réintégrées au vivier UNIQUEMENT pour voyage==='famille' (par catégorie structurée OSM/Geoapify, jamais par nom propre)
-const KIDCAT=/entertainment\.(zoo|aquarium)|\bzoo\b|\baquarium\b|wildlife|animal_?park|parc animalier|m[ée]nagerie|petting|leisure\.playground|\bplayground\b|aire de jeux/i;
+const KIDCAT=/entertainment\.(zoo|aquarium)|\bzoo\b|\baquarium\b|wildlife|animal_?park|parc animalier|m[ée]nagerie|petting|leisure\.playground|\bplayground\b|aire de jeux|bac [àa] sable|sandbox|sand ?pit|pataugeoire|jeux d.enfants|jeux pour enfants/i;
 // AMIS — activités de GROUPE (bowling, escape game, arcade, mini-golf, laser, karaoké…) : remontées en étape quand voyage==='entre amis' (par catégorie/signal, jamais par nom propre)
 const GROUPCAT=/entertainment\.(bowling_alley|escape_game|amusement_arcade|miniature_golf)|bowling|escape.?game|jeu d'?[ée]vasion|laser.?game|karaok|\bbillard\b|billiard|paintball|mini.?golf|\barcade\b|fl[ée]chette/i;
 // FESTIF — séparation JOUR / SOIR par CATÉGORIE structurée (OSM/Geoapify + libellés FSQ), jamais par le nom (universel).
@@ -2390,13 +2390,15 @@ function _bcVariant(place, step, tid){
 function _bcAlts(day, step, n){
   if(!step.theme) return [];
   var pool=((day.cands&&day.cands[step.theme])||[]).concat(day.localLM||[]);
-  var self=(step.nom||'').toLowerCase();
+  var self=_norm(step.nom||'');
+  // noms déjà présents dans la JOURNÉE (toutes les étapes) -> une alternative n'est jamais un autre lieu du jour (anti-doublon inter-étapes)
+  var dayNames={}; (day.steps||[]).forEach(function(s){ if(s&&s.nom) dayNames[_norm(s.nom)]=1; });
   var near=pool.filter(function(c){
-    return c&&c.nom&&c.lat!=null&&c.lng!=null&&c.theme===step.theme&&(c.nom||'').toLowerCase()!==self&&(step.theme!=='gastronomie'||!c.foodExp);
+    return c&&c.nom&&c.lat!=null&&c.lng!=null&&c.theme===step.theme&&_norm(c.nom)!==self&&!dayNames[_norm(c.nom)]&&(step.theme!=='gastronomie'||!c.foodExp);
   }).map(function(c){return {c:c,d:hav(step.lat,step.lng,c.lat,c.lng)};})
     .filter(function(x){return x.d<=1.2;}).sort(function(a,b){return a.d-b.d;});
-  var seen={},res=[];seen[self]=1;
-  for(var i=0;i<near.length&&res.length<n;i++){var nm=(near[i].c.nom||'').toLowerCase();if(seen[nm])continue;seen[nm]=1;res.push(near[i].c);}
+  var seen={},res=[];seen[self]=1; // dédup des alternatives par NOM normalisé
+  for(var i=0;i<near.length&&res.length<n;i++){var nm=_norm(near[i].c.nom||'');if(seen[nm])continue;seen[nm]=1;res.push(near[i].c);}
   return res;
 }
 function adaptDayToJours(day){
@@ -2427,7 +2429,7 @@ function tranchesFromDay(day){
   const jk='j'+day.num;
   return (day.steps||[]).map(function(step,i){ return joursData[jk]['t'+(i+1)].a; });
 }
-// ===== MOTEUR À VRAIS LIEUX (porté de planifier_archi_test.html) =====
+// ===== MOTEUR À VRAIS LIEUX (porté de archive/planifier_archi_test.html) =====
 // Construit la variable globale DAYS à partir des entrées du wizard. Ne touche JAMAIS à l'UI :
 // la belle UI (initJoursTabs / iv*) lit ensuite DAYS via adaptDayToJours(). useBase FORCÉ à true.
 async function buildDAYS(dest, duree, voyage, budget, saison, themes){
@@ -2704,7 +2706,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         }
       }
       // ANTI-DOUBLON DE LIEU, TOUTES SOURCES (activité LLM + icône + comblage) : deux étapes à < 120 m OU à la MÊME adresse = le même lieu -> on ne garde que la première (la mieux décrite). Universel (proximité + adresse, jamais le nom). Ex. « Democracy Monument » (culture, LLM) + « Democracy Monument » (urbain, icône) ; « Dôme » + « Basilique » du Sacré-Cœur.
-      (function(){var _seen=[];dayActs=dayActs.filter(function(a){var aad=_norm(a.address||(a._c&&a._c.address)||'');var dup=_seen.some(function(s){var sad=_norm(s.address||(s._c&&s._c.address)||'');return (a.lat&&s.lat&&hav(s.lat,s.lng,a.lat,a.lng)<0.05)||(aad&&sad&&aad.length>5&&aad===sad);});if(dup)return false;_seen.push(a);return true;});})(); // < 50 m (même point) OU même adresse exacte -> doublon ; deux activités distinctes voisines (>50 m, adresses ≠) sont conservées
+      (function(){var _seen=[];dayActs=dayActs.filter(function(a){var aad=_norm(a.address||(a._c&&a._c.address)||'');var an=_norm(a.nom||'');var dup=_seen.some(function(s){var sad=_norm(s.address||(s._c&&s._c.address)||'');var sn=_norm(s.nom||'');return (a.lat&&s.lat&&hav(s.lat,s.lng,a.lat,a.lng)<0.05)||(aad&&sad&&aad.length>5&&aad===sad)||(an&&sn&&an===sn&&a.lat&&s.lat&&hav(s.lat,s.lng,a.lat,a.lng)<0.4);});if(dup)return false;_seen.push(a);return true;});})(); // < 50 m (même point) OU même adresse exacte OU MÊME NOM normalisé à < 400 m -> doublon (grand parc + sous-features « Parc de Bercy » x3). Deux lieux distincts (noms ≠, ou même nom mais > 400 m) sont conservés.
       // PARCOURS EN CHAÎNE (plus proche voisin) au lieu d'un classement autour du centre : départ = l'étape la plus proche du centre (ancre), puis on enchaîne toujours vers la plus proche encore non visitée -> moins de zig-zags, et la journée se déroule comme un vrai chemin.
       (function(){
         if(dayActs.length<=2){dayActs.sort(function(a,b){var da=a._d!=null?a._d:hav(center.lat,center.lng,a.lat,a.lng),db=b._d!=null?b._d:hav(center.lat,center.lng,b.lat,b.lng);return da-db;});var _ff=dayActs.findIndex(function(a){return a._footing;});if(_ff>0)dayActs.unshift(dayActs.splice(_ff,1)[0]);return;} // FOOTING en OUVERTURE (le matin)
