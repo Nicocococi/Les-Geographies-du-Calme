@@ -2433,7 +2433,17 @@ function adaptDayToJours(day){
       points_chute: [],
       _coords: (step.lat!=null && step.lng!=null) ? {lat: step.lat, lng: step.lng, precision:'exact'} : null
     };
-    var alts=(step.lat!=null && step.lng!=null) ? _bcAlts(day, step, 2) : [];
+    // ALTERNATIVES B/C. Repas : on utilise d'abord step.alts (liste DÉDIÉE construite au moteur — vrais restos,
+    // gammes de prix mélangées, rayon ville-large) ; complétée au besoin par _bcAlts. Autres étapes : _bcAlts.
+    var alts;
+    if(step.theme==='gastronomie'){
+      alts=(Array.isArray(step.alts)?step.alts.slice(0,2):[]);
+      if(alts.length<2 && step.lat!=null && step.lng!=null){
+        _bcAlts(day, step, 2).forEach(function(x){ if(alts.length<2 && !alts.some(function(y){return _norm(y.nom||'')===_norm(x.nom||'');})) alts.push(x); });
+      }
+    } else {
+      alts=(step.lat!=null && step.lng!=null) ? _bcAlts(day, step, 2) : [];
+    }
     joursData[jk][tid]={ a:a, b: alts[0]?_bcVariant(alts[0],step,tid):null, c: alts[1]?_bcVariant(alts[1],step,tid):null };
   });
   if(!IV.quartiers) IV.quartiers={};
@@ -2772,7 +2782,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
           var alts=[];if(tlo)alts.push(tlo);if(thi)alts.push(thi); // une de chaque gamme = vrai mélange
           if(alts.length<2){var fill=cand.filter(c=>!alts.some(a=>_norm(a.nom)===_norm(c.nom))).sort((a,b)=>a.d2-b.d2);for(var z=0;z<fill.length&&alts.length<2;z++)alts.push(fill[z]);} // compléter si une gamme manque (prix inconnu ou le + proche)
           alts.forEach(a=>usedM.add(_norm(a.nom)));
-          s.alts=alts.map(c=>({nom:c.nom,price:c.price||null,adresse:c.address||null}));
+          s.alts=alts.map(c=>({nom:c.nom,price:c.price||null,adresse:c.address||null,lat:c.lat,lng:c.lng,cat:c.cat||null,extract:c.extract||null,image:c.image||null})); // lat/lng portés -> l'adaptateur peut bâtir de vraies variantes B/C repas (pin déplaçable)
         });
       })();
       // LIBELLÉS DE REPAS forcés par l'ORDRE chronologique : 1er repas = Déjeuner, 2e = Dîner (évite « Dîner à 12h40 » ou un déj/dîner inversé)
@@ -3935,7 +3945,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v175</span></p>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v176</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
         `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
