@@ -2382,7 +2382,7 @@ function _bcVariant(place, step, tid){
   return {
     id: tid, label: place.nom||'', heure: step.heure||'', heure_fin: step.fin||'',
     nom: place.nom||'', titre: place.nom||'',
-    texte: cap + ' &agrave; proximit&eacute; &mdash; une autre adresse pour cette &eacute;tape.',
+    texte: place.extract ? place.extract : (cap + ' à proximité — une autre adresse pour cette étape.'), // BUG 3 : vrai extrait si dispo (comme la variante A) ; sinon fallback EN CLAIR (plus d'entités &agrave; brutes)
     adresse: place.address||place.adresse||null,
     image: place.image||null,
     points_chute: [],
@@ -2604,7 +2604,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
           var _ty=_ico.cat||'un lieu emblématique'; // déjà en français naturel avec article (cleanCat)
           var _tv=['Sur le chemin : '+_ty+' emblématique du secteur, à voir en passant.',_cap(_ty)+' du quartier qui vaut le coup d\'œil.','Un incontournable du quartier : '+_ty+', à découvrir en chemin.']; // 3 variantes (genre-neutres) choisies par nom -> deux icônes voisines n'ont pas la même phrase
           var _icoTitle=_latinTitle(_ico.nom,_ty); // titre lisible : nom si latin, sinon type FR (le pin garde le vrai nom)
-          var _icoTxt=_sensitive(_ico.nom,_ty)?_graveTxt(_icoTitle):(_ico.extract?_escHtml(_ico.extract):_vari(_ico.nom,_tv)); // VAGUE 1 : vraie phrase Wikipédia si dispo ; lieu de mémoire -> ton grave (template) inchangé ; sinon template varié
+          var _icoTxt=_sensitive(_ico.nom,_ty)?_graveTxt(_icoTitle):(_ico.extract?_ico.extract:_vari(_ico.nom,_tv)); // VAGUE 1 : vraie phrase Wikipédia (EN CLAIR ; échappée au rendu) si dispo ; lieu de mémoire -> ton grave ; sinon template varié
           var _icoC={nom:_ico.nom,lat:_ico.lat,lng:_ico.lng,theme:_ico.theme||'culture',score:_ico.score,imp:_ico.imp||0,notable:true,address:_ico.address||null,cat:_ico.cat||null,extract:_ico.extract||null,image:_ico.image||null,_incontournable:true};
           actsArr.push(Object.assign({},_icoC,{_c:_icoC,carhop:false,periph:false,_incontournable:true,titre:_icoTitle,texte:_icoTxt}));
           log('  · incontournable du quartier ('+(_ico.theme||'?')+') : '+_ico.nom);
@@ -2637,7 +2637,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       // COMBLER PLUTÔT QUE LAISSER « TEMPS LIBRE » : si le thème est épuisé dans le quartier, on remplit avec les ICÔNES hors-thème du secteur (culture/urbain/nature notables) — placées APRÈS le vivier thème, donc le thème reste prioritaire.
       var _offThemes=['culture','nature','urbain','bienetre'].filter(function(t){return !themes.includes(t);});
       var _offFill=(_dayLM||[]).filter(function(c){return _offThemes.indexOf(c.theme)>=0 && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')) && !/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall/i.test(c.nom||'') && !chosenNoms.has(_norm(c.nom)) && !usedLandmarks.has(_norm(c.nom)) && !used.has(_norm(c.nom)) && hav(center.lat,center.lng,c.lat,c.lng)<=BUBBLE;}) // COMBLAGE LARGE : TOUS les POI culture/nature/urbain du quartier (notables ET non-notables) dans le rayon marchable -> le temps libre devient un vrai dernier recours
-        .map(function(c){var _ct=c.cat||'un lieu emblématique';var _t=_latinTitle(c.nom,_ct);var _cv=[_cap(_ct)+' du quartier, à découvrir au fil de la marche.','Sur le chemin : '+_ct+' du secteur, à voir en flânant.',_cap(_ct)+' à voir en passant dans le quartier.'];return Object.assign({},c,{_c:c,carhop:false,periph:false,_d:hav(center.lat,center.lng,c.lat,c.lng),titre:_t,texte:_sensitive(c.nom,_ct)?_graveTxt(_t):(c.extract?_escHtml(c.extract):_vari(c.nom,_cv))});}) // COMBLAGE aligné sur l'incontournable : titre lisible (nom si latin, sinon type FR ; pin garde le vrai nom), ton grave sur un lieu de mémoire, sinon 2-3 variantes par type (anti-monotonie, choix par nom)
+        .map(function(c){var _ct=c.cat||'un lieu emblématique';var _t=_latinTitle(c.nom,_ct);var _cv=[_cap(_ct)+' du quartier, à découvrir au fil de la marche.','Sur le chemin : '+_ct+' du secteur, à voir en flânant.',_cap(_ct)+' à voir en passant dans le quartier.'];return Object.assign({},c,{_c:c,carhop:false,periph:false,_d:hav(center.lat,center.lng,c.lat,c.lng),titre:_t,texte:_sensitive(c.nom,_ct)?_graveTxt(_t):(c.extract?c.extract:_vari(c.nom,_cv))});}) // COMBLAGE aligné sur l'incontournable : titre lisible (nom si latin, sinon type FR ; pin garde le vrai nom), ton grave sur un lieu de mémoire, sinon 2-3 variantes par type (anti-monotonie, choix par nom)
         .sort(function(a,b){return ((b.notable?1:0)-(a.notable?1:0))||(b.score-a.score);});
       poolActs=poolActs.concat(_offFill);
       // RÈGLE DURE : un festif NIGHTLIFE (bar/pub/club/salle de concert/cabaret — par CATÉGORIE) = sortie du SOIR uniquement, JAMAIS une activité de journée. Le festif de JOURNÉE = uniquement dayFestif (bowling/escape/arcade/mini-golf). Tout festif qui n'est pas dayFestif est donc « du soir » et exclu de la journée.
@@ -4036,7 +4036,7 @@ function ivDetailHTML(num, t, i, optOverride) {
   const pts = (data && data.points_chute) || [];
   let html = '<div class="iv-detail-inner">';
   if (data && data.image) html += '<img class="iv-photo" src="' + String(data.image).replace(/"/g, '&quot;') + '" loading="lazy" alt="" onerror="this.style.display=\'none\'">'; // VAGUE 1 : vraie photo du lieu (Commons/Wikipédia) ; masquée si chargement échoue
-  html += '<p class="iv-text">' + ((data && data.texte) || '') + '</p>';
+  html += '<p class="iv-text">' + _escHtml((data && data.texte) || '') + '</p>'; // texte stocké EN CLAIR partout -> échappé ici (innerHTML) ; le sous-titre l'affiche via textContent (donc plus d'entités brutes)
   html += ivPointsHTML(pts);
   html += '<div class="iv-alts"><div class="iv-alts-label">Alternatives à proximité</div><div class="iv-alts-grid">';
   ['a','b','c'].forEach(k => {
