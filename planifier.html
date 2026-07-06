@@ -1478,17 +1478,18 @@ function _cityBBox(lat,lng,Rkm){const dLat=Rkm/111,dLng=Rkm/(111*Math.max(0.2,Ma
 // centre) : on interroge d'ABORD la Search Box (bien meilleure couverture des quartiers/POI, celle des pins carte),
 // avec le nom SEUL (pas « , ville » — ce suffixe faisait retomber Mapbox sur la ville) ; ville donnée par
 // proximity+bbox+country. Repli v5 si la Search Box ne renvoie rien. Renvoie {lat,lng,nom,city,ptype,cc} ou null.
-async function geocodeQuartier(name, dc, bbox){
+async function geocodeQuartier(name, dc, bbox, types){
+  types=types||'neighborhood,locality,place,district'; // PLAN C : pour un REPÈRE précis, passer 'poi,address,place'
   try{
     // PAS de &bbox ici : la Search Box (comme ivGeoQuerySB qui place les pins) se contente de proximity+country ;
     // ajouter bbox cassait l'appel. Les résultats aberrants sont filtrés en aval (sanity ville + garde-fou >7 km).
-    let u='https://api.mapbox.com/search/searchbox/v1/forward?q='+encodeURIComponent(name)+'&access_token='+TOKEN+'&limit=1&language=fr&types=neighborhood,locality,place,district';
+    let u='https://api.mapbox.com/search/searchbox/v1/forward?q='+encodeURIComponent(name)+'&access_token='+TOKEN+'&limit=1&language=fr&types='+encodeURIComponent(types);
     u+='&proximity='+dc.lng+','+dc.lat; if(dc.cc)u+='&country='+dc.cc;
     const d=await(await fetch(u)).json(); const f=d.features&&d.features[0];
     if(f&&f.geometry&&f.geometry.coordinates&&f.geometry.coordinates.length>=2){const co=f.geometry.coordinates,p=f.properties||{},ctx=p.context||{};
       return {lat:co[1],lng:co[0],nom:p.name||name,city:(ctx.place&&ctx.place.name)||'',ptype:p.feature_type||'',cc:(ctx.country&&ctx.country.country_code)||'',via:'searchbox'};}
   }catch(e){}
-  var _v5=await geocode(name,[dc.lng,dc.lat],dc.cc||null,'neighborhood,locality,place',bbox); // repli v5 (nom seul + bbox ville)
+  var _v5=await geocode(name,[dc.lng,dc.lat],dc.cc||null,types,bbox); // repli v5 (mêmes types + bbox ville)
   if(_v5)_v5.via='v5';
   return _v5;
 }
@@ -2197,11 +2198,12 @@ function ambianceAt(lat,lng,rKm){
 function parseQuartiers(texte){
   const q={};
   (texte||'').split(/\n---+\n/).filter(b=>b.trim()).forEach(bloc=>{
-    let num=null,quartier=null;
+    let num=null,quartier=null,repere=null;
     bloc.trim().split('\n').forEach(line=>{line=line.trim();
       if(line.startsWith('JOUR|'))num=parseInt(line.split('|')[1]);
-      else if(line.startsWith('QUARTIER|'))quartier=line.slice(9);});
-    if(num&&quartier)q[num]=quartier;
+      else if(line.startsWith('QUARTIER|'))quartier=line.slice(9);
+      else if(line.startsWith('REPERE|'))repere=line.slice(7);}); // PLAN C : lieu-repère précis, géocodable
+    if(num&&quartier)q[num]={nom:quartier.trim(),repere:(repere||'').trim()};
   });
   return q;
 }
@@ -2233,7 +2235,8 @@ function buildPromptQuartiers(dest,duree,themes,budget,periode){
     +'  Ne retiens AUCUN quartier qui n\'offre rien pour le(s) thème(s) choisi(s).'+structClause+multiThemeClause+'\n'
     +'- COHÉRENCE AVEC LA SAISON / PÉRIODE "'+periode+'" : tiens compte du climat et de la saison. En hiver ou par mauvais temps, privilégie des quartiers où l\'on peut profiter d\'activités même couvertes ; en plein été dans une ville chaude, privilégie les quartiers ombragés, près de l\'eau ou animés en soirée. Évite de placer un quartier dont l\'intérêt principal (plage, jardin, terrasse, marché de plein air) sera inaccessible ou fermé à cette période.\n\n'
     +'- NOM DU QUARTIER : donne UN SEUL nom de quartier RÉEL et GÉOCODABLE (celui qu\'on taperait sur une carte) — ex. « Le Marais », « Canal Saint-Martin », « Buttes-aux-Cailles ». INTERDIT : parenthèses, tirets d\'énumération, « X et Y », descriptions (« Berges de Seine (Île-Saint-Louis et quais rive gauche) » ✗). Le quartier doit être DANS la ville de destination, jamais une commune voisine.\n\n'
-    +'Réponds UNIQUEMENT avec ce format :\nJOUR|1\nQUARTIER|Nom du quartier\n---\nJOUR|2\nQUARTIER|Nom du quartier\n---\n[continuer pour '+duree+' jours]';
+    +'- REPÈRE GÉOCODABLE : pour CHAQUE quartier, donne aussi UN lieu PRÉCIS et connu, situé DANS ce quartier, qu\'on trouverait facilement sur une carte (un MONUMENT, une PLACE, un PARC, un QUAI ou une GARE nommés) — surtout PAS le nom du quartier répété, ni une simple rue banale. Exemples : Le Marais → « Place des Vosges » ; Canal Saint-Martin → « Quai de Valmy » ; Montmartre → « Place du Tertre » ; Buttes-aux-Cailles → « Place Paul Verlaine ». Ce repère sert à localiser le quartier avec précision.\n\n'
+    +'Réponds UNIQUEMENT avec ce format :\nJOUR|1\nQUARTIER|Nom du quartier\nREPERE|Lieu précis et géocodable de ce quartier\n---\nJOUR|2\nQUARTIER|Nom du quartier\nREPERE|Lieu précis et géocodable\n---\n[continuer pour '+duree+' jours]';
 }
 // ===== HORAIRES (opening_hours OSM) — parser LÉGER, cas courants seulement, repli « ouvert » =====
 // Pas de date réelle dans l'itinéraire (Jour 1/2/3) -> on ne connaît pas le jour de semaine : on vérifie l'HEURE
@@ -2563,7 +2566,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var _qtxt=await llm(buildPromptQuartiers(dest,duree,themes,budget,saison||'belle saison'),700);
       _llmQ=parseQuartiers(_qtxt)||{};
       var _qn=Object.keys(_llmQ).length;
-      if(_qn)log('  · LLM (caractère) : '+_qn+' quartier(s) proposé(s) → '+Object.values(_llmQ).join(' · '));
+      if(_qn)log('  · LLM (caractère) : '+_qn+' quartier(s) proposé(s) → '+Object.values(_llmQ).map(function(o){return o.nom+(o.repere?(' ('+o.repere+')'):'');}).join(' · '));
     }catch(e){}}
     // LECTURE LIVE PAR QUARTIER : /near (restos+bars) + /places bbox 2 km (thèmes choisis) fusionnés dans `all`.
     // -> le garde-fou ≥2 POI ET buildDayAround voient les POI DU QUARTIER nommé (culture/sport/nature/festif LOCAUX), pas le pool central biaisé. Comble le trou de couverture des thèmes en périphérie (Belleville, Canal…).
@@ -2580,15 +2583,20 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       // on cherche un ancrage dans un QUARTIER encore inexploré (pas deux jours au même endroit)
       let anchor=null,quartier=null,_didEnrich=false;const tried=new Set();
       // NIVEAU 2 — PRIORITÉ au quartier NOMMÉ par le LLM (caractère). On ENRICHIT d'ABORD le quartier (lecture live) PUIS on compte : le garde-fou voit les POI DU QUARTIER, plus le pool central. ≥2 POI du thème sinon repli densité.
-      var _qname=_llmQ[i+1]?String(_llmQ[i+1]).trim():'';
+      var _qo=_llmQ[i+1]||null;
+      var _qname=_qo?String(_qo.nom||'').trim():'';
+      var _qrep=_qo?String(_qo.repere||'').trim():'';
       if(_qname && !usedQuartiers.has(_qname)){
         try{
-          // bbox SERRÉE en grande ville (8 km ≈ garde-fou « >7 km ») : sinon Mapbox préfère un HOMONYME de banlieue
-          // (« Le Marais » à 13 km, « Canal Saint-Martin » à 28 km) au vrai quartier central -> tous rejetés -> repli
-          // central. Une métropole a ses quartiers < 6 km du centre. Petite ville : 35 km (excursions intactes).
+          // bbox SERRÉE en grande ville (8 km ≈ garde-fou « >7 km »). Petite ville : 35 km (excursions intactes).
           var _qbb=_cityBBox(dc.lat,dc.lng,bigCity?8:REGION_KM);
-          var _gc=await geocodeQuartier(_qname,dc,_qbb); // Search Box (couverture quartiers) puis repli v5 ; nom seul + bbox ville
-          log('  · Jour '+(i+1)+' : « '+_qname+' » géocodé → '+(_gc?('['+(_gc.via||'?')+'/'+(_gc.ptype||'?')+'] '+(_gc.nom||'?')+', '+hav(dc.lat,dc.lng,_gc.lat,_gc.lng).toFixed(1)+' km du centre'):'INTROUVABLE (Search Box + v5)')); // DIAGNOSTIC : voir exactement ce que Mapbox renvoie pour un nom de quartier
+          // PLAN C : Mapbox ne géocode PAS les noms de quartier (Le Marais -> homonyme de banlieue / Pologne / Hailles).
+          // On ancre donc sur le REPÈRE PRÉCIS fourni par le LLM (place/monument/quai) — un lieu précis, LUI, géocode bien.
+          // Repli sur le nom de quartier (souvent KO) puis, à défaut, sur la densité (plus bas).
+          var _gc=null;
+          if(_qrep){ _gc=await geocodeQuartier(_qrep,dc,_qbb,'poi,address,place'); if(_gc)_gc.src='repère'; }
+          if(!_gc){ _gc=await geocodeQuartier(_qname,dc,_qbb); if(_gc)_gc.src='nom'; }
+          log('  · Jour '+(i+1)+' : « '+_qname+' »'+(_qrep?(' / repère « '+_qrep+' »'):'')+' → '+(_gc?('['+(_gc.src||'?')+'/'+(_gc.via||'?')+'/'+(_gc.ptype||'?')+'] '+(_gc.nom||'?')+', '+hav(dc.lat,dc.lng,_gc.lat,_gc.lng).toFixed(1)+' km du centre'):'INTROUVABLE')); // DIAGNOSTIC
           if(_gc){
             // ANTI-DOUBLON INTER-JOURS (quartier LLM) : on FAIT CONFIANCE aux quartiers NOMMÉS par le LLM — il choisit
             // exprès une progression compacte (le prompt lui demande de limiter les trajets). Deux quartiers voisins mais
@@ -4021,7 +4029,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v183</span></p>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v184</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
         `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
