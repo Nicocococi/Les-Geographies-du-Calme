@@ -1446,6 +1446,7 @@ const WATER_CATS='waterway,maritime.marina,man_made.pier';
 const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, mini-golf, parc à thème, escape game, arcade, voie d'eau, marina, jetée. SEULE la pêche reste exclue.
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
+const APP_VERSION='v187'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2523,6 +2524,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
   saison=saison||''; // ''=indifférent
   if(!dest||!themes.length){throw new Error('Destination et au moins 1 thème requis.');}
   {
+    log('◆ Planificateur '+APP_VERSION+' — démarrage de la génération.'); // 1re ligne = version servie (vérif d'un coup d'œil)
     log('Token + géocodage destination…');await getToken();try{if(typeof mapboxgl!=='undefined'&&mapboxgl)mapboxgl.accessToken=TOKEN;}catch(_){}
     const dc=await geocode(dest,null,null,'place,locality,district,region');if(!dc)throw new Error('destination introuvable');
     log('Le thème pilote la carte : collecte des lieux réels…');
@@ -2619,7 +2621,11 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
               // commune voisine : on l'exempte du test de nom de ville (fragile pour les quartiers parisiens dont le
               // contexte Mapbox n'est pas toujours « Paris »). Le test ne rejette donc que : (i) le nom == la ville,
               // ou (ii) une COMMUNE (place/locality) dont la ville de contexte diffère.
-              var _gcVille = _destCity && ( (_gc.nom && _norm(_gc.nom)===_destCity) || (_gc.ptype!=='neighborhood' && _gc.city && _norm(_gc.city)!==_destCity) );
+              // REPÈRE (POI précis) : on n'applique PAS le test « commune voisine » — le contexte-ville Mapbox d'un POI
+              // est peu fiable en métropole (« Place des Fêtes » 19e taguée city=Clichy -> Belleville rejeté à tort).
+              // Un repère vraiment hors ville est de toute façon rejeté par la DENSITÉ (all = POI autour de la destination :
+              // un point lointain n'a aucun voisin -> _Tn/_Rn=0). Le test ville ne garde donc que le cas (i) nom==ville.
+              var _gcVille = _destCity && ( (_gc.nom && _norm(_gc.nom)===_destCity) || (_gc.src!=='repère' && _gc.ptype!=='neighborhood' && _gc.city && _norm(_gc.city)!==_destCity) );
               if(_gcVille){log('  · Jour '+(i+1)+' : « '+_qname+' » écarté (géocodé sur « '+(_gc.nom||_gc.city)+' » ['+_gc.ptype+', city='+(_gc.city||'?')+', '+_qdist.toFixed(1)+' km] — la ville ou une commune voisine) → repli densité.');}
               // Plus de rejet par DISTANCE (« >7 km ») : Paris-tuné, il cassait LA/Bangkok (quartiers étalés). Le juge
               // UNIVERSEL est la densité de POI autour du point (l'enrich live a déjà ramené les POI DU quartier) :
@@ -4033,7 +4039,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v186</span></p>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · `+APP_VERSION+`</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
         `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
