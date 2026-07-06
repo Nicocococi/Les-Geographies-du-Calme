@@ -1480,13 +1480,17 @@ function _cityBBox(lat,lng,Rkm){const dLat=Rkm/111,dLng=Rkm/(111*Math.max(0.2,Ma
 // proximity+bbox+country. Repli v5 si la Search Box ne renvoie rien. Renvoie {lat,lng,nom,city,ptype,cc} ou null.
 async function geocodeQuartier(name, dc, bbox){
   try{
+    // PAS de &bbox ici : la Search Box (comme ivGeoQuerySB qui place les pins) se contente de proximity+country ;
+    // ajouter bbox cassait l'appel. Les résultats aberrants sont filtrés en aval (sanity ville + garde-fou >7 km).
     let u='https://api.mapbox.com/search/searchbox/v1/forward?q='+encodeURIComponent(name)+'&access_token='+TOKEN+'&limit=1&language=fr&types=neighborhood,locality,place,district';
-    u+='&proximity='+dc.lng+','+dc.lat; if(dc.cc)u+='&country='+dc.cc; if(bbox)u+='&bbox='+bbox;
+    u+='&proximity='+dc.lng+','+dc.lat; if(dc.cc)u+='&country='+dc.cc;
     const d=await(await fetch(u)).json(); const f=d.features&&d.features[0];
     if(f&&f.geometry&&f.geometry.coordinates&&f.geometry.coordinates.length>=2){const co=f.geometry.coordinates,p=f.properties||{},ctx=p.context||{};
-      return {lat:co[1],lng:co[0],nom:p.name||name,city:(ctx.place&&ctx.place.name)||'',ptype:p.feature_type||'',cc:(ctx.country&&ctx.country.country_code)||''};}
+      return {lat:co[1],lng:co[0],nom:p.name||name,city:(ctx.place&&ctx.place.name)||'',ptype:p.feature_type||'',cc:(ctx.country&&ctx.country.country_code)||'',via:'searchbox'};}
   }catch(e){}
-  return await geocode(name,[dc.lng,dc.lat],dc.cc||null,'neighborhood,locality,place',bbox); // repli v5 (nom seul aussi)
+  var _v5=await geocode(name,[dc.lng,dc.lat],dc.cc||null,'neighborhood,locality,place',bbox); // repli v5 (nom seul + bbox ville)
+  if(_v5)_v5.via='v5';
+  return _v5;
 }
 
 async function wikivoyage(ville){try{const u='https://fr.wikivoyage.org/w/api.php?action=query&prop=extracts&explaintext=1&redirects=1&format=json&origin=*&titles='+encodeURIComponent(ville);const d=await(await fetchT(u,{},8000)).json();const p=d.query.pages;return _norm(p[Object.keys(p)[0]].extract||'');}catch(e){return '';}}
@@ -2584,6 +2588,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
           // central. Une métropole a ses quartiers < 6 km du centre. Petite ville : 35 km (excursions intactes).
           var _qbb=_cityBBox(dc.lat,dc.lng,bigCity?8:REGION_KM);
           var _gc=await geocodeQuartier(_qname,dc,_qbb); // Search Box (couverture quartiers) puis repli v5 ; nom seul + bbox ville
+          log('  · Jour '+(i+1)+' : « '+_qname+' » géocodé → '+(_gc?('['+(_gc.via||'?')+'/'+(_gc.ptype||'?')+'] '+(_gc.nom||'?')+', '+hav(dc.lat,dc.lng,_gc.lat,_gc.lng).toFixed(1)+' km du centre'):'INTROUVABLE (Search Box + v5)')); // DIAGNOSTIC : voir exactement ce que Mapbox renvoie pour un nom de quartier
           if(_gc){
             // ANTI-DOUBLON INTER-JOURS (quartier LLM) : on FAIT CONFIANCE aux quartiers NOMMÉS par le LLM — il choisit
             // exprès une progression compacte (le prompt lui demande de limiter les trajets). Deux quartiers voisins mais
@@ -4016,7 +4021,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v182</span></p>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v183</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
         `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
