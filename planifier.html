@@ -1,80 +1,1394 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Géographies du Calme — Générateur d'itinéraires</title>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+<title>Planifier mon voyage — Les Géographies du Calme</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
 <style>
-  :root{--or:#b8722c;--noir:#2b2b2b;--muted:#6b6459;--sand:#f3eee5;--card:#fff;}
-  *{box-sizing:border-box}
-  body{font-family:-apple-system,Inter,sans-serif;background:var(--sand);color:var(--noir);margin:0;padding:24px;line-height:1.5}
-  h1{font-size:1.5rem;margin:0 0 4px}
-  .sub{color:var(--muted);font-size:.9rem;margin-bottom:18px}
-  .form{background:var(--card);border:1px solid #e7e0d4;border-radius:14px;padding:16px;max-width:880px;margin-bottom:18px}
-  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
-  label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:4px}
-  input,select{padding:8px 10px;border:1px solid #d8d0c2;border-radius:8px;font-size:.95rem;background:#fff}
-  .themes{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-  .themes label{display:inline-flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--noir);background:#f7f3ec;border:1px solid #e0d8c8;border-radius:20px;padding:5px 10px;cursor:pointer}
-  button{background:var(--or);color:#fff;border:none;border-radius:10px;padding:11px 20px;font-size:.95rem;font-weight:600;cursor:pointer}
-  button:disabled{opacity:.5;cursor:default}
-  .wrap{display:flex;gap:20px;flex-wrap:wrap}
-  #map{width:560px;max-width:100%;height:520px;border-radius:14px;border:1px solid #e7e0d4}
-  .panel{flex:1;min-width:320px}
-  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  .tab{background:#fff;border:1px solid #e0d8c8;border-radius:10px;padding:8px 12px;cursor:pointer;font-size:.9rem}
-  .tab.on{background:var(--or);color:#fff;border-color:var(--or)}
-  .step{background:#fff;border:1px solid #ece5d8;border-left:4px solid var(--or);border-radius:10px;padding:10px 14px;margin-bottom:8px}
-  .step .h{font-size:.78rem;color:var(--or);font-weight:700}
-  .step .t{font-weight:600}
-  .step .x{font-size:.88rem;color:#4a4a4a;margin-top:3px}
-  .step .pin{font-size:.78rem;color:var(--muted);margin-top:4px}
-  .leg{font-size:.78rem;color:#9a8f7e;margin:2px 0 2px 14px;padding:2px 0 2px 10px;border-left:2px dotted #d8cdb8}
-  .leg-car{color:#b8722c;font-weight:600;border-left-color:#b8722c}
-  .mk{width:26px;height:26px;border-radius:50%;background:var(--or);color:#fff;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font:700 12px/1 Inter,sans-serif}
-  .log{font-size:.8rem;color:var(--muted);white-space:pre-wrap;margin-top:10px}
-  .err{color:#b00}
-  .dbg{max-width:1200px;margin-top:16px;font-size:.8rem;color:#555;background:#fbf8f2;border:1px dashed #d8d0c2;border-radius:10px;padding:12px;line-height:1.8}
-  .dbg h3{font-size:.95rem;margin:0 0 8px}
-  .dbg b{color:#7a5a2a}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: auto; min-height: 0; }
+:root {
+  --beige: #F8F6F2; --or: #B5976A; --or-light: #C8A96E;
+  --noir: #1A1A1A; --texte: #2a2a2a; --gris: #888; --bordure: #DEDBD5;
+  --blanc: #ffffff; --vert: #4a7c59;
+  --carte: #FFFFFF; --carte-soft: #F5F1E8; --fond: #F5F2EA;
+  --terracotta: #CC583D; --terracotta-dk: #B4452C;
+  --font-serif: 'Lora', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, sans-serif;
+}
+body { font-family: var(--font-sans); background: var(--fond); color: var(--texte); }
+body.gate-mode { background: transparent; }
+
+/* ── WIZARD ─────────────────────────────────────────────── */
+.wizard-wrap {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 1.2em 4em;
+  background: var(--beige);
+}
+
+/* Barre de progression */
+.wizard-progress {
+  width: 100%;
+  max-width: 560px;
+  height: 2px;
+  background: var(--bordure);
+  margin: 2.8em auto 0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.wizard-progress-fill {
+  height: 100%;
+  background: var(--or);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* Conteneur step */
+.wizard-steps {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  position: relative;
+  min-height: 420px;
+}
+
+.wizard-step {
+  display: none;
+  padding: 3em 0 2em;
+  animation: stepIn 0.35s ease forwards;
+}
+.wizard-step.active { display: block; }
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Numéro d'étape */
+.step-num {
+  font-size: 0.6em;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--or);
+  margin-bottom: 1em;
+}
+
+/* Question */
+.step-q {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.5em, 4vw, 2em);
+  color: var(--noir);
+  line-height: 1.3;
+  margin-bottom: 0.3em;
+}
+
+.step-hint {
+  font-size: 0.75em;
+  color: var(--gris);
+  margin-bottom: 2em;
+}
+
+/* Input destination */
+.dest-input {
+  width: 100%;
+  padding: 1em 0;
+  border: none;
+  border-bottom: 2px solid var(--bordure);
+  background: transparent;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.3em;
+  color: var(--noir);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.dest-input:focus { border-bottom-color: var(--or); }
+.dest-input::placeholder { color: var(--bordure); }
+
+/* Suggestions destination (typeahead) */
+.dest-field { position: relative; }
+.dest-suggest { position: absolute; left: 0; right: 0; top: 100%; margin-top: 6px; z-index: 40;
+  background: #fff; border: 1px solid var(--bordure); border-radius: 14px; overflow: hidden;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.12); display: none; }
+.dest-suggest.open { display: block; }
+.dest-suggest li { list-style: none; padding: 0.72em 1em; cursor: pointer; display: flex; align-items: baseline; gap: 0.5em;
+  font-family: 'Inter', sans-serif; border-bottom: 1px solid #F0EBE0; }
+.dest-suggest li:last-child { border-bottom: none; }
+.dest-suggest li:hover, .dest-suggest li.active { background: var(--beige); }
+.dest-suggest .ds-name { font-weight: 600; color: var(--noir); font-size: 0.98rem; }
+.dest-suggest .ds-ctx { color: var(--gris); font-size: 0.82rem; }
+
+/* Grille options jours */
+.days-grid {
+  display: flex;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+.day-btn {
+  width: 52px;
+  height: 52px;
+  border: 1.5px solid var(--bordure);
+  border-radius: 4px;
+  background: var(--blanc);
+  font-family: var(--font-sans);
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--gris);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.day-btn:hover { border-color: var(--or); color: var(--texte); }
+.day-btn.selected { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
+
+/* Grille options voyageurs / budget */
+.opts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7em;
+}
+.opts-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+
+.opt-card {
+  border: 1.5px solid var(--bordure);
+  border-radius: 6px;
+  padding: 1.1em 1.2em;
+  background: var(--blanc);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+.opt-card:hover { border-color: var(--or); }
+.opt-card.selected { border-color: var(--noir); background: var(--noir); }
+.opt-card-label {
+  font-size: 0.88em;
+  font-weight: 600;
+  color: var(--texte);
+  display: block;
+  transition: color 0.15s;
+}
+.opt-card.selected .opt-card-label { color: var(--blanc); }
+.opt-card-sub {
+  font-size: 0.7em;
+  color: var(--gris);
+  margin-top: 0.25em;
+  display: block;
+  transition: color 0.15s;
+}
+.opt-card.selected .opt-card-sub { color: rgba(255,255,255,0.55); }
+
+/* Grille thèmes */
+.themes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.6em;
+}
+.theme-pill {
+  border: 1.5px solid var(--bordure);
+  border-radius: 100px;
+  padding: 0.6em 1em;
+  background: var(--blanc);
+  font-size: 0.78em;
+  font-weight: 600;
+  color: var(--gris);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  user-select: none;
+}
+.theme-pill:hover { border-color: var(--or); color: var(--texte); }
+.theme-pill.selected { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
+.theme-hint { font-size: 0.7em; color: var(--or); margin-top: 0.8em; min-height: 1.2em; }
+
+/* Navigation */
+.step-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2.5em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--bordure);
+}
+.btn-back {
+  background: none;
+  border: none;
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gris);
+  cursor: pointer;
+  padding: 0.5em 0;
+  transition: color 0.15s;
+}
+.btn-back:hover { color: var(--texte); }
+.btn-back:disabled { opacity: 0; pointer-events: none; }
+
+.btn-next {
+  background: var(--noir);
+  color: var(--blanc);
+  border: none;
+  border-radius: 3px;
+  padding: 0.85em 2em;
+  font-family: var(--font-sans);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-next:hover { background: #333; }
+.btn-next:disabled { background: var(--bordure); color: var(--gris); cursor: not-allowed; }
+
+.btn-generate-wizard {
+  background: var(--or);
+  color: var(--blanc);
+  border: none;
+  border-radius: 3px;
+  padding: 0.9em 2.2em;
+  font-family: var(--font-sans);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-generate-wizard:hover { background: var(--or-light); }
+.btn-generate-wizard:disabled { background: var(--bordure); color: var(--gris); cursor: not-allowed; }
+
+/* Champs masqués (compatibilité JS) */
+.hidden-fields { display: none; }
+
+/* ── GATE (monitoring) ───────────────────────────────────── */
+.gate-wrap {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+}
+.gate-wrap.visible { display: flex; }
+
+/* Page d'invitation */
+.gate-intro {
+  width: 100%;
+  background: #f5f2ec;
+  padding: 48px 24px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.gate-heading {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: normal;
+  font-weight: 300;
+  font-size: 38px;
+  color: #2c2a27;
+  line-height: 1.15;
+  margin-bottom: 16px;
+}
+.gate-subhead {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  font-size: 17px;
+  font-weight: 300;
+  color: #6a6560;
+  line-height: 1.65;
+  max-width: 560px;
+  margin: 0 auto 48px;
+}
+
+/* Grille 2 cartes */
+.gate-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1em;
+  margin-bottom: 1.8em;
+  text-align: left;
+}
+.gate-cards.single { grid-template-columns: 1fr; max-width: 380px; margin-left: auto; margin-right: auto; }
+@media (max-width: 540px) {
+  .gate-cards { grid-template-columns: 1fr; }
+}
+.gate-offer {
+  background: #FFFFFF;
+  border: 1px solid #E8E2D8;
+  border-radius: 10px;
+  padding: 1.8em 1.6em 1.6em;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+}
+.gate-offer.featured {
+  border-color: #C9A96E;
+  box-shadow: 0 4px 20px rgba(181,149,98,0.12);
+  position: relative;
+}
+.gate-offer-badge {
+  display: none;
+  position: absolute;
+  top: -0.75em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.58em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #B89562;
+  border-radius: 100px;
+  padding: 0.3em 1em;
+  white-space: nowrap;
+}
+.gate-offer.featured .gate-offer-badge { display: block; }
+.gate-offer-title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.2em;
+  color: #1F1F1F;
+  margin-bottom: 0.25em;
+}
+.gate-offer-sub {
+  font-size: 0.76em;
+  color: #6E6A64;
+  line-height: 1.6;
+  margin-bottom: 1.4em;
+  flex: 1;
+}
+.gate-offer-perks {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.6em;
+}
+.gate-offer-perks li {
+  font-size: 0.78em;
+  color: #3A3733;
+  line-height: 1.5;
+  padding: 0.3em 0;
+  border-bottom: 1px solid #F0EDE8;
+  display: flex;
+  align-items: baseline;
+  gap: 0.55em;
+}
+.gate-offer-perks li::before {
+  content: '✦';
+  color: #B89562;
+  font-size: 0.65em;
+  flex-shrink: 0;
+  margin-top: 0.1em;
+}
+.gate-offer-perks li:last-child { border-bottom: none; }
+.gate-offer-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 0.75em 1.2em;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: all 0.18s;
+  border: none;
+  cursor: pointer;
+}
+.gate-offer-btn.outline {
+  background: transparent;
+  color: #6E6A64;
+  border: 1.5px solid #D8D2C8;
+}
+.gate-offer-btn.outline:hover { border-color: #B89562; color: #B89562; }
+.gate-offer-btn.gold {
+  background: #B89562;
+  color: #ffffff;
+}
+.gate-offer-btn.gold:hover { background: #C9A96E; }
+/* Mini table comparatif */
+.gate-table-wrap {
+  margin: 0 0 0.9em;
+  border: 1px solid #E8E2D8;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.gate-table { width: 100%; border-collapse: collapse; }
+.gate-table thead tr { background: #FAF8F4; }
+.gate-table thead th {
+  padding: 0.65em 1em;
+  font-size: 0.58em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #6E6A64;
+  text-align: left;
+}
+.gate-table thead th:not(:first-child) { text-align: center; }
+.gate-table tbody tr { border-top: 1px solid #F0EDE8; }
+.gate-table tbody td {
+  padding: 0.55em 1em;
+  font-size: 0.78em;
+  color: #3A3733;
+  text-align: left;
+}
+.gate-table tbody td:not(:first-child) { text-align: center; }
+.gate-tcheck { color: #7a9e7a; }
+.gate-tdash { color: #ccc; }
+.gate-tval { font-family: var(--font-serif); font-style: italic; color: #B89562; }
+.gate-table-more {
+  text-align: center;
+  margin-bottom: 1.6em;
+}
+.gate-table-more a {
+  font-size: 0.72em;
+  color: #B89562;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(184,149,98,0.3);
+  padding-bottom: 0.1em;
+  transition: border-color 0.15s;
+}
+.gate-table-more a:hover { border-color: #B89562; }
+
+.gate-signin {
+  font-size: 0.76em;
+  color: #6E6A64;
+}
+.gate-signin a {
+  color: #B89562;
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(184,149,98,0.35);
+  transition: border-color 0.15s;
+}
+.gate-signin a:hover { border-color: #B89562; }
+
+/* Bloc "Se connecter" mis en avant — Cas 1 */
+.gate-connect-box {
+  background: #FAF8F4;
+  border: 1px solid #E8E2D8;
+  border-radius: 10px;
+  padding: 1.4em 1.8em;
+  margin-bottom: 1.6em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1em;
+}
+.gate-connect-text {
+  font-size: 0.88em;
+  color: #3A3A3A;
+  line-height: 1.45;
+}
+.gate-connect-text strong {
+  display: block;
+  font-size: 1em;
+  color: #1A1A1A;
+  margin-bottom: 0.2em;
+}
+.gate-connect-btn {
+  display: inline-block;
+  padding: 0.55em 1.4em;
+  background: #B89562;
+  color: #fff !important;
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.18s;
+}
+.gate-connect-btn:hover { background: #C9A96E; }
+.gate-or-divider {
+  text-align: center;
+  font-size: 0.75em;
+  color: #B0A898;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.4em;
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+}
+.gate-or-divider::before,
+.gate-or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E8E2D8;
+}
+
+/* Variante : limite atteinte (Lecteur) */
+.gate-limit-card {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+.gate-limit-badge {
+  display: inline-block;
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #B89562;
+  background: rgba(184,149,98,0.08);
+  border: 1px solid rgba(184,149,98,0.22);
+  border-radius: 100px;
+  padding: 0.3em 0.9em;
+  margin-bottom: 1.2em;
+}
+.gate-limit-title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.4em;
+  color: #1F1F1F;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+.gate-limit-text {
+  font-size: 0.82em;
+  color: #6E6A64;
+  line-height: 1.75;
+  margin-bottom: 1.6em;
+}
+.gate-limit-btn {
+  display: inline-block;
+  background: #B89562;
+  color: #ffffff;
+  text-decoration: none;
+  padding: 0.85em 2em;
+  border-radius: 4px;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: background 0.15s;
+}
+.gate-limit-btn:hover { background: #C9A96E; }
+.gate-limit-btn:disabled { background: #D6CBB5; cursor: default; }
+.gate-limit-divider { width: 40px; height: 1px; background: #E8E2D8; margin: 1.4em auto; }
+.gate-wait-form { display: flex; flex-direction: column; gap: 0.7em; max-width: 320px; margin: 1.4em auto 0.6em; }
+.gate-wait-input {
+  width: 100%;
+  padding: 0.8em 1em;
+  border: 1px solid #E8E2D8;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: inherit;
+  color: #3A3632;
+  background: #fff;
+  box-sizing: border-box;
+  text-align: center;
+}
+.gate-wait-input:focus { outline: none; border-color: #B89562; }
+.gate-wait-input:disabled { background: #F4F1EB; color: #8A857E; }
+.gate-wait-msg { min-height: 1.1em; font-size: 0.74em; color: #6E6A64; margin-bottom: 0.4em; }
+.gate-wait-msg.ok { color: #4A7A52; }
+.gate-wait-msg.err { color: #C0392B; }
+
+/* ── LOADING ─────────────────────────────────────────────── */
+.loading-state { display: none; text-align: center; padding: 4em 2em; }
+.loading-state.visible { display: block; }
+.loading-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 1em; }
+.loading-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--or); animation: ldot 1.2s ease-in-out infinite; }
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ldot { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+.loading-text { font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
+
+/* ── ERROR ───────────────────────────────────────────────── */
+.error-state { display: none; max-width: 560px; margin: 0 auto 1em; background: #fff5f5; border: 1px solid #fcc; border-radius: 3px; padding: 1em 1.2em; font-size: 0.82em; color: #c00; }
+.error-state.visible { display: block; }
+
+/* ── RESULT ──────────────────────────────────────────────── */
+.result-wrap { display: none; max-width: 820px; margin: 0 auto; padding: 1em 1.2em 5em; }
+.result-wrap.visible { display: block; }
+
+/* En-tête résultat — éditorial, clair */
+.result-header {
+  padding: 0.8em 0 1.8em;
+  border-bottom: 1px solid var(--bordure);
+  margin-bottom: 2em;
+}
+.result-eyebrow {
+  font-size: 0.58em;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--or);
+  margin-bottom: 0.6em;
+}
+.result-title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(2.2em, 6vw, 3.2em);
+  color: var(--noir);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.5em;
+}
+.result-intro {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.92em;
+  color: #6a6a6a;
+  line-height: 1.6;
+  margin-bottom: 1.1em;
+  max-width: 580px;
+}
+.result-tags { display: flex; gap: 0.4em; flex-wrap: wrap; }
+.result-tag {
+  font-size: 0.6em;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 0.35em 0.8em;
+  border: 1px solid var(--bordure);
+  border-radius: 100px;
+  color: var(--gris);
+  background: var(--blanc);
+}
+.result-tag.tag-or { border-color: rgba(181,151,106,0.5); color: var(--or); }
+
+/* ONGLETS JOURS */
+.jours-tabs {
+  display: flex;
+  gap: 0.4em;
+  flex-wrap: nowrap;
+  overflow-x: visible;
+  margin-bottom: 1.8em;
+  padding-bottom: 0;
+  width: 100%;
+}
+.jour-tab {
+  flex: 1;
+  padding: 0.55em 0.5em 0.6em;
+  border: 1.5px solid var(--bordure);
+  border-radius: 8px;
+  font-size: 0.82em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--gris);
+  background: var(--blanc);
+  transition: all 0.18s;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.3;
+  min-width: 0;
+}
+.jour-tab-num { display: block; }
+.jour-tab-sub {
+  display: block;
+  font-size: 0.78em;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  opacity: 0.7;
+  font-style: italic;
+  font-family: var(--font-serif);
+  margin-top: 0.1em;
+}
+.jour-tab:hover { border-color: var(--or); color: var(--texte); }
+.jour-tab.active { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
+.jour-tab.done { border-color: rgba(181,151,106,0.4); color: var(--texte); }
+.jour-tab.done.active { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
+.jour-panel { display: none; }
+.jour-panel.active { display: block; }
+.jour-day-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 1.2em 1.2em 1em;
+  border-bottom: 1px solid var(--bordure);
+  margin-bottom: 1.4em;
+}
+.jour-quartier-header {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.6em;
+  font-weight: 400;
+  color: var(--noir);
+  letter-spacing: -0.02em;
+  flex: 1;
+  min-width: 0;
+}
+.jour-day-summary {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.1em;
+  color: var(--noir);
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+.jour-day-summary .summary-sep { opacity: 0.35; }
+.jour-day-summary .summary-hours { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 560px) {
+  .jour-day-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2em;
+    padding: 0.9em 1em 0.8em;
+  }
+  .jour-day-summary {
+    font-size: 0.85em;
+  }
+}
+.jour-panel-loading { text-align: center; padding: 3em; font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
+
+/* TRANCHES — cartes éditoriaux */
+/* MARQUEURS D'ITINÉRAIRE */
+.itineraire-fil {
+  position: relative;
+  padding-left: 2.2em;
+}
+.itineraire-fil::before {
+  content: '';
+  position: absolute;
+  left: 0.72em;
+  top: 0.5em;
+  bottom: 0.5em;
+  width: 1px;
+  background: #D5CCC0;
+  z-index: 0;
+}
+.fil-item {
+  position: relative;
+  margin-bottom: 1.4em;
+}
+.fil-item::before {
+  content: '';
+  position: absolute;
+  left: -1.52em;
+  top: 1.4em;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--noir);
+  border: 2px solid var(--beige);
+  box-shadow: 0 0 0 1px rgba(181,151,106,0.5);
+  z-index: 2;
+  transform: translateX(-50%);
+  margin-left: 0.5px;
+}
+
+.tranche-block {
+  background: var(--blanc);
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px -10px rgba(40,32,20,0.18);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.tranche-block:hover { box-shadow: 0 12px 30px -12px rgba(40,32,20,0.24); transform: translateY(-2px); }
+
+/* Corps tranche */
+.tranche-body { padding: 1.2em 1.35em 0.9em; }
+.tranche-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8em;
+  margin-bottom: 0.55em;
+}
+.tranche-nom {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.5em;
+  color: var(--noir);
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  flex: 1;
+  min-width: 0;
+}
+.tranche-heure-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1em;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-top: 0.1em;
+}
+.time-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.time-heure {
+  font-weight: 600;
+  color: #3A3A3A;
+  letter-spacing: 0.01em;
+}
+.time-sep {
+  color: #BBBBBB;
+  font-weight: 300;
+}
+.time-duree {
+  color: #9A9A9A;
+}
+.tranche-texte {
+  font-size: 0.9em;
+  line-height: 1.8;
+  color: #4a4a4a;
+  margin-bottom: 0.6em;
+}
+.points-chute {
+  border-left: 2px solid var(--or);
+  padding-left: 0.65em;
+  margin-bottom: 0.35em;
+}
+.points-titre {
+  font-size: 0.55em;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--or);
+  margin-bottom: 0.3em;
+}
+.point-item {
+  font-size: 0.81em;
+  line-height: 1.5;
+  color: #5a5a5a;
+  margin-bottom: 0.15em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+.point-pin { font-size: 0.85em; flex-shrink: 0; }
+.point-arrow { display: none; } /* remplacé par point-pin */
+
+/* OPTIONS alternatives — section restructurée */
+.alts-row {
+  padding: 0.7em 1.35em 1em;
+  border-top: 1px solid #F0EBE4;
+  background: transparent;
+}
+.alts-label {
+  font-size: 0.58em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--or);
+  margin-bottom: 0.5em;
+  display: block;
+}
+.alts-pills { display: flex; gap: 0.4em; flex-wrap: wrap; align-items: center; }
+
+/* Pilule A — dominante */
+.alt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5em 1em;
+  border: 1px solid var(--bordure);
+  border-radius: 100px;
+  background: var(--blanc);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 0.82em;
+  color: var(--gris);
+  font-family: var(--font-sans);
+  max-width: 230px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.alt-pill[id$="-a"] {
+  border-color: rgba(181,151,106,0.4);
+  color: var(--texte);
+  font-weight: 500;
+}
+.alt-pill[id$="-a"].active {
+  background: var(--noir);
+  border-color: var(--noir);
+  color: var(--blanc);
+}
+/* Pilules B et C — secondaires */
+.alt-pill[id$="-b"],
+.alt-pill[id$="-c"] {
+  font-size: 0.7em;
+  opacity: 0.75;
+}
+.alt-pill[id$="-b"]:hover,
+.alt-pill[id$="-c"]:hover { opacity: 1; border-color: var(--or); color: var(--texte); }
+.alt-pill[id$="-b"].active,
+.alt-pill[id$="-c"].active { background: #3a3a3a; border-color: #3a3a3a; color: var(--blanc); opacity: 1; }
+
+.alt-pill.loading { opacity: 0.3; cursor: default; pointer-events: none; }
+.alt-pill-letter {
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.alt-pill.active .alt-pill-letter { opacity: 0.6; color: var(--or); }
+.alt-pill-name {
+  font-family: var(--font-serif);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* PASSE2 indicator */
+.passe2-bar {
+  display: none;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.35em 1.4em 0.65em;
+  background: #FAFAF8;
+  font-size: 0.66em;
+  color: var(--gris);
+  font-style: italic;
+}
+.passe2-bar.visible { display: flex; }
+.p2dot { width: 3px; height: 3px; border-radius: 50%; background: var(--or); animation: ldot 1.2s ease-in-out infinite; }
+.p2dot:nth-child(2) { animation-delay: 0.2s; }
+.p2dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ÉTAPES A→B */
+.etapes-list { display: flex; flex-direction: column; gap: 1.2em; margin-bottom: 2em; }
+.etape-card { background: var(--blanc); border: 1px solid var(--bordure); border-radius: 6px; overflow: hidden; }
+.etape-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.etape-card-header { display: flex; align-items: center; gap: 1.2em; padding: 1.2em 1.5em; border-bottom: 1px solid var(--bordure); }
+.etape-num {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1.5px solid var(--or);
+  color: var(--or);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68em; font-weight: 700; flex-shrink: 0;
+}
+.etape-info { flex: 1; }
+.etape-ville { font-family: var(--font-serif); font-style: italic; font-size: 1.1em; color: var(--noir); }
+.etape-duree { font-size: 0.68em; color: var(--gris); margin-top: 0.15em; }
+.etape-body { padding: 1.2em 1.5em; font-size: 0.85em; line-height: 1.85; color: var(--texte); }
+
+/* NOTE PRIX */
+.prix-note {
+  font-size: 0.7em;
+  color: var(--gris);
+  font-style: italic;
+  padding: 0.6em 0 1em;
+  border-top: 1px solid var(--bordure);
+  margin-top: 0.4em;
+}
+
+/* ── MAP ─────────────────────────────────────────────────── */
+.jour-map-wrap {
+  margin: 0 0 1.8em;
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+  height: 300px;
+  position: relative;
+  background: var(--beige);
+  box-shadow: 0 10px 34px -14px rgba(40,32,20,0.28);
+}
+.map-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.82em;
+  color: var(--gris);
+  background: var(--beige);
+  pointer-events: none;
+  z-index: 1;
+}
+/* Mapbox popup typography */
+.mapboxgl-popup-content {
+  font-family: var(--font-serif) !important;
+  font-style: italic !important;
+  font-size: 0.82em !important;
+  padding: 0.5em 0.8em !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12) !important;
+}
+
+/* RESET */
+.btn-reset {
+  display: inline-flex; align-items: center; gap: 0.4em;
+  margin-top: 2em;
+  padding: 0.65em 1.2em;
+  border: 1px solid var(--bordure);
+  border-radius: 100px;
+  font-size: 0.7em; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--gris); background: transparent;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-reset:hover { border-color: var(--or); color: var(--or); }
+
+@media (max-width: 480px) {
+  .opts-grid { grid-template-columns: 1fr 1fr; }
+  .opts-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .themes-grid { grid-template-columns: 1fr 1fr; }
+  .days-grid { gap: 0.4em; }
+  .day-btn { width: 44px; height: 44px; font-size: 0.85em; }
+}
+
+/* ════════════════════════════════════════════════════════
+   ITINÉRAIRE V2 — carte fixe + étapes dépliables (airbnb-like)
+   ════════════════════════════════════════════════════════ */
+.result-wrap.visible { /* widened for two-column layout */ }
+.result-wrap { max-width: 1600px; }
+.result-header { max-width: 720px; }
+.etapes-list { max-width: 760px; margin-left: auto; margin-right: auto; }
+
+/* Day tabs */
+.iv-daytabs { display: flex; gap: 10px; margin: 0 0 22px; flex-wrap: wrap; }
+.iv-daytab { flex: 1; min-width: 150px; text-align: left; background: var(--carte);
+  border: 1px solid var(--bordure); border-radius: 14px; padding: 0.8em 1.1em; cursor: pointer;
+  transition: all .18s; font-family: inherit; }
+.iv-daytab .iv-dt-num { display: block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--or); margin-bottom: 3px; }
+.iv-daytab .iv-dt-sub { display: block; font-family: var(--font-serif); font-size: 1.16rem;
+  font-weight: 600; color: var(--noir); line-height: 1.15; }
+.iv-daytab:hover { border-color: var(--or); }
+.iv-daytab.active { background: var(--terracotta); border-color: var(--terracotta); }
+.iv-daytab.active .iv-dt-num { color: var(--or-light); }
+.iv-daytab.active .iv-dt-sub { color: #fff; }
+
+.iv-hint { font-size: 0.82rem; color: var(--gris); margin: -4px 0 18px; line-height: 1.5; }
+.iv-hint b { color: var(--or); font-weight: 600; }
+
+/* Two columns */
+.iv-layout { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); gap: 28px; align-items: start; }
+.iv-mapcol { order: 1; align-self: start; }
+.iv-mapshell { position: relative; border-radius: 20px; overflow: hidden; height: 600px;
+  box-shadow: 0 18px 50px -22px rgba(40,32,20,0.4); border: 1px solid var(--bordure); background: var(--beige); }
+#iv-map { position: absolute; inset: 0; }
+.iv-map-overlay { position: absolute; left: 16px; top: 16px; z-index: 5; background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(6px); border-radius: 12px; padding: 0.55em 0.9em; font-size: 0.82rem; font-weight: 700;
+  color: var(--noir); box-shadow: 0 4px 14px -6px rgba(0,0,0,0.3); }
+.iv-map-overlay span { color: var(--or); }
+.iv-map-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--beige); color: var(--gris); font-size: 0.9rem; z-index: 3;
+  font-family: var(--font-serif); font-style: italic; }
+.iv-mk-inner { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  display: flex; align-items: center; justify-content: center; border: 2px solid #fff;
+  cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.32); background: var(--terracotta);
+  transition: transform .18s ease, background .18s ease; transform-origin: center; }
+.iv-mk-inner span { transform: rotate(45deg); font: 700 13px/1 'Inter',sans-serif; color: #fff; }
+.iv-mk-inner.active { background: var(--terracotta-dk); transform: rotate(-45deg) scale(1.16); }
+.iv-mk-inner.approx { background: #fff; border-color: #C9B79A; box-shadow: 0 2px 7px rgba(0,0,0,0.18); }
+.iv-mk-inner.approx span { color: #8A7B5E; }
+.iv-mk-inner.approx.active { background: var(--terracotta-dk); border-color: #fff; }
+.iv-mk-inner.approx.active span { color: #fff; }
+.iv-map-legend { position: absolute; left: 16px; bottom: 16px; z-index: 5; background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(6px); border-radius: 12px; padding: 0.5em 0.7em; font: 600 0.72rem/1.3 'Inter',sans-serif;
+  color: var(--noir); box-shadow: 0 4px 14px -6px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 0.3em; }
+.iv-map-legend .lg { display: flex; align-items: center; gap: 0.45em; }
+.iv-map-legend .dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; }
+.iv-map-legend .dot.exact { background: var(--terracotta); border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+.iv-map-legend .dot.approx { background: #fff; border: 2px dashed #B5976A; }
+
+/* Steps column (scrolls internally on desktop → map reste fixe) */
+.iv-stepscol { order: 2; height: 600px; overflow-y: auto; overflow-x: hidden; padding-right: 10px; }
+.iv-stepscol::-webkit-scrollbar { width: 7px; }
+.iv-stepscol::-webkit-scrollbar-thumb { background: rgba(181,151,106,0.35); border-radius: 4px; }
+.iv-stepscol::-webkit-scrollbar-track { background: transparent; }
+
+.iv-dayhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.iv-quartier { font-family: var(--font-serif); font-size: 1.9rem; line-height: 1.1; color: var(--noir); }
+.iv-summary { font-size: 0.82rem; color: var(--gris); white-space: nowrap; flex-shrink: 0; }
+.iv-summary b { color: var(--or); font-weight: 600; }
+.iv-loading-day { padding: 2.4em 0.5em; text-align: center; font-family: var(--font-serif);
+  font-style: italic; font-size: 0.95rem; color: var(--gris); }
+
+.iv-steps { position: relative; margin-left: 6px; }
+.iv-steps::before { content: ''; position: absolute; left: 13px; top: 10px; bottom: 10px; width: 2px;
+  background: linear-gradient(var(--or-light), rgba(181,151,106,0.15)); }
+.iv-step { position: relative; padding-left: 44px; margin-bottom: 14px; }
+.iv-pin { position: absolute; left: 0; top: 14px; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--terracotta); color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem; border: 2px solid var(--beige); z-index: 2; transition: all .18s;
+  box-shadow: 0 0 0 1px rgba(181,151,106,0.4); }
+.iv-step.hl .iv-pin { background: var(--terracotta-dk); transform: scale(1.12); }
+
+.iv-card { background: var(--carte); border: 1px solid var(--bordure);
+  border-left: 3px solid var(--iv-accent, var(--or)); border-radius: 16px;
+  box-shadow: 0 4px 18px -12px rgba(40,32,20,0.22); transition: box-shadow .2s, transform .2s; overflow: hidden; }
+.iv-step.hl .iv-card { box-shadow: 0 12px 28px -14px rgba(40,32,20,0.34); transform: translateY(-1px); }
+.iv-head { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; cursor: pointer; }
+.iv-time { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap;
+  padding: 0.32em 0.62em; border-radius: 7px; color: var(--iv-accent, var(--or));
+  background: var(--iv-soft, rgba(181,151,106,0.1)); margin-top: 1px; }
+.iv-titles { flex: 1; min-width: 0; }
+.iv-name { font-family: var(--font-serif); font-size: 1.1rem; font-weight: 600; color: var(--noir); line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.iv-teaser { font-size: 0.82rem; color: var(--gris); margin-top: 3px; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.iv-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; align-self: center; }
+.iv-altdots { display: flex; gap: 3px; align-items: center; transition: opacity .2s; }
+.iv-altdots span { width: 5px; height: 5px; border-radius: 50%; background: var(--iv-accent, var(--or)); opacity: .55; }
+.iv-step.hl .iv-altdots span { opacity: .9; }
+.iv-step.open .iv-altdots { opacity: 0; }
+.iv-chev { width: 22px; height: 22px; color: var(--gris); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+.iv-step.open .iv-chev { transform: rotate(180deg); }
+
+.iv-detail { max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height .4s cubic-bezier(.4,0,.2,1), opacity .3s ease; }
+.iv-step.open .iv-detail { opacity: 1; }
+.iv-detail-inner { padding: 0 16px 16px; }
+.iv-text { font-size: 0.92rem; line-height: 1.7; color: #3c382f; margin: 0 0 12px; }
+.iv-points { border-top: 1px solid var(--bordure); padding-top: 10px; margin-bottom: 14px; }
+.iv-points-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--or); margin-bottom: 6px; }
+.iv-point { font-size: 0.84rem; color: #4a463f; margin-bottom: 4px; }
+.iv-point .pin { color: var(--or); margin-right: 5px; }
+.iv-point b { color: var(--noir); }
+
+.iv-alts { background: var(--carte-soft); border: 1px solid var(--bordure); border-radius: 12px; padding: 11px 12px; }
+.iv-alts-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--or); margin-bottom: 8px; }
+.iv-alts-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; }
+.iv-alt { background: var(--carte); border: 1.5px solid var(--bordure); border-radius: 10px;
+  padding: 0.55em 0.6em; cursor: pointer; text-align: left; transition: all .16s; font-family: inherit; min-width: 0; }
+.iv-alt:hover { border-color: var(--or-light); }
+.iv-alt.active { border-color: var(--terracotta); background: var(--terracotta); }
+.iv-alt.loading { opacity: 0.45; cursor: default; pointer-events: none; }
+.iv-altkey { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+  border-radius: 50%; background: rgba(181,151,106,0.18); color: var(--or); font-size: 0.66rem;
+  font-weight: 700; margin-bottom: 4px; }
+.iv-alt.active .iv-altkey { background: var(--or); color: #fff; }
+.iv-altname { font-size: 0.78rem; font-weight: 600; color: var(--noir); line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.iv-alt.active .iv-altname { color: #fff; }
+.iv-prixnote { font-size: 0.72rem; color: var(--gris); font-style: italic; margin-top: 18px; }
+
+@media (max-width: 620px), (hover: none) and (pointer: coarse) {
+  html, body { overflow-x: hidden; max-width: 100%; width: 100%; }
+  .result-wrap { max-width: 100%; width: 100%; box-sizing: border-box; }
+  .iv-layout { grid-template-columns: 1fr; max-width: 100%; }
+  .iv-mapcol { order: -1; max-width: 100%; min-width: 0; }
+  .iv-mapshell { height: 300px; width: 100%; max-width: 100%; }
+  .iv-stepscol { height: auto; overflow: visible; padding-right: 0; max-width: 100%; min-width: 0; }
+  .iv-steps, .iv-step, .iv-card, .iv-head, .iv-titles, .iv-detail-inner, .iv-alts, .iv-alts-grid { max-width: 100%; min-width: 0; }
+  /* Empêche un mot/adresse/URL non sécable de forcer une largeur > écran (cause du décalage iOS) */
+  .iv-name, .iv-teaser, .iv-text, .iv-point, .iv-altname, .iv-quartier, .iv-summary { overflow-wrap: break-word; word-break: break-word; }
+  .iv-teaser { white-space: normal; }
+  .iv-daytab { min-width: 120px; }
+  .iv-quartier { font-size: 1.6rem; }
+  .iv-dayhead { flex-wrap: wrap; }
+  .iv-summary { white-space: normal; }
+}
 </style>
 </head>
 <body>
-<h1>Générateur d'itinéraires — Géographies du Calme</h1>
-<div class="sub">Un itinéraire lent, à pied, quartier par quartier — composé à partir de lieux réels.</div>
 
-<div class="form">
-  <div class="row">
-    <div><label>Destination</label><input id="dest" value="Carcassonne" style="width:200px"></div>
-    <div><label>Jours</label><select id="duree"><option>1</option><option selected>2</option><option>3</option></select></div>
-    <div><label>Avec qui</label><select id="voyage"><option value="duo" selected>À deux</option><option value="solo">Solo</option><option value="famille">Famille</option><option value="entre amis">Entre amis</option></select></div>
-    <div><label>Budget</label><select id="budget"><option value="économique">Essentiel</option><option value="confortable" selected>Confort</option><option value="premium">Premium</option></select></div>
-    <div><label>Saison</label><select id="saison"><option value="" selected>Indifférent</option><option value="printemps">Printemps</option><option value="ete">Été</option><option value="automne">Automne</option><option value="hiver">Hiver</option></select></div>
+<!-- ── WIZARD FORMULAIRE ─────────────────────────────────── -->
+<div class="wizard-wrap" id="form-card">
+
+  <div class="wizard-progress" style="margin-top:2.8em;">
+    <div class="wizard-progress-fill" id="wiz-progress" style="width:20%"></div>
   </div>
-  <div style="margin-top:10px"><label>Thèmes (max 2)</label>
-    <div class="themes" id="themes">
-      <label><input type="checkbox" value="gastronomie">Gastronomie</label>
-      <label><input type="checkbox" value="nature">Nature</label>
-      <label><input type="checkbox" value="culture">Culture</label>
-      <label><input type="checkbox" value="sport" checked>Sportif</label>
-      <label><input type="checkbox" value="festif">Festif</label>
-      <label><input type="checkbox" value="bienetre">Bien-être</label>
-      <label><input type="checkbox" value="urbain">Urbain</label>
+
+  <div class="wizard-steps">
+
+    <!-- Champs masqués — compatibilité avec generer() -->
+    <div class="hidden-fields">
+      <input type="range" id="duree" min="1" max="7" value="3">
+      <input type="radio" name="mode" id="mode-base" value="base" checked>
+      <input type="radio" name="mode" id="mode-chemin" value="chemin">
+      <input type="text" id="destination-b" value="">
+      <input type="text" id="mode-desc" value="">
+      <input type="text" id="dest-label" value="">
+      <div id="dest-b-wrap"></div>
+      <div id="co2-field">
+        <input type="radio" name="co2" id="co2-tous" value="tous" checked>
+      </div>
+      <select id="periode"><option value="flexible" selected>Flexible</option></select>
+      <div id="style-hint"></div>
+      <!-- Budget radios -->
+      <input type="radio" name="budget-cat" id="b-eco" value="économique">
+      <input type="radio" name="budget-cat" id="b-med" value="confortable" checked>
+      <input type="radio" name="budget-cat" id="b-lux" value="premium">
+      <!-- Voyage radios -->
+      <input type="radio" name="voyage-cat" id="v-duo" value="duo" checked>
+      <input type="radio" name="voyage-cat" id="v-solo" value="solo">
+      <input type="radio" name="voyage-cat" id="v-famille" value="famille">
+      <input type="radio" name="voyage-cat" id="v-amis" value="entre amis">
+      <!-- Thème checkboxes -->
+      <input type="checkbox" id="s-gastro" value="Gastronomie et Terroirs" class="style-cb">
+      <input type="checkbox" id="s-nature" value="Nature et Paysages" class="style-cb">
+      <input type="checkbox" id="s-culture" value="Culture et Patrimoine" class="style-cb">
+      <input type="checkbox" id="s-sportif" value="Bouger &amp; Explorer" class="style-cb">
+      <input type="checkbox" id="s-urban" value="Villes et Art de Vivre" class="style-cb">
+      <input type="checkbox" id="s-festif" value="Vie Locale et Festivité" class="style-cb">
+      <input type="checkbox" id="s-bien-etre" value="Bien-être &amp; Déconnexion" class="style-cb">
+      <!-- Bouton masqué pour compatibilité -->
+      <button id="btn-generate" onclick="generer()" style="display:none"></button>
     </div>
+
+    <!-- ÉTAPE 1 — Destination -->
+    <div class="wizard-step active" id="wstep-1">
+      <div class="step-num">01 / 05</div>
+      <h2 class="step-q">Quelle destination vous inspire aujourd'hui ?</h2>
+      <div class="dest-field">
+        <input type="text" id="destination" class="dest-input" placeholder="Tokyo, Lisbonne, Patagonie…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false">
+        <ul class="dest-suggest" id="dest-suggest" role="listbox"></ul>
+      </div>
+      <div class="step-nav">
+        <button class="btn-back" disabled></button>
+        <button class="btn-next" id="next-1" onclick="wizNext(1)" disabled>Continuer →</button>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 2 — Durée -->
+    <div class="wizard-step" id="wstep-2">
+      <div class="step-num">02 / 05</div>
+      <h2 class="step-q">Combien de jours souhaitez-vous partir ?</h2>
+      <p class="step-hint">Votre itinéraire sera construit jour par jour.</p>
+      <div class="days-grid" id="days-grid">
+        <button class="day-btn" onclick="selectDay(1)">1</button>
+        <button class="day-btn" onclick="selectDay(2)">2</button>
+        <button class="day-btn selected" onclick="selectDay(3)">3</button>
+        <button class="day-btn" onclick="selectDay(4)">4</button>
+        <button class="day-btn" onclick="selectDay(5)">5</button>
+        <button class="day-btn" onclick="selectDay(6)">6</button>
+        <button class="day-btn" onclick="selectDay(7)">7</button>
+      </div>
+      <div class="step-nav">
+        <button class="btn-back" onclick="wizBack(2)">← Retour</button>
+        <button class="btn-next" onclick="wizNext(2)">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 3 — Voyageurs -->
+    <div class="wizard-step" id="wstep-3">
+      <div class="step-num">03 / 05</div>
+      <h2 class="step-q">Avec qui voyagez-vous ?</h2>
+      <div class="opts-grid" id="voyage-grid">
+        <div class="opt-card" onclick="selectVoyage('duo', this)">
+          <span class="opt-card-label">À deux</span>
+        </div>
+        <div class="opt-card selected" onclick="selectVoyage('solo', this)">
+          <span class="opt-card-label">Solo</span>
+        </div>
+        <div class="opt-card" onclick="selectVoyage('famille', this)">
+          <span class="opt-card-label">Famille</span>
+        </div>
+        <div class="opt-card" onclick="selectVoyage('entre amis', this)">
+          <span class="opt-card-label">Entre amis</span>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button class="btn-back" onclick="wizBack(3)">← Retour</button>
+        <button class="btn-next" onclick="wizNext(3)">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 4 — Budget -->
+    <div class="wizard-step" id="wstep-4">
+      <div class="step-num">04 / 05</div>
+      <h2 class="step-q">Quel niveau de confort recherchez-vous ?</h2>
+      <div class="opts-grid three" id="budget-grid">
+        <div class="opt-card" onclick="selectBudget('économique', this)">
+          <span class="opt-card-label">Essentiel</span>
+          <span class="opt-card-sub">Petits budgets, vrais voyages.</span>
+        </div>
+        <div class="opt-card selected" onclick="selectBudget('confortable', this)">
+          <span class="opt-card-label">Confort</span>
+          <span class="opt-card-sub">Le meilleur équilibre.</span>
+        </div>
+        <div class="opt-card" onclick="selectBudget('premium', this)">
+          <span class="opt-card-label">Premium</span>
+          <span class="opt-card-sub">Sans compter.</span>
+        </div>
+      </div>
+      <div class="step-nav">
+        <button class="btn-back" onclick="wizBack(4)">← Retour</button>
+        <button class="btn-next" onclick="wizNext(4)">Continuer →</button>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 5 — Thèmes -->
+    <div class="wizard-step" id="wstep-5">
+      <div class="step-num">05 / 05</div>
+      <h2 class="step-q">Qu'est-ce qui compte le plus pour vous ?</h2>
+      <p class="step-hint">Maximum 2 thèmes.</p>
+      <div class="themes-grid">
+        <div class="theme-pill" data-cb="s-gastro" onclick="selectTheme(this)">Gastronomie</div>
+        <div class="theme-pill" data-cb="s-nature" onclick="selectTheme(this)">Nature</div>
+        <div class="theme-pill" data-cb="s-culture" onclick="selectTheme(this)">Culture</div>
+        <div class="theme-pill" data-cb="s-sportif" onclick="selectTheme(this)">Sportif</div>
+        <div class="theme-pill" data-cb="s-urban" onclick="selectTheme(this)">Urbain</div>
+        <div class="theme-pill" data-cb="s-festif" onclick="selectTheme(this)">Festif</div>
+        <div class="theme-pill" data-cb="s-bien-etre" onclick="selectTheme(this)">Bien-être</div>
+      </div>
+      <div class="theme-hint" id="theme-hint"></div>
+      <div class="error-state" id="error-state"></div>
+      <div class="step-nav">
+        <button class="btn-back" onclick="wizBack(5)">← Retour</button>
+        <button class="btn-generate-wizard" onclick="generer()">Imaginer mon itinéraire</button>
+      </div>
+    </div>
+
+  </div><!-- /wizard-steps -->
+</div><!-- /form-card -->
+
+<!-- ── GATE ───────────────────────────────────────────────── -->
+<div class="gate-wrap" id="gate-wrap"></div>
+
+<!-- ── LOADING ────────────────────────────────────────────── -->
+<div class="loading-state" id="loading-state" style="padding: 5em 2em;">
+  <div class="loading-dots">
+    <div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>
   </div>
-  <div style="margin-top:14px"><button id="go" onclick="generer()">Générer mon itinéraire</button></div>
-  <div class="log" id="log"></div>
+  <div class="loading-text" id="loading-text">Composition de votre itinéraire…</div>
 </div>
 
-<div class="wrap" id="result" style="display:none">
-  <div id="map"></div>
-  <div class="panel"><div class="tabs" id="tabs"></div><div id="list"></div></div>
+<!-- ── RÉSULTAT ───────────────────────────────────────────── -->
+<div class="result-wrap" id="result-wrap">
+  <div class="result-header">
+    <div class="result-eyebrow">Votre itinéraire</div>
+    <div class="result-title" id="result-title"></div>
+    <div class="result-intro" id="result-intro"></div>
+    <div class="result-tags" id="result-tags"></div>
+  </div>
+  <div id="main-content"></div>
+  <button class="btn-reset" onclick="resetForm()">← Nouvelle recherche</button>
 </div>
-<div id="debug" class="dbg" style="display:none"></div>
 
 <script>
+const API_URL = 'https://geocalme-api-proxy.nicolas-chevreau.workers.dev';
+const MODEL = 'claude-haiku-4-5-20251001';
+const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresses se mettent en place…','On trace le rythme de la journée…','Derniers ajustements avant le départ…','On choisit les tables qui valent le détour…','L\'itinéraire prend forme…'];
+
+/* ============================================================
+   ==== MOTEUR À VRAIS LIEUX — greffé depuis planifier_archi_test.html (v163) ====
+   Tout ce bloc lit de VRAIS lieux via le Worker et construit la variable globale DAYS.
+   La belle UI (generer/initJoursTabs/iv*) lit ensuite DAYS via adaptDayToJours().
+   ============================================================ */
 /* ============================================================
    ====  TABLE DE MAPPING ÉDITABLE  (catégorie Geoapify -> thème)  ====
    Pour modifier un classement : change la valeur d'une ligne ci-dessous.
@@ -98,7 +1412,7 @@ window.GEO_THEME_MAP = {
   'tourism.attraction':'urbain'
 };
 /* ====  FIN DE LA TABLE ÉDITABLE  ==== */
-const API='https://geocalme-api-proxy.nicolas-chevreau.workers.dev';
+const API=API_URL; // même Worker Cloudflare que la belle UI (API_URL déclaré dans le script du beau fichier)
 const OVP=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 const CHAINS=/mcdonald|burger king|\bkfc\b|subway|starbucks|\bquick\b|domino|pizza hut|o'?tacos|buffalo grill|flunch|\bpaul\b|brioche dor|hippopotamus|courtepaille|la mie c[aâ]line|columbus caf|five guys|\bnsubway\b|tacos avenue|h[äa]agen.?dazs|ben ?(&|and) ?jerry|\bamorino\b|\bgrom\b|fitness first|basic[- ]?fit|virgin active|gold'?s gym|anytime fitness|snap fitness|planet fitness|fitness park|keep ?cool|neoness|on air fitness|magic form|l'?orange bleue|world class|california fitness|true fitness|\bcmg sport|vita ?liberté/i;
 const JUNK=/inter[- ]?administratif|restaurant inter\b|cantine|crous|caf[eé]t[eé]ria|self[- ]?service|ehpad|maison de retraite/i;
@@ -143,10 +1457,10 @@ const SEASON_COLD=/\bski\b|ski de fond|raquette|snowboard|snowpark|\bluge\b|moto
 const SEASON_WARM=/\bgolf\b|plage|baignade|nautique|kayak|canoe|paddle|rafting|\bsurf\b|wakeboard|\bvoile\b|plongee|parc aquatique|water ?park|canyoning|via ?ferrata|accro|parc aventure|tyrolienne|parapente/;
 function seasonOf(name,cats){const s=_norm((name||'')+' '+((cats||[]).join(' ')));if(SEASON_COLD.test(s))return 'cold';if(SEASON_WARM.test(s))return 'warm';return null;}
 function hav(la1,lo1,la2,lo2){const R=6371,t=Math.PI/180;const dLa=(la2-la1)*t,dLo=(lo2-lo1)*t;const a=Math.sin(dLa/2)**2+Math.cos(la1*t)*Math.cos(la2*t)*Math.sin(dLo/2)**2;return R*2*Math.asin(Math.sqrt(a));}
-function log(m,err){const el=document.getElementById('log');el.innerHTML+=(err?'<span class="err">':'<span>')+m+'</span>\n';}
+function log(m,err){const el=document.getElementById('log');if(!el){/* pas de zone log dans la belle UI : on trace en console, sans planter */try{if(err)console.warn('[geocalme]',(''+m).replace(/&[a-z]+;/g,' '));else console.log('[geocalme]',(''+m).replace(/&[a-z]+;/g,' '));}catch(_){}return;}el.innerHTML+=(err?'<span class="err">':'<span>')+m+'</span>\n';}
 
 function fetchT(url,opts,ms){const ctl=new AbortController();const id=setTimeout(()=>ctl.abort(),ms||13000);return fetch(url,Object.assign({},opts||{},{signal:ctl.signal})).finally(()=>clearTimeout(id));}
-async function getToken(){if(TOKEN)return TOKEN;const d=await(await fetch(API+'/mapbox-token')).json();TOKEN=d.token;return TOKEN;}
+async function getToken(){if(TOKEN)return TOKEN;/* réutilise le token déjà obtenu par la belle UI si dispo */if(typeof mapboxToken!=='undefined'&&mapboxToken){TOKEN=mapboxToken;return TOKEN;}const d=await(await fetch(API+'/mapbox-token')).json();TOKEN=d.token;if(typeof mapboxToken!=='undefined')mapboxToken=TOKEN;return TOKEN;}
 async function llm(prompt,maxTok){let r;try{r=await fetchT(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:maxTok||1800,messages:[{role:'user',content:prompt}]})},45000);}catch(e){log('  &#9888; LLM injoignable ('+(e&&e.name==='AbortError'?'d&eacute;lai d&eacute;pass&eacute;':((e&&e.message)||'&eacute;chec r&eacute;seau'))+') &mdash; &eacute;tape all&eacute;g&eacute;e.',true);return '';}if(!r.ok){let t='';try{t=await r.text();}catch(_){}log('  &#9888; LLM erreur '+r.status+(t?' : '+t.slice(0,140):'')+' &mdash; &eacute;tape all&eacute;g&eacute;e.',true);return '';}let d;try{d=await r.json();}catch(e){log('  &#9888; LLM r&eacute;ponse illisible &mdash; &eacute;tape all&eacute;g&eacute;e.',true);return '';}return (d.content&&d.content[0]&&d.content[0].text)||'';}
 
 async function geocode(q,prox,cc,types){let u='https://api.mapbox.com/geocoding/v5/mapbox.places/'+encodeURIComponent(q)+'.json?access_token='+TOKEN+'&limit=1&language=fr&autocomplete=false';if(types)u+='&types='+encodeURIComponent(types);if(prox)u+='&proximity='+prox[0]+','+prox[1];if(cc)u+='&country='+cc;try{const d=await(await fetch(u)).json();const f=d.features&&d.features[0];if(!f)return null;let c='',city='';if(f.context){const e=f.context.find(x=>x.id&&x.id.indexOf('country')===0);if(e&&e.short_code)c=e.short_code.split('-')[0];const pl=f.context.find(x=>x.id&&x.id.indexOf('place')===0);if(pl&&pl.text)city=pl.text;}const _pt=(f.place_type&&f.place_type[0])||'';if(!city&&(_pt==='place'||_pt==='locality'))city=f.text||'';return{lat:f.center[1],lng:f.center[0],cc:c,nom:f.text||'',city:city};}catch(e){return null;}}
@@ -1055,24 +2369,77 @@ function selectPrompt(dest,quartier,jour,themes,voyage,budget,cands,opts){
 
 function parseJSON(txt){try{const m=txt.match(/\[[\s\S]*\]/);return JSON.parse(m?m[0]:txt);}catch(e){return null;}}
 
-async function generer(){
-  const btn=document.getElementById('go');btn.disabled=true;
-  document.getElementById('log').innerHTML='';document.getElementById('result').style.display='none';
-  const dest=document.getElementById('dest').value.trim();
-  const duree=parseInt(document.getElementById('duree').value);
-  const voyage=document.getElementById('voyage').value;
-  const budget=document.getElementById('budget').value;
-  const saison=document.getElementById('saison').value; // ''=indifférent, hiver, ete, printemps, automne
-  const themes=[...document.querySelectorAll('#themes input:checked')].map(c=>c.value).slice(0,2);
-  GEOKEY=''; // PROD : aucune clé côté utilisateur — tout passe par le Worker/la base
-  DTKEY='';
-  if(!dest||!themes.length){log('Destination et au moins 1 thème requis.',true);btn.disabled=false;return;}
-  try{
-    log('Token + géocodage destination…');await getToken();mapboxgl.accessToken=TOKEN;
+// ===== ADAPTATEUR DAYS -> joursData (belle UI) =====
+// Pour un DAYS[i] du moteur, remplit joursData['j'+num] avec, par étape, une seule variante « a »
+// (coords EXACTES du vrai lieu, pas de re-géocodage). Renseigne aussi IV.quartiers[num].
+// Variante B/C construite depuis un candidat réel voisin (nom + coords exactes -> la carte peut déplacer le point).
+function _bcVariant(place, step, tid){
+  var ct = place.cat || '';
+  var cap = ct ? (ct.charAt(0).toUpperCase()+ct.slice(1)) : 'Une adresse';
+  return {
+    id: tid, label: place.nom||'', heure: step.heure||'', heure_fin: step.fin||'',
+    nom: place.nom||'', titre: place.nom||'',
+    texte: cap + ' &agrave; proximit&eacute; &mdash; une autre adresse pour cette &eacute;tape.',
+    points_chute: [],
+    _coords: (place.lat!=null&&place.lng!=null)?{lat:place.lat,lng:place.lng,precision:'exact'}:null
+  };
+}
+// Jusqu'à n candidats réels du MÊME thème que l'étape, à pied (<=1,2 km), dédoublonnés — pour B/C.
+// Vivier = candidats du thème choisi (cands) + repères locaux du quartier (localLM) — ce dernier
+// couvre les INCONTOURNABLES hors-thème (église, monument, musée…) dont le thème n'est pas dans cands.
+function _bcAlts(day, step, n){
+  if(!step.theme) return [];
+  var pool=((day.cands&&day.cands[step.theme])||[]).concat(day.localLM||[]);
+  var self=(step.nom||'').toLowerCase();
+  var near=pool.filter(function(c){
+    return c&&c.nom&&c.lat!=null&&c.lng!=null&&c.theme===step.theme&&(c.nom||'').toLowerCase()!==self&&(step.theme!=='gastronomie'||!c.foodExp);
+  }).map(function(c){return {c:c,d:hav(step.lat,step.lng,c.lat,c.lng)};})
+    .filter(function(x){return x.d<=1.2;}).sort(function(a,b){return a.d-b.d;});
+  var seen={},res=[];seen[self]=1;
+  for(var i=0;i<near.length&&res.length<n;i++){var nm=(near[i].c.nom||'').toLowerCase();if(seen[nm])continue;seen[nm]=1;res.push(near[i].c);}
+  return res;
+}
+function adaptDayToJours(day){
+  if(!day) return;
+  const jk='j'+day.num;
+  if(!joursData[jk]) joursData[jk]={};
+  (day.steps||[]).forEach(function(step,i){
+    const tid='t'+(i+1);
+    var a={
+      id: tid,
+      label: step.titre || step.nom || '',
+      heure: step.heure || '',
+      heure_fin: step.fin || '',
+      nom: step.nom || step.adresse || step.titre || '',
+      titre: step.titre || '',
+      texte: step.texte || '',
+      points_chute: [],
+      _coords: (step.lat!=null && step.lng!=null) ? {lat: step.lat, lng: step.lng, precision:'exact'} : null
+    };
+    var alts=(step.lat!=null && step.lng!=null) ? _bcAlts(day, step, 2) : [];
+    joursData[jk][tid]={ a:a, b: alts[0]?_bcVariant(alts[0],step,tid):null, c: alts[1]?_bcVariant(alts[1],step,tid):null };
+  });
+  if(!IV.quartiers) IV.quartiers={};
+  IV.quartiers[day.num]=day.quartier;
+}
+// Construit la liste de tranches (forme attendue par ivRenderDay) à partir d'un DAYS[i].
+function tranchesFromDay(day){
+  const jk='j'+day.num;
+  return (day.steps||[]).map(function(step,i){ return joursData[jk]['t'+(i+1)].a; });
+}
+// ===== MOTEUR À VRAIS LIEUX (porté de planifier_archi_test.html) =====
+// Construit la variable globale DAYS à partir des entrées du wizard. Ne touche JAMAIS à l'UI :
+// la belle UI (initJoursTabs / iv*) lit ensuite DAYS via adaptDayToJours(). useBase FORCÉ à true.
+async function buildDAYS(dest, duree, voyage, budget, saison, themes){
+  themes=(themes||[]).slice(0,2);
+  saison=saison||''; // ''=indifférent
+  if(!dest||!themes.length){throw new Error('Destination et au moins 1 thème requis.');}
+  {
+    log('Token + géocodage destination…');await getToken();try{if(typeof mapboxgl!=='undefined'&&mapboxgl)mapboxgl.accessToken=TOKEN;}catch(_){}
     const dc=await geocode(dest,null,null,'place,locality,district,region');if(!dc)throw new Error('destination introuvable');
     log('Le thème pilote la carte : collecte des lieux réels…');
-    const useBase=true; // PROD : lecture de la base unifiée /places forcée
-    let all=useBase?await collectFromBase(dc,themes,budget,voyage):await collectAll(dc,themes,dest);
+    const useBase=true; // MODE BASE FORCÉ (vrais lieux depuis le Worker /places)
+    let all=await collectFromBase(dc,themes,budget,voyage);
     // COUCHE AMBIANCE : TOUS les lieux de la ville (tous thèmes), lus depuis D1 (gratuit). Sert (1) à scorer l'ambiance des quartiers, (2) les repères « sur le chemin »/incontournables (sous-ensemble notable).
     AMBIANCE=[];LANDMARKS=[];
     if(useBase){try{const _lr=await fetchT(API+'/places?lat='+dc.lat+'&lng='+dc.lng+'&km='+REGION_KM+'&themes=culture,nature,gastronomie,festif,bienetre,sport,urbain&limit=500',{},15000);const _lj=await _lr.json();
@@ -1427,83 +2794,1546 @@ async function generer(){
       DAYS.push({num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM});
     }
     if(!DAYS.length)throw new Error('aucun lieu trouvé pour ces thèmes');
-        log('Terminé ✔');
-    document.getElementById('result').style.display='flex';
-    initMap();renderTabs();showDay(DAYS[0].num);
-  }catch(e){log('Erreur : '+e.message,true);}
-  btn.disabled=false;
+    log('Terminé ✔');
+    return DAYS; // la belle UI prend le relais (adaptDayToJours + rendu iv*)
+  }
 }
 
-function initMap(){if(MAP)return;MAP=new mapboxgl.Map({container:'map',style:'mapbox://styles/mapbox/light-v11',center:[DAYS[0].center.lng,DAYS[0].center.lat],zoom:13});}
-function clearMarkers(){MARKERS.forEach(m=>m.remove());MARKERS=[];}
-function renderTabs(){document.getElementById('tabs').innerHTML=DAYS.map(d=>'<div class="tab'+(d.num===ACTIVE?' on':'')+'" onclick="showDay('+d.num+')">Jour '+d.num+' · '+d.quartier+'</div>').join('');}
-function legBetween(a,b,bikeActive){
-  var d=hav(a.lat,a.lng,b.lat,b.lng)*1000; // m a vol d'oiseau
-  if((a&&a.carhop)||(b&&b.carhop)||d>3000){ // saut voiture (activit\u00e9 hors de la bulle marchable) -> on l'EXPLIQUE
-    var km=(d/1000).toFixed(1)+' km';var mn=Math.max(5,Math.round(d/600));
-    var alt='';
-    if(d<=5000){var wmin=Math.max(1,Math.round(d*1.3/75));alt=' \u00b7 ou ~'+wmin+' min \u00E0 pied';} // < 5 km : marche possible en alternative
-    return '<div class="leg leg-car">\uD83D\uDE97 Voiture, taxi ou transports \u00b7 '+km+' \u00b7 ~'+mn+' min'+alt+'</div>'; // on n'affirme pas \u00AB voiture n\u00E9cessaire \u00BB : en ville taxi/m\u00E9tro font le job
+/* ==== FIN DU MOTEUR GREFFÉ ==== */
+
+
+// ── MONITORING ──────────────────────────────────────────
+// Les limites sont chargées depuis le Worker KV au démarrage (modifiables sans toucher au code)
+let LIMITS = { none: 0, lecteur: 5, voyageur: 5 }; // valeurs par défaut, écrasées par /config ; offre unique gratuite 5/mois
+const URL_LECTEUR   = 'https://geocalme.com/#/portal/signup';
+const WORKER_URL = 'https://geocalme-counter.nicolas-chevreau.workers.dev';
+let memberTier = 'none'; // sera mis à jour par checkMember()
+let memberEmail = '';    // sera mis à jour par checkMember()
+// PHASE 1 (auth membre) PAS ENCORE BRANCHÉE -> accès OUVERT (fail-open) : un visiteur
+// anonyme NON connecté DOIT pouvoir générer. Le verrou membre/quota ne BLOQUE pas tant
+// que ce drapeau est false. Passer à true quand la vérif membre Ghost sera câblée.
+const REQUIRE_MEMBER = false;
+
+// ── SUIVI DU COÛT : accumulation des tokens de l'itinéraire courant ──
+// Chaque appel API ajoute ses tokens ici ; un flush différé (4 s après le dernier
+// appel) envoie le total à /usage. countGen=1 ne compte l'itinéraire qu'une fois.
+let USAGE_IN = 0, USAGE_OUT = 0, pendingGenCount = 0, usageFlushTimer = null;
+function scheduleUsageFlush() {
+  if (usageFlushTimer) clearTimeout(usageFlushTimer);
+  usageFlushTimer = setTimeout(flushUsage, 4000);
+}
+async function flushUsage() {
+  usageFlushTimer = null;
+  const inTok = USAGE_IN, outTok = USAGE_OUT, countGen = pendingGenCount;
+  if (!inTok && !outTok && !countGen) return;
+  USAGE_IN = 0; USAGE_OUT = 0; pendingGenCount = 0;
+  try {
+    await fetch(`${WORKER_URL}/usage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month: getMonth(), inTokens: inTok, outTokens: outTok, countGen: !!countGen })
+    });
+  } catch(e) { /* le suivi du coût ne doit jamais bloquer l'utilisateur */ }
+}
+
+async function loadLimitsFromWorker() {
+  try {
+    const r = await fetch(`${WORKER_URL}/config`);
+    const data = await r.json();
+    if (data.limits) {
+      LIMITS = { none: 0, ...data.limits };
+    }
+  } catch(e) {
+    // Garde les valeurs par défaut si le Worker est inaccessible
   }
-  var wd=d*1.3;
-  var dist=(wd<1000?Math.round(wd/10)*10+' m':(wd/1000).toFixed(1)+' km');
-  if(bikeActive){var bm=Math.max(1,Math.round(wd/250));return '<div class="leg">\uD83D\uDEB2 '+dist+' \u00b7 ~'+bm+' min \u00e0 v\u00e9lo</div>';}
-  var mins=Math.max(1,Math.round(wd/75));
-  return '<div class="leg">\u2193 '+dist+' \u00b7 ~'+mins+' min \u00e0 pied</div>';
 }
-// SUR LE CHEMIN : repères NOTABLES réellement situés sur le segment A→B (projection entre A et B + < ~180 m du tracé). Aucun texte inventé.
-function onTheWay(a,b,pool,exclude){
-  if(!pool||!pool.length)return [];
-  var R=6371000, rad=Math.PI/180, latm=(a.lat+b.lat)/2*rad;
-  function xy(p){return {x:(p.lng-a.lng)*rad*Math.cos(latm)*R, y:(p.lat-a.lat)*rad*R};}
-  var B=xy(b), segLen2=B.x*B.x+B.y*B.y;
-  if(segLen2<150*150)return []; // trajet < 150 m : rien à signaler
-  var res=[];
-  pool.forEach(function(L){
-    if(exclude&&exclude.has(_norm(L.nom)))return; // jamais une étape déjà au programme
-    var P=xy(L), t=(P.x*B.x+P.y*B.y)/segLen2;
-    if(t<0.12||t>0.88)return; // doit être ENTRE les deux pins (marge = on exclut les extrémités)
-    var perp=Math.hypot(P.x-t*B.x,P.y-t*B.y);
-    if(perp>250)return; // < ~250 m du tracé à pied (filet élargi : plus de pépites dans les quartiers riches)
-    res.push({nom:L.nom,perp:perp,score:L.score||0});
+
+function getMonth() {
+  return new Date().toISOString().slice(0, 7); // "2026-06"
+}
+
+// ── WORKER : vérifier le quota actuel (sans incrémenter) ──
+async function getWorkerCount() {
+  if (!memberEmail || memberTier === 'none') return { count: 0, allowed: false };
+  try {
+    const r = await fetch(`${WORKER_URL}/count?email=${encodeURIComponent(memberEmail)}&month=${getMonth()}`);
+    const data = await r.json();
+    if (data.unlimited) return { count: 0, allowed: true, unlimited: true };
+    const limit = LIMITS[memberTier] || 0;
+    return { count: data.count, allowed: data.count < limit };
+  } catch(e) {
+    // Fallback localStorage si le Worker est inaccessible
+    const key = 'gc_fallback_' + getMonth();
+    const count = parseInt(localStorage.getItem(key) || '0', 10);
+    const limit = LIMITS[memberTier] || 0;
+    return { count, allowed: count < limit };
+  }
+}
+
+// ── WORKER : incrémenter et vérifier en une seule requête ──
+async function tryIncrementWorker() {
+  if (!memberEmail || memberTier === 'none') return { allowed: false, count: 0 };
+  try {
+    const r = await fetch(`${WORKER_URL}/increment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: memberEmail, tier: memberTier, month: getMonth() })
+    });
+    return await r.json();
+  } catch(e) {
+    // Fallback localStorage si le Worker est inaccessible
+    const key = 'gc_fallback_' + getMonth();
+    const count = parseInt(localStorage.getItem(key) || '0', 10);
+    const limit = LIMITS[memberTier] || 0;
+    if (count >= limit) return { allowed: false, count };
+    localStorage.setItem(key, (count + 1).toString());
+    return { allowed: true, count: count + 1 };
+  }
+}
+
+async function canGenerate() {
+  const { allowed } = await getWorkerCount();
+  return allowed;
+}
+
+async function checkMember() {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { memberTier = 'none'; resolve(); }, 4000);
+    function handler(e) {
+      if (e.data && e.data.type === 'member-status') {
+        clearTimeout(timer);
+        window.removeEventListener('message', handler);
+        const data = e.data.data;
+        if (data) {
+          memberEmail = data.email || '';
+          if (
+            data.comped === true ||
+            (data.subscriptions && data.subscriptions.some(s => s.status === 'active' || s.status === 'comped'))
+          ) {
+            memberTier = 'voyageur';
+          } else {
+            memberTier = 'lecteur';
+          }
+        } else {
+          memberEmail = '';
+          memberTier = 'none';
+        }
+        resolve();
+      }
+    }
+    window.addEventListener('message', handler);
+    window.parent.postMessage('request-member-status', '*');
   });
-  res.sort(function(x,y){return (y.score-x.score)||(x.perp-y.perp);});
-  var seen={},uniq=[];res.forEach(function(r){var k=_norm(r.nom);if(seen[k])return;seen[k]=1;uniq.push(r);});
-  return uniq.slice(0,3);
 }
-// adresse lisible : on garde les segments en caractères latins (rue, n°) + codes postaux, on retire le pur non-latin (thaï, chinois…)
-function romanizeAddr(a){if(!a)return null;var segs=a.split(/\s*,\s*/).map(function(s){return s.trim();}).filter(function(s){return s&&(/[A-Za-zÀ-ÿ]/.test(s)||/^\d{3,6}$/.test(s));});var r=segs.join(', ');return r.length>=4?r:null;}
-var TH_BADGE={culture:'🏛️ Culture',sport:'🏃 Sport',nature:'🌳 Nature',gastronomie:'🍽️ Gastronomie',bienetre:'🧘 Bien-être',festif:'🎉 Festif',urbain:'🏙️ Urbain'};
-function themeChip(th){return TH_BADGE[th]?'<span style="display:inline-block;margin-left:8px;padding:1px 8px;border-radius:11px;background:#efe7d8;color:#8a6d3b;font-size:11px;font-weight:600;vertical-align:middle;white-space:nowrap">'+TH_BADGE[th]+'</span>':'';}
-function showDay(num){ACTIVE=num;const day=DAYS.find(d=>d.num===num);renderTabs();
-  clearMarkers();const b=new mapboxgl.LngLatBounds();
-  let lhtml='';const bikeActive=day.steps.some(s=>s.nom&&BIKE.test(s.nom));let stepNo=0,lastReal=null;
-  const dayNames=new Set(day.steps.filter(s=>!s.libre&&s.nom).map(s=>_norm(s.nom)));
-  const shownOTW=new Set(); // curiosités « en chemin » déjà montrées : on ne répète JAMAIS la même sur la journée
-  if(day.excursion)lhtml+='<div class="leg leg-car" style="margin:0 0 10px 0;border-left:none;padding-left:0">'+(day.distKm>12?('🚗 Journée-excursion · ~'+day.distKm+' km du centre (voiture recommandée)'):('🚕 Autre quartier · '+day.quartier+' à ~'+day.distKm+' km du centre — taxi, transports ou voiture'))+'</div>'; // métropole : un quartier à 4-5 km n'est pas une « excursion voiture »
-  day.steps.forEach((s)=>{
-    if(s.libre){ // bloc « Temps libre » : pas de pin, pas de marqueur
-      lhtml+='<div class="step" style="background:#f1e9da;border-left-color:#cbb89a"><div class="h">'+(s.heure||'')+(s.fin?' – '+s.fin:'')+(s.duree?' · ≈'+durLabel(s.duree):'')+'</div><div class="t">☕ '+(s.titre||'Temps libre')+'</div><div class="x">'+(s.texte||'')+'</div></div>';
+
+function showGate(count = 0, reason = '') {
+  document.getElementById('form-card').style.display = 'none';
+  document.body.classList.add('gate-mode');
+  const wrap = document.getElementById('gate-wrap');
+  wrap.classList.add('visible');
+  sendHeight();
+
+  const limit = LIMITS[memberTier] || 0;
+
+  // Plafond GLOBAL (jour) ou BUDGET (mois) atteint : ce n'est pas la faute de
+  // l'utilisateur — message poli + capture d'e-mail pour prévenir à la réouverture.
+  // On distingue les deux cas car la date de réouverture diffère :
+  //   - 'global' (capacité du JOUR) → repart demain matin
+  //   - 'budget' (capacité du MOIS) → repart le 1er du mois suivant
+  if (reason === 'global' || reason === 'budget') {
+    const isBudget = reason === 'budget';
+    const reopenLabel = isBudget
+      ? (() => {
+          const mois = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+          const d = new Date();
+          const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+          return `le 1er ${mois[next.getMonth()]}`;
+        })()
+      : 'demain matin';
+    const title = isBudget
+      ? 'Le générateur a atteint sa capacité du mois'
+      : 'Le générateur fait une courte pause';
+    const intro = isBudget
+      ? `Pour rester un service soigné et soutenable, le générateur a une capacité mensuelle d'itinéraires. Elle vient d'être atteinte — il repart <strong>${reopenLabel}</strong>.`
+      : `Pour garder un service soigné et soutenable, nous limitons le nombre d'itinéraires créés chaque jour. La capacité du jour vient d'être atteinte — tout repart <strong>${reopenLabel}</strong>.`;
+    const footer = isBudget
+      ? 'Merci de votre patience — laissez votre adresse et on vous prévient à la réouverture.'
+      : 'Merci de votre patience — on revient très vite.';
+    wrap.innerHTML = `<div class="gate-limit-card">
+      <div class="gate-limit-title">${title}</div>
+      <p class="gate-limit-text">${intro}</p>
+      <form id="gc-waitform" class="gate-wait-form" onsubmit="return submitWaitlist(event)">
+        <input id="gc-waitemail" type="email" required placeholder="votre@email.fr" class="gate-wait-input" autocomplete="email" />
+        <button type="submit" class="gate-limit-btn">Me prévenir à la réouverture</button>
+      </form>
+      <div id="gc-waitmsg" class="gate-wait-msg" role="status"></div>
+      <div class="gate-limit-divider"></div>
+      <div style="font-size:0.72em;color:#6E6A64;font-style:italic;">${footer}</div>
+    </div>`;
+    const we = document.getElementById('gc-waitemail');
+    if (we && memberEmail) we.value = memberEmail;
+    sendHeight();
+    return;
+  }
+
+  if (memberTier === 'none') {
+    wrap.innerHTML = `<div class="gate-intro">
+      <div class="gate-heading">Planifiez à votre rythme</div>
+      <div class="gate-connect-box">
+        <div class="gate-connect-text">
+          <strong>Vous avez déjà un compte ?</strong>
+          Connectez-vous pour accéder directement au générateur d'itinéraires.
+        </div>
+        <a class="gate-connect-btn" href="https://geocalme.com/#/portal/signin" target="_top">Se connecter</a>
+      </div>
+      <div class="gate-or-divider">Pas encore inscrit·e ?</div>
+      <div class="gate-cards single">
+        <div class="gate-offer featured">
+          <span class="gate-offer-badge">Gratuit · sans engagement</span>
+          <div class="gate-offer-title">Inscription</div>
+          <p class="gate-offer-sub">Votre e-mail suffit — aucun paiement, aucune carte bancaire.</p>
+          <ul class="gate-offer-perks">
+            <li>Newsletter hebdomadaire dans votre boîte mail</li>
+            <li>Escales, Signaux &amp; Smart Deals vérifiés</li>
+            <li>Jusqu'à 5 itinéraires personnalisés par mois</li>
+          </ul>
+          <a class="gate-offer-btn gold" href="${URL_LECTEUR}" target="_top">S'inscrire gratuitement</a>
+        </div>
+      </div>
+    </div>
+    `;
+  } else {
+    // Membre connecté ayant atteint son quota mensuel (5 itinéraires/mois pour tous)
+    const resetDate = (() => {
+      const d = new Date();
+      const mois = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      return `1er ${mois[next.getMonth()]}`;
+    })();
+    wrap.innerHTML = `<div class="gate-limit-card">
+      <div class="gate-limit-badge">${count} / ${limit} générations ce mois-ci</div>
+      <div class="gate-limit-title">Vous avez utilisé tous vos itinéraires du mois</div>
+      <p class="gate-limit-text">Votre quota de ${limit} itinéraires est épuisé pour ce mois-ci. Il se renouvellera automatiquement le <strong>${resetDate}</strong>.</p>
+      <div class="gate-limit-divider"></div>
+      <div style="font-size:0.72em;color:#6E6A64;font-style:italic;">À très bientôt pour de nouvelles escapades.</div>
+    </div>`;
+  }
+}
+
+// Capture d'e-mail quand la capacité du jour est atteinte (reason global/budget).
+async function submitWaitlist(e) {
+  e.preventDefault();
+  const inp = document.getElementById('gc-waitemail');
+  const msg = document.getElementById('gc-waitmsg');
+  const email = (inp.value || '').trim();
+  if (!email) return false;
+  if (msg) { msg.className = 'gate-wait-msg'; msg.textContent = 'Enregistrement…'; }
+  try {
+    const r = await fetch(`${WORKER_URL}/waitlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (r.ok) {
+      if (msg) { msg.className = 'gate-wait-msg ok'; msg.textContent = "C'est noté ! Nous vous préviendrons dès la réouverture."; }
+      inp.disabled = true;
+      const btn = e.target.querySelector('button');
+      if (btn) btn.disabled = true;
+    } else {
+      if (msg) { msg.className = 'gate-wait-msg err'; msg.textContent = 'Adresse invalide, vérifiez le format.'; }
+    }
+  } catch (err) {
+    if (msg) { msg.className = 'gate-wait-msg err'; msg.textContent = 'Oups, réessayez dans un instant.'; }
+  }
+  sendHeight();
+  return false;
+}
+
+// ── INTRO ÉDITORIALE CÔTÉ CLIENT ────────────────────────
+const INTRO_THEMES = {
+  "Gastronomie et Terroirs": ["les tables locales et les marchés", "la gastronomie et les terroirs", "une exploration culinaire"],
+  "Nature et Paysages":      ["les paysages naturels et les sentiers", "la nature et les grands espaces", "randonnées et horizons sauvages"],
+  "Culture et Patrimoine":   ["le patrimoine et les musées", "l'histoire et l'architecture", "les monuments et quartiers historiques"],
+  "Bouger & Explorer":       ["les activités sportives et l'exploration", "le grand air et les défis physiques", "randonnées et aventures"],
+  "Villes et Art de Vivre":  ["la vie urbaine et les quartiers créatifs", "les cafés de quartier et l'art de rue", "l'art de vivre local"],
+  "Vie Locale et Festivité": ["la musique live et les fêtes locales", "la scène locale et les bars musicaux", "les festivités et l'ambiance nocturne"],
+  "Bien-être & Déconnexion": ["le calme, les spas et la déconnexion", "le slow travel et le bien-être", "les bains thermaux et la pleine nature"]
+};
+const INTRO_PROFILS = {
+  "duo":        ["en couple", "à deux"],
+  "solo":       ["en solo", "pour un voyageur solo"],
+  "famille":    ["en famille", "pour un voyage en famille"],
+  "entre amis": ["entre amis", "pour un groupe d'amis"]
+};
+function nettoyerEt(str) {
+  var parts = str.split(' et ');
+  if (parts.length <= 2) return str;
+  return parts.slice(0, -1).join(', ') + ' et ' + parts[parts.length - 1];
+}
+function genererIntroEditoriale(destination, duree, themes, voyageCat) {
+  const profil = (INTRO_PROFILS[voyageCat] || [""])[Math.floor(Math.random() * 2)];
+  const joursStr = duree === 1 ? "une journée" : (duree + " jours");
+  let themeFocus = "";
+  if (themes.length >= 2) {
+    const t1 = (INTRO_THEMES[themes[0]] || [""])[0];
+    const t2 = (INTRO_THEMES[themes[1]] || [""])[0];
+    themeFocus = "entre " + t1 + " et " + t2;
+  } else if (themes.length === 1) {
+    themeFocus = "autour de " + (INTRO_THEMES[themes[0]] || ["l'essentiel"])[0];
+  } else {
+    themeFocus = "à votre rythme";
+  }
+  const intro = joursStr.charAt(0).toUpperCase() + joursStr.slice(1) + " " + profil + " à " + destination + ", " + themeFocus + ".";
+  return nettoyerEt(intro);
+}
+
+// ── CORRESPONDANCE THÈME → CODE ──────────────────────────
+const THEME_CODES = {
+  'Gastronomie et Terroirs': 'G',
+  'Nature et Paysages':      'N',
+  'Culture et Patrimoine':   'C',
+  'Bouger & Explorer':       'S',
+  'Villes et Art de Vivre':  'V',
+  'Vie Locale et Festivité': 'F',
+  'Bien-être & Déconnexion': 'B'
+};
+
+// ── ÉTAT ────────────────────────────────────────────────
+let tranchesData = {};
+let joursData = {};
+let params = {};
+let activitesList = [];
+let historiqueActivites = [];
+
+// ── CHARGEMENT DE LA LISTE D'ACTIVITÉS ──────────────────
+async function fetchActivities() {
+  try {
+    const res = await fetch(API_URL + '/activities');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.activities) activitesList = data.activities;
+  } catch(e) {}
+}
+
+function getActivitesForThemes(themes) {
+  if (!activitesList.length || !themes || !themes.length) return [];
+  const codes = themes.map(t => THEME_CODES[t]).filter(Boolean);
+  if (!codes.length) return [];
+  return activitesList.filter(a => a.themes.some(c => codes.includes(c))).map(a => a.nom);
+}
+
+// ── WIZARD JS ────────────────────────────────────────────
+const WIZ_TOTAL = 5;
+
+function wizProgress(step) {
+  document.getElementById('wiz-progress').style.width = (step / WIZ_TOTAL * 100) + '%';
+}
+
+function wizNext(step) {
+  document.getElementById('wstep-' + step).classList.remove('active');
+  document.getElementById('wstep-' + (step + 1)).classList.add('active');
+  wizProgress(step + 1);
+  sendHeight();
+}
+
+function wizBack(step) {
+  document.getElementById('wstep-' + step).classList.remove('active');
+  document.getElementById('wstep-' + (step - 1)).classList.add('active');
+  wizProgress(step - 1);
+  sendHeight();
+}
+
+function selectDay(n) {
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
+  event.target.classList.add('selected');
+  document.getElementById('duree').value = n;
+}
+
+function selectVoyage(val, el) {
+  document.querySelectorAll('#voyage-grid .opt-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.querySelector('input[name="voyage-cat"][value="' + val + '"]').checked = true;
+}
+
+function selectBudget(val, el) {
+  document.querySelectorAll('#budget-grid .opt-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.querySelector('input[name="budget-cat"][value="' + val + '"]').checked = true;
+}
+
+function selectTheme(el) {
+  const cbId = el.dataset.cb;
+  const cb = document.getElementById(cbId);
+  const isSelected = el.classList.contains('selected');
+
+  if (!isSelected) {
+    const already = document.querySelectorAll('.theme-pill.selected').length;
+    if (already >= 2) {
+      document.getElementById('theme-hint').textContent = '2 thèmes maximum.';
+      setTimeout(() => document.getElementById('theme-hint').textContent = '', 2000);
       return;
     }
-    if(lastReal){lhtml+=legBetween(lastReal,s,bikeActive);
-      // « sur le chemin » : seulement sur un trajet à pied (pas un saut voiture), repères réels entre les deux pins
-      var _dm=hav(lastReal.lat,lastReal.lng,s.lat,s.lng)*1000, _isCar=(lastReal.carhop||s.carhop||_dm>3000);
-      if(!_isCar){var _exTW=new Set(dayNames);shownOTW.forEach(function(n){_exTW.add(n);}); // exclut les étapes ET les curiosités déjà montrées
-        var _ow=onTheWay(lastReal,s,(day.localLM&&day.localLM.length?day.localLM:LANDMARKS),_exTW);
-        if(_ow.length){_ow.forEach(function(w){shownOTW.add(_norm(w.nom));});lhtml+='<div class="leg" style="border-left-color:#cbb89a;color:#8a6d3b">👀 En chemin : '+_ow.map(function(w){return w.nom;}).join(' · ')+'</div>';}}
+    el.classList.add('selected');
+    cb.checked = true;
+  } else {
+    el.classList.remove('selected');
+    cb.checked = false;
+  }
+  document.getElementById('theme-hint').textContent = '';
+}
+
+// ── MAPBOX ───────────────────────────────────────────────
+let mapboxToken = null;
+const dayMaps = {}; // jourKey → { map, markers: { trancheId: mapboxgl.Marker } }
+const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11';
+// Couleur dynamique selon l'heure de début (indépendant du label texte)
+function getDuree(heure, heure_fin) {
+  if (!heure) return '';
+  if (!heure_fin) return heure;
+  try {
+    const parse = h => { const p = h.replace('h',':').split(':'); return parseInt(p[0],10)*60+(parseInt(p[1],10)||0); };
+    const diff = parse(heure_fin) - parse(heure);
+    if (diff <= 0) return heure;
+    const h = Math.floor(diff/60), m = diff%60;
+    const dur = h > 0 ? h+'h'+(m>0?(m<10?'0':'')+m:'') : m+'min';
+    return heure + ' · environ ' + dur;
+  } catch(e) { return heure; }
+}
+
+function getTrancheColor(heure) {
+  const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
+  if (h < 10) return '#C9A84C';   // 06h-10h → doré lisible
+  if (h < 14) return '#B8883A';   // 10h-14h → ambre chaud
+  if (h < 18) return '#E8953A';   // 14h-18h → ambre vif
+  if (h < 22) return '#B5652A';   // 18h-22h → cuivre
+  return '#2D3561';               // 22h-02h → bleu nuit
+}
+function getTrancheIcon(heure) {
+  const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
+  if (h < 10) return '??';
+  if (h < 12) return '☀️';
+  if (h < 15) return '??️';
+  if (h < 19) return '??';
+  if (h < 21) return '??';
+  return '??';
+}
+const TRANCHE_COLORS = {}; // conservé pour compatibilité carte Mapbox
+
+function loadMapboxGL() {
+  return new Promise((resolve, reject) => {
+    if (window.mapboxgl) { resolve(); return; }
+    if (document.getElementById('mapbox-gl-js')) {
+      document.getElementById('mapbox-gl-js').addEventListener('load', resolve);
+      return;
     }
-    stepNo++;
-    const el=document.createElement('div');el.className='mk';el.textContent=stepNo;
-    const mk=new mapboxgl.Marker({element:el}).setLngLat([s.lng,s.lat]).addTo(MAP);MARKERS.push(mk);b.extend([s.lng,s.lat]);
-    lhtml+='<div class="step"><div class="h">'+(s.openEnd?((s.heure||'')+' – fin libre (à votre rythme)'):((s.heure||'')+(s.fin?' – '+s.fin:'')+(s.duree?' · ≈'+durLabel(s.duree):'')))+'</div><div class="t">'+stepNo+'. '+(s.titre||'')+themeChip(s.theme)+'</div><div class="x">'+(s.texte||'')+'</div><div class="pin">📍 '+(s.nom||'')+'</div>'+(romanizeAddr(s.adresse)&&!s.libre?'<div style="color:#9a8f7d;font-size:12px;margin:3px 0 0 20px">'+romanizeAddr(s.adresse)+'</div>':'')+((s.alts&&s.alts.length)?'<div style="color:#9a8f7d;font-size:12px;margin:5px 0 0 20px">Autres options : '+s.alts.map(function(a){return (a.price?'€'.repeat(Math.min(4,a.price))+' ':'')+a.nom;}).join('  ·  ')+'</div>':'')+'</div>';
-    lastReal=s;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css';
+    document.head.appendChild(link);
+    const script = document.createElement('script');
+    script.id = 'mapbox-gl-js';
+    script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
   });
-  document.getElementById('list').innerHTML=lhtml;
-  try{if(day.steps.length)MAP.fitBounds(b,{padding:60,maxZoom:15,duration:500});}catch(e){}
-  // (3) panneau debug retiré en PROD
-  const dbg=document.getElementById('debug');if(dbg){dbg.innerHTML='';dbg.style.display='none';}
+}
+
+async function getMapboxToken() {
+  if (mapboxToken) return mapboxToken;
+  try {
+    const res = await fetch(API_URL + '/mapbox-token');
+    if (!res.ok) return null;
+    const data = await res.json();
+    mapboxToken = data.token || null;
+    return mapboxToken;
+  } catch(e) { return null; }
+}
+
+async function geocodePlace(placeName, destination) {
+  if (!mapboxToken) return null;
+  try {
+    const q = encodeURIComponent(placeName + ', ' + destination);
+    const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + q + '.json?access_token=' + mapboxToken + '&limit=1&types=poi,address';
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.features && data.features.length > 0) {
+      const [lng, lat] = data.features[0].center;
+      return { lat, lng };
+    }
+  } catch(e) {}
+  return null;
+}
+
+function createMarkerEl(num, nom) {
+  const el = document.createElement('div');
+  el.style.cssText = 'width:28px;height:28px;border-radius:50%;background:#1A1A1A;color:#fff;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center;font:700 13px/1 Inter,-apple-system,sans-serif;cursor:pointer;transition:transform 0.18s;';
+  el.textContent = num;
+  el.title = nom || '';
+  el.addEventListener('mouseover', () => { el.style.transform = 'scale(1.2)'; });
+  el.addEventListener('mouseout', () => { el.style.transform = 'scale(1)'; });
+  return el;
+}
+
+async function initDayMap(jourKey, tranches, destination) {
+  const token = await getMapboxToken();
+  if (!token) {
+    const mw = document.getElementById('map-' + jourKey);
+    if (mw) mw.style.display = 'none';
+    return;
+  }
+  try { await loadMapboxGL(); } catch(e) {
+    const mw = document.getElementById('map-' + jourKey);
+    if (mw) mw.style.display = 'none';
+    return;
+  }
+  const mapContainer = document.getElementById('map-' + jourKey);
+  if (!mapContainer) return;
+
+  // Geocode all tranches in parallel
+  const coordResults = await Promise.all(
+    tranches.map(t => geocodePlace(t.nom, destination).then(c => ({ t, coords: c })))
+  );
+  const valid = coordResults.filter(r => r.coords);
+  if (valid.length === 0) { mapContainer.style.display = 'none'; return; }
+
+  // Remove loading overlay
+  const overlay = mapContainer.querySelector('.map-loading-overlay');
+  if (overlay) overlay.remove();
+
+  const avgLat = valid.reduce((s, r) => s + r.coords.lat, 0) / valid.length;
+  const avgLng = valid.reduce((s, r) => s + r.coords.lng, 0) / valid.length;
+
+  mapboxgl.accessToken = token;
+  const map = new mapboxgl.Map({
+    container: mapContainer,
+    style: MAPBOX_STYLE,
+    center: [avgLng, avgLat],
+    zoom: 13,
+    attributionControl: false
+  });
+  map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+
+  const markers = {};
+  map.on('load', () => {
+    // Route line
+    const routeCoords = valid.map(r => [r.coords.lng, r.coords.lat]);
+    map.addSource('route-' + jourKey, {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } }
+    });
+    map.addLayer({ id: 'route-' + jourKey, type: 'line', source: 'route-' + jourKey,
+      paint: { 'line-color': '#B5976A', 'line-width': 2, 'line-dasharray': [3, 2], 'line-opacity': 0.55 }
+    });
+    // Markers
+    valid.forEach((r, idx) => {
+      const el = createMarkerEl(idx + 1, r.t.nom);
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([r.coords.lng, r.coords.lat])
+        .setPopup(new mapboxgl.Popup({ offset: 18, closeButton: false })
+          .setHTML('<strong>' + (r.t.nom || '') + '</strong>'))
+        .addTo(map);
+      markers[r.t.id] = { marker, label: r.t.label };
+      // Store coords on tranche data for quick access
+      if (joursData[jourKey] && joursData[jourKey][r.t.id] && joursData[jourKey][r.t.id].a) {
+        joursData[jourKey][r.t.id].a._coords = r.coords;
+      }
+    });
+    // Fit bounds
+    if (valid.length > 1) {
+      const bounds = new mapboxgl.LngLatBounds();
+      valid.forEach(r => bounds.extend([r.coords.lng, r.coords.lat]));
+      map.fitBounds(bounds, { padding: 55, maxZoom: 15, duration: 700 });
+    }
+    sendHeight();
+  });
+  dayMaps[jourKey] = { map, markers };
+}
+
+async function updateMapPin(jourKey, trancheId, opt) {
+  const mapData = dayMaps[jourKey];
+  if (!mapData || !mapboxToken) return;
+  const markerData = mapData.markers[trancheId];
+  if (!markerData) return;
+  const trancheOpt = joursData[jourKey]?.[trancheId]?.[opt];
+  if (!trancheOpt) return;
+  let coords = trancheOpt._coords;
+  if (!coords) {
+    coords = await geocodePlace(trancheOpt.nom, params.destination);
+    if (coords) trancheOpt._coords = coords;
+  }
+  if (coords) {
+    markerData.marker.setLngLat([coords.lng, coords.lat]);
+    markerData.marker.setPopup(new mapboxgl.Popup({ offset: 18, closeButton: false })
+      .setHTML('<strong>' + (trancheOpt.nom || '') + '</strong>'));
+    // Update route line
+    const mk = dayMaps[jourKey].markers;
+    const routeCoords = Object.values(mk)
+      .map(m => m.marker.getLngLat())
+      .filter(Boolean)
+      .map(ll => [ll.lng, ll.lat]);
+    if (routeCoords.length > 1) {
+      const src = dayMaps[jourKey].map.getSource('route-' + jourKey);
+      if (src) src.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } });
+    }
+  }
+}
+
+// ── INIT ────────────────────────────────────────────────
+async function init() {
+  // ── MODE APERÇU (test hors geocalme.com) ──
+  // Activé uniquement si l'URL contient ?preview — débloque le générateur
+  // sans session Ghost. Aucun effet en prod : l'iframe sur geocalme.com
+  // n'a jamais ce paramètre.
+  if (new URLSearchParams(location.search).has('preview')) {
+    memberTier = 'voyageur';
+    memberEmail = 'preview@geocalme.test';
+    fetchActivities();
+    await loadLimitsFromWorker();
+    document.getElementById('destination').addEventListener('input', function() {
+      document.getElementById('next-1').disabled = this.value.trim().length < 2;
+    });
+    ivInitDestSuggest();
+    document.getElementById('duree').value = 3;
+    wizProgress(1);
+    return;
+  }
+
+  fetchActivities();
+  await loadLimitsFromWorker(); // charge les quotas depuis KV avant tout
+  await checkMember();
+
+  // Si accès refusé dès le départ, afficher le gate immédiatement — UNIQUEMENT si l'auth membre
+  // est activée (REQUIRE_MEMBER). Sinon fail-open : l'anonyme accède au générateur sans login.
+  if (REQUIRE_MEMBER) {
+    const { allowed: initAllowed, count: initCount } = await getWorkerCount();
+    if (!initAllowed) {
+      showGate(initCount);
+      return;
+    }
+  }
+
+  // Destination — activer bouton Continuer
+  document.getElementById('destination').addEventListener('input', function() {
+    document.getElementById('next-1').disabled = this.value.trim().length < 2;
+  });
+  ivInitDestSuggest();
+
+  // Valeur initiale durée = 3 (déjà selected visuellement)
+  document.getElementById('duree').value = 3;
+
+  wizProgress(1);
+}
+
+function valider() {
+  const dest = document.getElementById('destination').value.trim();
+  document.getElementById('btn-generate').disabled = dest.length < 2;
+}
+
+// Sélection de ville pré-géocodée (typeahead) → ivResolveCenter l'utilise tel quel.
+let ivDestPick = null; // { name, center:[lng,lat], cc }
+
+function ivInitDestSuggest() {
+  const input = document.getElementById('destination');
+  const box = document.getElementById('dest-suggest');
+  if (!input || !box || input.dataset.acWired) return;
+  input.dataset.acWired = '1';
+  let timer = null, items = [], active = -1;
+
+  const close = () => { box.classList.remove('open'); box.innerHTML = ''; items = []; active = -1; input.setAttribute('aria-expanded', 'false'); };
+  const choose = (f) => {
+    ivDestPick = { name: f.text, center: f.center, cc: f.cc || '' };
+    input.value = f.text;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    ivDestPick = { name: f.text, center: f.center, cc: f.cc || '' }; // l'event 'input' a remis à null, on re-pose
+    clearTimeout(timer); // empêche la recherche programmée par l'event ci-dessus de rouvrir la liste
+    close(); input.focus();
+  };
+  const render = () => {
+    box.innerHTML = items.map((f, i) =>
+      '<li role="option" data-i="' + i + '" class="' + (i === active ? 'active' : '') + '">' +
+      '<span class="ds-name">' + f.text + '</span>' +
+      (f.ctx ? '<span class="ds-ctx">' + f.ctx + '</span>' : '') + '</li>').join('');
+    box.classList.toggle('open', items.length > 0);
+    input.setAttribute('aria-expanded', items.length > 0 ? 'true' : 'false');
+  };
+  const search = async (q) => {
+    const token = await getMapboxToken();
+    if (!token) return;
+    const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(q) +
+      '.json?access_token=' + token + '&autocomplete=true&language=fr&limit=6&types=place,locality,region,country';
+    try {
+      const r = await fetch(url); const d = await r.json();
+      if (input.value.trim() !== q) return; // réponse périmée
+      items = (d.features || []).map(f => {
+        let cc = (f.properties && f.properties.short_code) || '';
+        if (!cc) { const ce = (f.context || []).find(c => c.id && c.id.indexOf('country') === 0); if (ce && ce.short_code) cc = ce.short_code; }
+        const region = (f.context || []).find(c => c.id && c.id.indexOf('region') === 0);
+        const country = (f.context || []).find(c => c.id && c.id.indexOf('country') === 0);
+        const ctx = [region && region.text, country && country.text].filter(Boolean).join(', ');
+        return { text: f.text, center: f.center, cc: (cc || '').split('-')[0], ctx };
+      });
+      active = -1; render();
+    } catch (e) {}
+  };
+
+  input.addEventListener('input', () => {
+    ivDestPick = null; // toute frappe annule la sélection
+    const q = input.value.trim();
+    clearTimeout(timer);
+    if (q.length < 2) { close(); return; }
+    timer = setTimeout(() => search(q), 220);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (!box.classList.contains('open')) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + 1, items.length - 1); render(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); render(); }
+    else if (e.key === 'Enter') { if (active >= 0 && items[active]) { e.preventDefault(); choose(items[active]); } }
+    else if (e.key === 'Escape') { close(); }
+  });
+  box.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('li'); if (!li) return;
+    e.preventDefault(); const i = parseInt(li.dataset.i, 10); if (items[i]) choose(items[i]);
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.dest-field')) close(); });
+}
+
+async function resetForm() {
+  // Réinitialiser wizard
+  document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('wstep-1').classList.add('active');
+  wizProgress(1);
+  document.getElementById('destination').value = '';
+  ivDestPick = null;
+  document.getElementById('next-1').disabled = true;
+
+  // Si la limite est atteinte, rester sur le gate
+  const { allowed: resetAllowed, count: resetCount } = await getWorkerCount();
+  if (!resetAllowed) {
+    showGate(resetCount);
+    return;
+  }
+  document.getElementById('gate-wrap').classList.remove('visible');
+  document.getElementById('form-card').style.display = '';
+  document.getElementById('result-wrap').classList.remove('visible');
+  document.getElementById('loading-state').classList.remove('visible');
+  document.getElementById('error-state').classList.remove('visible');
+  document.getElementById('main-content').innerHTML = '';
+  tranchesData = {}; joursData = {}; historiqueActivites = [];
+  sendHeight();
+}
+
+// ── APPEL API SANS STREAMING ─────────────────────────────
+async function appelAPI(prompt, onChunk, signal) {
+  const response = await fetch(API_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+    body: JSON.stringify({ model: MODEL, max_tokens: 4000, stream: true, messages: [{ role: 'user', content: prompt }] })
+  });
+  if (!response.ok) throw new Error('Erreur serveur ' + response.status);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '', fullText = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n'); buffer = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6);
+      if (data === '[DONE]') continue;
+      try { const evt = JSON.parse(data); const chunk = evt.delta?.text || evt.choices?.[0]?.delta?.content || ''; if (chunk) { fullText += chunk; if (onChunk) onChunk(chunk, fullText); } } catch(e) {}
+    }
+  }
+  return fullText;
+}
+
+async function appelAPISimple(prompt) {
+  const response = await fetch(API_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
+  });
+  if (!response.ok) throw new Error('Erreur serveur ' + response.status);
+  const data = await response.json();
+  // Suivi du coût : on accumule les tokens réels renvoyés par l'API.
+  try {
+    if (data.usage) {
+      USAGE_IN  += data.usage.input_tokens  || 0;
+      USAGE_OUT += data.usage.output_tokens || 0;
+      scheduleUsageFlush();
+    }
+  } catch(e) {}
+  return (data.content || []).map(b => b.text || '').join('');
+}
+
+// ── PARSERS ──────────────────────────────────────────────
+function parseTexteStructure(texte) {
+  const tranches = [];
+  texte.split(/\n---+\n/).filter(b => b.trim()).forEach((bloc, idx) => {
+    const t = { id: 't' + (idx+1), points_chute: [] };
+    bloc.trim().split('\n').forEach(line => {
+      line = line.trim();
+      if (line.startsWith('TRANCHE|')) { const p = line.split('|'); t.label = p[1]||'Tranche'; t.heure = p[2]||''; t.heure_fin = p[3]||''; }
+      else if (line.startsWith('NOM|')) t.nom = line.slice(4);
+      else if (line.startsWith('TITRE|')) t.titre = line.slice(6);
+      else if (line.startsWith('TEXTE|')) t.texte = line.slice(6);
+      else if (line.startsWith('POINT|')) { const p = line.slice(6).split('|'); t.points_chute.push({ lieu: p[0]||'', raison: p[1]||'' }); }
+    });
+    if (t.nom) tranches.push(t);
+  });
+  return tranches;
+}
+
+
+// ── GÉNÉRATION PRINCIPALE ────────────────────────────────
+async function generer() {
+  // Vérification monitoring avant génération (atomique : vérifie + incrémente) — UNIQUEMENT si l'auth
+  // membre est activée. Sinon fail-open : la génération part sans login (Phase 1 pas encore branchée).
+  const genResult = REQUIRE_MEMBER ? await tryIncrementWorker() : { allowed: true };
+  if (!genResult.allowed) {
+    showGate(genResult.count, genResult.reason);
+    return;
+  }
+  // Itinéraire autorisé : on le comptera une seule fois lors du flush des tokens.
+  pendingGenCount = 1;
+
+  const destination = document.getElementById('destination').value.trim();
+  const destinationB = document.getElementById('destination-b').value.trim();
+  const duree = parseInt(document.getElementById('duree').value);
+  const budgetCat = document.querySelector('input[name="budget-cat"]:checked')?.value || 'confortable';
+  const periode = document.getElementById('periode').value;
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const co2 = document.querySelector('input[name="co2"]:checked')?.value || 'tous';
+  const voyageCat = document.querySelector('input[name="voyage-cat"]:checked')?.value || 'duo';
+  const themes = Array.from(document.querySelectorAll('.style-cb:checked')).map(c => c.value);
+  const styleLabel = themes.length > 0 ? voyageCat + ' · ' + themes.join(' + ') : voyageCat;
+
+  // Traduction des LABELS du wizard vers les CLÉS du moteur (max 2 thèmes).
+  const THEME_LABEL_TO_KEY = {
+    'Gastronomie et Terroirs':'gastronomie',
+    'Nature et Paysages':'nature',
+    'Culture et Patrimoine':'culture',
+    'Bouger & Explorer':'sport',
+    'Villes et Art de Vivre':'urbain',
+    'Vie Locale et Festivité':'festif',
+    'Bien-être & Déconnexion':'bienetre'
+  };
+  const themeKeys = themes.map(l => THEME_LABEL_TO_KEY[l]).filter(Boolean).slice(0, 2);
+  const saison = ''; // le wizard n'a pas de saison → indifférent
+
+  params = { destination, destinationB, duree, budget: budgetCat, periode, mode, co2, themes, themeKeys, styleLabel, voyage: voyageCat };
+
+  document.getElementById('form-card').style.display = 'none';
+  document.getElementById('error-state').classList.remove('visible');
+  const loadingState = document.getElementById('loading-state');
+  loadingState.classList.add('visible');
+
+  let loadingIdx = 0;
+  const loadingInterval = setInterval(() => {
+    loadingIdx = (loadingIdx + 1) % LOADING_MSGS.length;
+    document.getElementById('loading-text').textContent = LOADING_MSGS[loadingIdx];
+  }, 2500);
+
+  document.getElementById('result-title').textContent = mode === 'chemin' ? destination + ' → ' + destinationB : destination;
+  document.getElementById('result-intro').textContent = mode !== 'chemin'
+    ? genererIntroEditoriale(destination, duree, themes, voyageCat)
+    : '';
+  const tags = [
+    { text: duree + (duree > 1 ? ' jours' : ' jour'), gold: true },
+    { text: budgetCat, gold: false },
+    { text: styleLabel, gold: false }
+  ].filter(t => t.text);
+  document.getElementById('result-tags').innerHTML = tags.map(t => `<div class="result-tag${t.gold?' tag-or':''}">${t.text}</div>`).join('');
+
+  try {
+    // MOTEUR À VRAIS LIEUX : on s'assure que Mapbox GL est chargé (géocodage du moteur en dépend
+    // pour l'accessToken), puis on construit DAYS depuis la base réelle, on adapte tous les jours
+    // vers joursData, et la belle UI (initJoursTabs + iv*) prend le relais SANS aucun appel LLM.
+    if (!themeKeys.length) throw new Error('Aucun thème valide sélectionné.');
+    try { await loadMapboxGL(); } catch(e) {} // non bloquant : le moteur pose accessToken si dispo
+    await buildDAYS(destination, duree, voyageCat, budgetCat, saison, themeKeys); // remplit la globale DAYS
+    // Adaptation de TOUS les jours d'un coup (DAYS est déjà entièrement construit).
+    joursData = {};
+    (typeof DAYS !== 'undefined' ? DAYS : []).forEach(function(d){ adaptDayToJours(d); });
+    clearInterval(loadingInterval);
+    loadingState.classList.remove('visible');
+    await initJoursTabs(duree, destination, budgetCat, periode, styleLabel);
+    document.getElementById('result-wrap').classList.add('visible');
+    document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(sendHeight, 100);
+  } catch(err) {
+    clearInterval(loadingInterval);
+    loadingState.classList.remove('visible');
+    document.getElementById('form-card').style.display = '';
+    const errEl = document.getElementById('error-state');
+    errEl.textContent = 'Une erreur est survenue. Veuillez réessayer. (' + err.message + ')';
+    errEl.classList.add('visible');
+  }
+}
+
+// ── ITINÉRAIRE V2 — carte fixe + étapes dépliables ───────
+let IV = {
+  map: null, token: null, ready: false,
+  duree: 1, dest: '', budget: '', periode: '', styleLabel: '',
+  quartiers: {},   // num -> quartier
+  loaded: {},      // num -> données A prêtes
+  tranches: {},    // num -> [tranche A, ...]
+  sel: {},         // num -> { tid -> 'a'|'b'|'c' }
+  active: 1,
+  dayMk: [],       // [{tid, marker, inner}] aligné sur l'index d'étape
+  center: null,    // [lng,lat] centre de la destination (biais géocodage)
+  cc: ''           // code pays ISO de la destination (filtre géocodage)
+};
+
+// Distance en km (Haversine) — sert à rejeter les géocodages aberrants
+function ivHaversine(lat1, lng1, lat2, lng2) {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Résout le centre + pays de la destination (1 appel, mis en cache sur IV)
+async function ivResolveCenter() {
+  if (IV.center || !IV.token || !IV.dest) return;
+  // Ville choisie dans les suggestions → on prend ses coordonnées exactes (zéro ambiguïté).
+  if (typeof ivDestPick !== 'undefined' && ivDestPick && ivDestPick.center) {
+    IV.center = ivDestPick.center; IV.cc = ivDestPick.cc || ''; return;
+  }
+  try {
+    const q = encodeURIComponent(IV.dest);
+    // autocomplete=false → « Tanger » n'est plus complété en « Tangerang » (Java, Indonésie).
+    const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + q +
+      '.json?access_token=' + IV.token + '&limit=5&language=fr&autocomplete=false&types=place,locality,region,district,country';
+    const r = await fetch(url); const d = await r.json();
+    if (d.features && d.features.length) {
+      // Meilleur candidat : pertinence d'abord, vraie ville (place/locality) en départage.
+      const rank = t => (t === 'place' || t === 'locality' ? 3 : t === 'district' ? 2 : t === 'region' ? 1 : 0);
+      const f = d.features.slice().sort((a, b) => {
+        const dr = (b.relevance || 0) - (a.relevance || 0);
+        if (Math.abs(dr) > 0.001) return dr;
+        return rank((b.place_type && b.place_type[0]) || '') - rank((a.place_type && a.place_type[0]) || '');
+      })[0];
+      IV.center = f.center; // [lng,lat]
+      let cc = '';
+      if (f.id && f.id.indexOf('country') === 0 && f.properties && f.properties.short_code) cc = f.properties.short_code;
+      if (!cc && f.context) { const ce = f.context.find(c => c.id && c.id.indexOf('country') === 0); if (ce && ce.short_code) cc = ce.short_code; }
+      IV.cc = (cc || '').split('-')[0]; // garde le code pays 2 lettres
+    }
+  } catch(e) {}
+}
+
+// Requête Mapbox Search Box (forward) — bien meilleure couverture des POI réels que
+// l'API v5. Biaisée par proximité + pays. Renvoie {lat,lng,type,relevance} ou null.
+// La Search Box ne renvoie pas de score de pertinence : on le pose à 1 quand un
+// résultat du bon type tombe (le garde-fou réel est le contrôle de rayon en aval).
+async function ivGeoQuerySB(qstr, types) {
+  if (!IV.token) return null;
+  await ivResolveCenter();
+  const center = IV.center;
+  let url = 'https://api.mapbox.com/search/searchbox/v1/forward?q=' + encodeURIComponent(qstr) +
+    '&access_token=' + IV.token + '&limit=1&language=fr';
+  if (types) url += '&types=' + encodeURIComponent(types);
+  if (center) url += '&proximity=' + center[0] + ',' + center[1];
+  if (IV.cc) url += '&country=' + IV.cc;
+  try {
+    const r = await fetch(url); const d = await r.json();
+    if (d.features && d.features.length) {
+      const f = d.features[0];
+      const co = f.geometry && f.geometry.coordinates;
+      if (co && co.length >= 2) {
+        const ft = (f.properties && f.properties.feature_type) || '';
+        const nm = (f.properties && (f.properties.name || f.properties.full_address || f.properties.place_formatted)) || '';
+        return { lat: co[1], lng: co[0], type: ft, relevance: 1, name: nm };
+      }
+    }
+  } catch(e) {}
+  return null;
+}
+
+// Repli : ancienne API v5 (proximité + pays). Renvoie {lat,lng,type,relevance} ou null.
+async function ivGeoQueryV5(qstr, types) {
+  if (!IV.token) return null;
+  await ivResolveCenter();
+  const center = IV.center;
+  const q = encodeURIComponent(qstr);
+  let url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + q +
+    '.json?access_token=' + IV.token + '&limit=1&language=fr&autocomplete=false&types=' + types;
+  if (center) url += '&proximity=' + center[0] + ',' + center[1];
+  if (IV.cc) url += '&country=' + IV.cc;
+  try {
+    const r = await fetch(url); const d = await r.json();
+    if (d.features && d.features.length) {
+      const f = d.features[0]; const [lng, lat] = f.center;
+      return { lat, lng, type: (f.place_type && f.place_type[0]) || '', relevance: f.relevance || 0, name: f.place_name || f.text || '' };
+    }
+  } catch(e) {}
+  return null;
+}
+
+// Requête unifiée : Search Box d'abord, repli v5 si rien. Renvoie {lat,lng,type,relevance}.
+async function ivGeoQuery(qstr, types) {
+  const c = await ivGeoQuerySB(qstr, types);
+  if (c) return c;
+  return await ivGeoQueryV5(qstr, types);
+}
+
+// Nettoie un nom de quartier : retire les parenthèses qui cassent la pertinence Mapbox.
+// « Médina (Jemaa el-Fnaa et souks adjacents) » → « Médina »
+function ivCleanQuartier(q) {
+  return (q || '').replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Centre du quartier d'un jour (point d'ancrage), mis en cache.
+async function ivQuartierCenter(num) {
+  IV.qCenter = IV.qCenter || {};
+  if (IV.qCenter[num] !== undefined) return IV.qCenter[num];
+  await ivResolveCenter();
+  const quartier = ivCleanQuartier(IV.quartiers[num] || '');
+  let c = null;
+  if (quartier) {
+    // 1) quartier "classique" (zone urbaine) résolu comme lieu/quartier
+    c = await ivGeoQuery(quartier + ', ' + IV.dest, 'place,locality,neighborhood,district');
+    // 2) quartier-repère détaché du centre (cap, plage, parc, colline…) : repli POI/adresse,
+    //    sinon son centre retomberait à tort sur le centre-ville et fausserait tous les pins.
+    if (!c) c = await ivGeoQuery(quartier + ', ' + IV.dest, 'poi,address');
+  }
+  // GARDE-FOU : un quartier ne peut pas être à des centaines de km de la ville
+  // (ex. « …Saint-Louis » géocodé à Saint-Louis de La Réunion, ~9000 km). Centre
+  // aberrant → on le rejette et on retombe sur le centre-ville.
+  if (c && IV.center && ivHaversine(IV.center[1], IV.center[0], c.lat, c.lng) > 100) c = null;
+  if (!c && IV.center) c = { lat: IV.center[1], lng: IV.center[0] };
+  IV.qCenter[num] = c; return c;
+}
+
+// Petit décalage déterministe autour d'un centre (angle d'or) → pins jamais empilés.
+// opt (a/b/c) décale légèrement le point pour que le pin BOUGE visiblement au changement d'option.
+function ivOffsetAround(c, idx, opt) {
+  const oi = ({ a: 0, b: 1, c: 2 })[opt] || 0;
+  const i = idx || 0;
+  // Spirale douce DANS L'ORDRE des étapes : incréments d'angle faibles + rayon croissant.
+  // → le trait suit une courbe lisible, jamais une étoile (plus d'angle d'or).
+  const ring = 0.0010 + i * 0.00045 + oi * 0.0003;
+  const ang = 1.0 + i * 0.7 + oi * 0.45;
+  const latCorr = Math.cos(c.lat * Math.PI / 180) || 1;
+  return { lat: c.lat + ring * Math.cos(ang), lng: c.lng + (ring * Math.sin(ang)) / latCorr };
+}
+
+function ivStepIndex(num, tid) {
+  const arr = IV.tranches[num] || [];
+  const i = arr.findIndex(t => t.id === tid);
+  return i < 0 ? 0 : i;
+}
+
+// Géocode une étape avec niveau de fiabilité :
+//  - precision 'exact'  : vrai POI/adresse trouvé, pertinent, dans le bon quartier
+//  - precision 'approx' : pas trouvé précisément → ancré au centre du quartier (décalé)
+// On ne pose JAMAIS un pin faux à l'autre bout du monde.
+// Mots génériques ignorés dans le contrôle « mot commun » : ils ne prouvent pas un vrai match.
+const IV_STOPWORDS = new Set(['rue','place','avenue','boulevard','chemin','impasse','quai','allee','cours','square','jardin','parc','pont','riviere','canal','plage','vieille','ville','centre','quartier','saint','sainte','pres','autour','vers','bar','cafe','restaurant','table','marche','piste','cyclable','sentier','balade','promenade','circuit','parcours','location','magasin']);
+function ivTokens(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w => w.length >= 4 && !IV_STOPWORDS.has(w)); }
+function ivShareToken(query, matched){ const b = new Set(ivTokens(matched)); return ivTokens(query).some(w => b.has(w)); }
+
+async function ivGeocodeStep(num, tid, name, opt, repere) {
+  // MOTEUR À VRAIS LIEUX : l'adaptateur fournit déjà des coordonnées EXACTES (precision 'exact')
+  // sur la tranche. Si elles existent, on les renvoie telles quelles — AUCUN appel Mapbox.
+  const _cached = (function(){ const d = joursData[ivJourKey(num)]; const o = d && d[tid] ? (d[tid][opt] || d[tid].a) : null; return o && o._coords ? o._coords : null; })();
+  if (_cached) return _cached;
+  const qc = await ivQuartierCenter(num);
+  const quartier = ivCleanQuartier(IV.quartiers[num] || '');
+  const RADIUS = 2.0; // km — tolérance resserrée (≈ 15-20 min à pied) → limite la dérive inter-quartiers
+  // « Confirmé » (pin rouge) = bon type, DANS le rayon, pertinence forte (≥0,7), ET soit un match
+  // très sûr (≥0,85) soit un vrai mot propre commun entre nom demandé et nom trouvé. Élimine les
+  // faux-confirmés type « piste cyclable de la rivière Aude » → « Rue de la Rivière » (0,57).
+  const ok = f => f && (f.type === 'poi' || f.type === 'address' || f.type === 'street') &&
+    (f.relevance || 0) >= 0.7 && (!qc || ivHaversine(qc.lat, qc.lng, f.lat, f.lng) <= RADIUS) &&
+    ((f.relevance || 0) >= 0.85 || ivShareToken(name, f.name));
+  // 1) ADRESSE EXACTE : nom + ville, puis nom + quartier + ville
+  let c = await ivGeoQuery(name + ', ' + IV.dest, 'poi,address');
+  if (!ok(c) && quartier) c = await ivGeoQuery(name + ', ' + quartier + ', ' + IV.dest, 'poi,address');
+  if (ok(c)) return { lat: c.lat, lng: c.lng, precision: 'exact' };
+  // 2) SECTEUR (option B) : on ancre sur le REPÈRE réel (rue/place) donné par le LLM — jamais un offset.
+  if (repere) {
+    let r = await ivGeoQuery(repere + ', ' + IV.dest, 'address,place,poi');
+    if (!r && quartier) r = await ivGeoQuery(repere + ', ' + quartier + ', ' + IV.dest, 'address,place');
+    if (r && (!qc || ivHaversine(qc.lat, qc.lng, r.lat, r.lng) <= RADIUS)) return { lat: r.lat, lng: r.lng, precision: 'approx' };
+  }
+  // 3) dernier recours : centre RÉEL du quartier (jamais une position inventée)
+  if (qc) return { lat: qc.lat, lng: qc.lng, precision: 'approx' };
+  if (IV.center) return { lat: IV.center[1], lng: IV.center[0], precision: 'approx' };
+  return null;
+}
+
+function ivHexA(hex, a) { const n = parseInt(hex.slice(1), 16); return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')'; }
+// Restaurées depuis la belle version d'origine (emportées par erreur lors de la greffe du moteur) :
+function stripNom(nom) {
+  if (!nom) return '';
+  const iComma = nom.indexOf(',');
+  const iPipe = nom.indexOf('|');
+  let cut = -1;
+  if (iComma > 0) cut = iComma;
+  if (iPipe > 0 && (cut < 0 || iPipe < cut)) cut = iPipe;
+  return cut > 0 ? nom.substring(0, cut).trim() : nom.trim();
+}
+function getTimeSlotColor(heure) {
+  const h = parseInt((heure||'0').replace('h',':').split(':')[0], 10);
+  if (h >= 6  && h < 12) return '#D4B24C';  // matin → jaune doux
+  if (h >= 12 && h < 15) return '#D9A441';  // midi → ambre
+  if (h >= 15 && h < 19) return '#C98A4A';  // après-midi → orange doux
+  if (h >= 19 && h < 23) return '#3F5873';  // soirée → bleu nuit
+  return '#1F2C3A';                           // nuit → bleu très sombre
+}
+function ivSlot(heure) { const c = getTimeSlotColor(heure); return [c, ivHexA(c, 0.12)]; }
+function ivJourKey(num) { return 'j' + num; }
+function ivOpt(num, tid, opt) { const d = joursData[ivJourKey(num)]; return d && d[tid] ? d[tid][opt] : null; }
+function ivCurOpt(num, tid) { return (IV.sel[num] && IV.sel[num][tid]) || 'a'; }
+function ivTeaser(data) {
+  if (data && data.titre) return data.titre;
+  const tx = ((data && data.texte) || '').trim(); if (!tx) return '';
+  const s = tx.split(/[.!?]/)[0]; return s.length > 70 ? s.slice(0, 67) + '…' : s;
+}
+
+async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
+  // NOTE : IV.quartiers est DÉJÀ renseigné par adaptDayToJours() (appelé dans generer avant nous)
+  // à partir de DAYS — on ne le remet donc PAS à zéro ici, contrairement à l'ancien moteur.
+  IV.map = null; IV.ready = false; IV.duree = duree; IV.dest = dest; IV.budget = budget;
+  IV.periode = periode; IV.styleLabel = styleLabel; IV.quartiers = IV.quartiers || {}; IV.loaded = {};
+  IV.tranches = {}; IV.sel = {}; IV.active = 1; IV.dayMk = [];
+
+  const container = document.getElementById('main-content');
+  const tabsHtml = Array.from({length: duree}, (_, i) => i+1).map(n =>
+    `<button class="iv-daytab${n===1?' active':''}" id="iv-tab-${n}" onclick="ivShowDay(${n})">`+
+    `<span class="iv-dt-num">${duree>1?'Jour '+n:'Journée'}</span>`+
+    `<span class="iv-dt-sub" id="iv-tabsub-${n}">…</span></button>`
+  ).join('');
+  container.innerHTML =
+    `<div class="iv-daytabs">${tabsHtml}</div>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.</p>`+
+    `<div class="iv-layout">`+
+      `<div class="iv-mapcol"><div class="iv-mapshell">`+
+        `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
+        `<div class="iv-map-legend" id="iv-legend" style="display:none">`+
+          `<div class="lg"><span class="dot exact"></span>Adresse confirmée</div>`+
+          `<div class="lg"><span class="dot approx"></span>Secteur (rue représentative)</div>`+
+        `</div>`+
+        `<div class="iv-map-loading" id="iv-maploading">Chargement de la carte…</div>`+
+        `<div id="iv-map"></div>`+
+      `</div></div>`+
+      `<div class="iv-stepscol">`+
+        `<div class="iv-dayhead"><div class="iv-quartier" id="iv-quartier">…</div><div class="iv-summary" id="iv-summary"></div></div>`+
+        `<div class="iv-steps" id="iv-steps"><div class="iv-loading-day" id="iv-dayloading">On compose la journée…</div></div>`+
+        `<p class="iv-prixnote">* Prix indicatifs — peuvent varier selon la saison et l'établissement.</p>`+
+      `</div>`+
+    `</div>`;
+
+  ivInitMap(); // asynchrone, non bloquant
+
+  // MOTEUR À VRAIS LIEUX : les journées (DAYS) sont DÉJÀ construites et adaptées dans joursData.
+  // Plus AUCUN appel LLM ici — on marque chaque jour comme chargé et on remplit IV.tranches.
+  (typeof DAYS !== 'undefined' ? DAYS : []).forEach(function(d){ ivEnsureDay(d.num); });
+
+  for (let n = 1; n <= duree; n++) {
+    const sub = document.getElementById('iv-tabsub-' + n);
+    if (sub) sub.textContent = IV.quartiers[n] || (duree > 1 ? ('Jour ' + n) : 'Itinéraire');
+  }
+
+  await ivShowDay(1);
+}
+
+// MOTEUR À VRAIS LIEUX : la journée est DÉJÀ construite (DAYS) et adaptée (adaptDayToJours).
+// ivEnsureDay ne fait donc PLUS aucun appel LLM : il ne fait que « marquer comme chargé »,
+// lire DAYS[num-1], (re)remplir joursData + IV.tranches, et laisser le rendu se faire.
+function ivEnsureDay(num) {
+  if (IV.loaded[num]) return;
+  const jk = ivJourKey(num);
+  const day = (typeof DAYS !== 'undefined' ? DAYS : []).find(d => d.num === num);
+  if (!day) { throw new Error('Jour ' + num + ' indisponible'); }
+  if (!IV.sel[num]) IV.sel[num] = {};
+  adaptDayToJours(day);              // remplit joursData['j'+num] (variante « a » uniquement)
+  IV.tranches[num] = tranchesFromDay(day); // liste des tranches attendue par ivRenderDay
+  IV.loaded[num] = true;
+  (IV.tranches[num] || []).forEach(t => { if (t.nom) historiqueActivites.push(t.nom); });
+  // Pas de variantes B/C dans cette version (une seule adresse par étape, la vraie).
+}
+
+// (Conservé inerte : les alternatives B/C ne sont plus générées — une seule vraie adresse par étape.)
+async function ivFillMissingAlts(num, jk, tranches, quartier) { /* no-op */ }
+
+async function ivShowDay(num) {
+  IV.active = num;
+  document.querySelectorAll('.iv-daytab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById('iv-tab-' + num); if (tab) tab.classList.add('active');
+  const quartier = IV.quartiers[num] || (IV.duree > 1 ? ('Jour ' + num) : '');
+  const qEl = document.getElementById('iv-quartier'); if (qEl) qEl.textContent = quartier || ('Jour ' + num);
+  const ovEl = document.getElementById('iv-overlay'); if (ovEl) ovEl.innerHTML = 'Jour ' + num + (quartier ? (' · <span>' + quartier + '</span>') : '');
+  const stepsBox = document.getElementById('iv-steps');
+  if (!IV.loaded[num]) {
+    if (stepsBox) stepsBox.innerHTML = '<div class="iv-loading-day">' + (quartier ? ('Aujourd\'hui : ' + quartier) : 'On compose la journée…') + '</div>';
+    const sumEl = document.getElementById('iv-summary'); if (sumEl) sumEl.textContent = '';
+    try { await ivEnsureDay(num); }
+    catch(e) { if (stepsBox) stepsBox.innerHTML = '<div class="iv-loading-day" style="color:#c00">Erreur : ' + (e.message || e) + '</div>'; return; }
+  }
+  ivRenderDay(num);
+}
+
+function ivRenderDay(num) {
+  const tranches = IV.tranches[num] || []; if (!tranches.length) return;
+  if (!IV.sel[num]) IV.sel[num] = {};
+
+  const first = tranches.find(t => t.heure) || tranches[0];
+  const last = [...tranches].reverse().find(t => t.heure_fin || t.heure) || tranches[tranches.length - 1];
+  const h0 = first.heure || '', hN = (last.heure_fin || last.heure || '');
+  const sumEl = document.getElementById('iv-summary');
+  if (sumEl) sumEl.innerHTML = '<b>' + tranches.length + ' étape' + (tranches.length>1?'s':'') + '</b>' + ((h0 && hN) ? (' · ' + h0 + ' → ' + hN) : '');
+
+  const box = document.getElementById('iv-steps'); box.innerHTML = '';
+  tranches.forEach((t, i) => {
+    const opt = ivCurOpt(num, t.id); const data = ivOpt(num, t.id, opt) || t;
+    const [accent, soft] = ivSlot(t.heure);
+    const step = document.createElement('div');
+    step.className = 'iv-step'; step.id = 'iv-step-' + i;
+    step.style.setProperty('--iv-accent', accent); step.style.setProperty('--iv-soft', soft);
+    step.innerHTML =
+      '<div class="iv-pin">' + (i+1) + '</div>' +
+      '<div class="iv-card">' +
+        '<div class="iv-head">' +
+          '<span class="iv-time">' + (t.heure || '') + '</span>' +
+          '<div class="iv-titles"><div class="iv-name">' + stripNom(data.nom || '') + '</div>' +
+            '<div class="iv-teaser">' + ivTeaser(data) + '</div></div>' +
+          '<div class="iv-meta">' +
+          '<svg class="iv-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>' +
+        '</div>' +
+        '<div class="iv-detail">' + ivDetailHTML(num, t, i) + '</div>' +
+      '</div>';
+    box.appendChild(step);
+    step.querySelector('.iv-head').addEventListener('click', () => ivToggle(step));
+    step.addEventListener('mouseenter', () => ivHl(i, true));
+    step.addEventListener('mouseleave', () => ivHl(i, false));
+    ivBindAlts(step, num, t, i);
+    requestAnimationFrame(() => ivLockStepHeight(step, num, t, i));
+  });
+  ivSetMapDay(num);
+  if (IV.map) { setTimeout(() => IV.map.resize(), 60); setTimeout(() => IV.map.resize(), 400); }
+  setTimeout(sendHeight, 150); setTimeout(sendHeight, 600);
+}
+
+function ivDetailHTML(num, t, i, optOverride) {
+  const opt = optOverride || ivCurOpt(num, t.id); const data = ivOpt(num, t.id, opt) || t;
+  const pts = (data && data.points_chute) || [];
+  let html = '<div class="iv-detail-inner">';
+  html += '<p class="iv-text">' + ((data && data.texte) || '') + '</p>';
+  html += ivPointsHTML(pts);
+  html += '<div class="iv-alts"><div class="iv-alts-label">Alternatives à proximité</div><div class="iv-alts-grid">';
+  ['a','b','c'].forEach(k => {
+    const od = ivOpt(num, t.id, k);
+    const active = (k === opt);
+    const loading = (k !== 'a' && !od);
+    const name = od ? stripNom(od.nom || '') : '…';
+    html += '<button class="iv-alt' + (active?' active':'') + (loading?' loading':'') + '" ' +
+      (loading ? '' : 'data-opt="' + k + '" ') + 'data-step="' + i + '">' +
+      '<span class="iv-altkey">' + k.toUpperCase() + '</span><span class="iv-altname">' + name + '</span></button>';
+  });
+  html += '</div></div></div>';
+  return html;
+}
+
+function ivPointsHTML(pts) {
+  if (!pts || !pts.length) return '';
+  return '<div class="iv-points"><div class="iv-points-label">À noter</div>' +
+    pts.map(p => '<div class="iv-point"><span class="pin">→</span><b>' + (p.lieu || '') + '</b>' + (p.raison ? ' — ' + p.raison : '') + '</div>').join('') +
+    '</div>';
+}
+
+function ivBindAlts(step, num, t, i) {
+  step.querySelectorAll('.iv-alt:not(.loading)').forEach(btn => {
+    btn.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const k = btn.dataset.opt; if (!k) return;
+      if (!IV.sel[num]) IV.sel[num] = {};
+      IV.sel[num][t.id] = k;
+      const data = ivOpt(num, t.id, k) || t;
+      const nameEl = step.querySelector('.iv-name'); if (nameEl) nameEl.textContent = stripNom(data.nom || '');
+      const teaserEl = step.querySelector('.iv-teaser'); if (teaserEl) teaserEl.textContent = ivTeaser(data);
+      const detail = step.querySelector('.iv-detail');
+      detail.innerHTML = ivDetailHTML(num, t, i);
+      // Hauteur fixe : la box garde la taille max mesurée (A/B/C) — pas de redimensionnement
+      const newInner = detail.querySelector('.iv-detail-inner');
+      if (newInner && step.dataset.lockH) newInner.style.minHeight = step.dataset.lockH + 'px';
+      ivBindAlts(step, num, t, i);
+      if (!step.classList.contains('open')) ivOpenStep(step, true); else ivRefreshHeight(step);
+      ivMoveMarker(num, i, t.id);
+    });
+  });
+}
+
+function ivRefreshAlts(num) {
+  if (IV.active !== num) return;
+  const tranches = IV.tranches[num] || [];
+  tranches.forEach((t, i) => {
+    const step = document.getElementById('iv-step-' + i); if (!step) return;
+    const detail = step.querySelector('.iv-detail');
+    detail.innerHTML = ivDetailHTML(num, t, i);
+    const inner = detail.querySelector('.iv-detail-inner');
+    if (inner && step.dataset.lockH) inner.style.minHeight = step.dataset.lockH + 'px';
+    ivBindAlts(step, num, t, i);
+    // B/C viennent d'arriver : on re-mesure pour figer la box à la vraie hauteur max
+    requestAnimationFrame(() => { ivLockStepHeight(step, num, t, i); if (step.classList.contains('open')) ivRefreshHeight(step); });
+  });
+}
+
+// Mesure la hauteur max des options A/B/C et fige la box à cette taille (pas de redimensionnement)
+function ivLockStepHeight(step, num, t, i) {
+  const detail = step.querySelector('.iv-detail');
+  const inner = detail && detail.querySelector('.iv-detail-inner');
+  if (!inner) return;
+  const w = inner.offsetWidth; if (!w) return;
+  let meas = document.getElementById('iv-measure');
+  if (!meas) {
+    meas = document.createElement('div');
+    meas.id = 'iv-measure';
+    meas.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:-9999px;top:0;';
+    document.body.appendChild(meas);
+  }
+  meas.style.width = w + 'px';
+  let max = inner.offsetHeight;
+  ['a','b','c'].forEach(k => {
+    if (!ivOpt(num, t.id, k)) return;
+    meas.innerHTML = ivDetailHTML(num, t, i, k);
+    const mi = meas.firstChild; if (mi) max = Math.max(max, mi.offsetHeight);
+  });
+  meas.innerHTML = '';
+  if (max > 0) { step.dataset.lockH = max; inner.style.minHeight = max + 'px'; }
+}
+
+// ── collapsibles (mesurés, fluides) ──
+function ivOpenStep(step, open) {
+  const d = step.querySelector('.iv-detail');
+  if (open) {
+    step.classList.add('open');
+    d.style.maxHeight = d.scrollHeight + 'px';
+    d.addEventListener('transitionend', function te() { if (step.classList.contains('open')) d.style.maxHeight = 'none'; d.removeEventListener('transitionend', te); });
+  } else {
+    d.style.maxHeight = d.scrollHeight + 'px';
+    requestAnimationFrame(() => { d.style.maxHeight = '0px'; step.classList.remove('open'); });
+  }
+}
+function ivToggle(step) { ivOpenStep(step, !step.classList.contains('open')); }
+function ivRefreshHeight(step) {
+  const d = step.querySelector('.iv-detail');
+  if (step.classList.contains('open')) {
+    d.style.maxHeight = 'none'; const h = d.scrollHeight; d.style.maxHeight = h + 'px';
+    requestAnimationFrame(() => { d.style.maxHeight = h + 'px'; setTimeout(() => { if (step.classList.contains('open')) d.style.maxHeight = 'none'; }, 420); });
+  }
+}
+function ivHl(i, on) {
+  const st = document.getElementById('iv-step-' + i); if (st) st.classList.toggle('hl', on);
+  const mk = IV.dayMk[i]; if (mk && mk.inner) mk.inner.classList.toggle('active', on);
+}
+
+// ── carte partagée unique ──
+async function ivInitMap() {
+  IV.token = await getMapboxToken();
+  if (!IV.token) { const l = document.getElementById('iv-maploading'); if (l) l.textContent = 'Carte indisponible'; return; }
+  try { await loadMapboxGL(); } catch(e) { const l = document.getElementById('iv-maploading'); if (l) l.textContent = 'Carte indisponible'; return; }
+  mapboxgl.accessToken = IV.token;
+  IV.map = new mapboxgl.Map({ container: 'iv-map', style: MAPBOX_STYLE, center: [0, 20], zoom: 1.4, attributionControl: false });
+  IV.map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+  IV.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+  IV.map.on('load', () => {
+    ivEditorialStyle(); IV.ready = true;
+    const l = document.getElementById('iv-maploading'); if (l) l.style.display = 'none';
+    // La carte est créée dans un conteneur parfois pas encore à sa taille finale → on force le recalcul
+    IV.map.resize();
+    setTimeout(() => { if (IV.map) IV.map.resize(); }, 250);
+    ivSetMapDay(IV.active);
+  });
+  // Recalcule la taille du canvas dès que le conteneur change de dimensions
+  const shell = document.querySelector('.iv-mapshell');
+  if (shell && window.ResizeObserver) {
+    new ResizeObserver(() => { if (IV.map) IV.map.resize(); }).observe(shell);
+  }
+  ivResolveCenter(); // pré-charge centre + pays pour le géocodage
+}
+
+function ivEditorialStyle() {
+  let layers; try { layers = IV.map.getStyle().layers; } catch(e) { return; }
+  layers.forEach(l => { const id = l.id; try {
+    if (l.type === 'background') { IV.map.setPaintProperty(id, 'background-color', '#F4F0E7'); }
+    else if (l.type === 'fill') {
+      if (/water/.test(id)) IV.map.setPaintProperty(id, 'fill-color', '#A6C9DB');
+      else if (/building/.test(id)) IV.map.setPaintProperty(id, 'fill-color', '#EAE3D5');
+      else if (/(wood|forest)/.test(id)) IV.map.setPaintProperty(id, 'fill-color', '#A8C98A');
+      else if (/(park|grass|cemetery|pitch|golf|garden|recreation)/.test(id)) IV.map.setPaintProperty(id, 'fill-color', '#BCD49B');
+      else IV.map.setPaintProperty(id, 'fill-color', '#F4F0E7');
+    }
+    else if (l.type === 'line') {
+      if (/water|river|canal/.test(id)) IV.map.setPaintProperty(id, 'line-color', '#A6C9DB');
+      else if (/(motorway|trunk|primary)/.test(id)) IV.map.setPaintProperty(id, 'line-color', '#E3D8C2');
+      else if (/(road|street|secondary|tertiary|bridge|path|rail)/.test(id)) IV.map.setPaintProperty(id, 'line-color', '#E9E1D1');
+    }
+    else if (l.type === 'symbol') {
+      if (/(poi|transit|airport|natural)/.test(id)) { IV.map.setLayoutProperty(id, 'visibility', 'none'); }
+      else { IV.map.setPaintProperty(id, 'text-color', '#9A8E76'); IV.map.setPaintProperty(id, 'text-halo-color', '#F4F0E7'); IV.map.setPaintProperty(id, 'text-halo-width', 1.2); }
+    }
+  } catch(e) {} });
+}
+
+function ivMakeMarker(num, precision) {
+  const root = document.createElement('div');
+  const inner = document.createElement('div');
+  inner.className = 'iv-mk-inner' + (precision === 'approx' ? ' approx' : '');
+  const lbl = document.createElement('span'); lbl.textContent = num; inner.appendChild(lbl);
+  root.appendChild(inner);
+  return { root, inner };
+}
+
+async function ivCoords(num, tid, opt) {
+  let d = ivOpt(num, tid, opt);
+  if (!d) d = ivOpt(num, tid, 'a'); // repli : variante sans données (ex. tronquée) → on garde l'option A
+  if (!d) return null;
+  if (d._coords) return d._coords;
+  const repere = (d.points_chute && d.points_chute[0] && d.points_chute[0].lieu) || '';
+  const c = await ivGeocodeStep(num, tid, d.nom, opt, repere); if (c) d._coords = c; return c;
+}
+
+async function ivSetMapDay(num) {
+  if (!IV.ready || !IV.map) return;
+  const tranches = IV.tranches[num] || [];
+  if (!tranches.length) {
+    // Aucune étape (jour pas encore chargé ou échec) : on évite la vue « monde »
+    // en recentrant au moins sur la destination si on la connaît.
+    if (IV.center) { try { IV.map.flyTo({ center: IV.center, zoom: 12, duration: 500 }); } catch(e) {} }
+    return;
+  }
+  IV.dayMk.forEach(m => { if (m.marker) m.marker.remove(); }); IV.dayMk = [];
+  const coordsArr = await Promise.all(tranches.map(t => ivCoords(num, t.id, ivCurOpt(num, t.id))));
+  if (IV.active !== num) return; // l'utilisateur a changé de jour entre-temps
+  let anyApprox = false;
+  // On pose chaque pin à sa VRAIE position. Le désempilement se fait ensuite en espace
+  // PIXEL (ivDecluster) : c'est la seule façon de garantir qu'aucun pin n'en cache un autre,
+  // quel que soit le niveau de zoom (un seuil en mètres ne marche qu'à un zoom donné).
+  tranches.forEach((t, i) => {
+    const c0 = coordsArr[i];
+    if (!c0) { IV.dayMk.push({ tid: t.id, marker: null, inner: null, trueLL: null }); return; }
+    if (c0.precision === 'approx') anyApprox = true;
+    const { root, inner } = ivMakeMarker(i + 1, c0.precision);
+    root.addEventListener('mouseenter', () => ivHl(i, true));
+    root.addEventListener('mouseleave', () => ivHl(i, false));
+    root.addEventListener('click', () => { const st = document.getElementById('iv-step-' + i); if (st) { st.scrollIntoView({ behavior: 'smooth', block: 'center' }); ivOpenStep(st, true); } });
+    const mk = new mapboxgl.Marker({ element: root, anchor: 'bottom' }).setLngLat([c0.lng, c0.lat]).addTo(IV.map);
+    IV.dayMk.push({ tid: t.id, marker: mk, inner, trueLL: { lng: c0.lng, lat: c0.lat } });
+  });
+  const lg = document.getElementById('iv-legend'); if (lg) lg.style.display = anyApprox ? 'flex' : 'none';
+  // Re-désempile à chaque changement de zoom (lié une seule fois).
+  if (!IV._declusterBound && IV.map) { IV.map.on('zoomend', ivDecluster); IV._declusterBound = true; }
+  ivFitDay();
+  // ivFitDay anime la carte ; on désempile une fois l'animation terminée (zoomend),
+  // et tout de suite pour le rendu initial.
+  ivDecluster();
+}
+
+// Désempilement en espace PIXEL : recalcule depuis les VRAIES positions (trueLL) et écarte
+// en escargot serré tout pin dont la pointe tombe à moins de MINPX d'un autre. Comme c'est
+// recalculé à chaque zoom, les pins reviennent à leur vraie place dès qu'on zoome assez.
+function ivDecluster() {
+  if (!IV.map) return;
+  const marks = IV.dayMk.filter(m => m.marker && m.trueLL);
+  if (!marks.length) return;
+  const MINPX = 34; // largeur ~ d'un teardrop : en-deçà, deux pointes se chevauchent
+  const placed = [];
+  marks.forEach(m => {
+    const base = IV.map.project([m.trueLL.lng, m.trueLL.lat]);
+    let p = { x: base.x, y: base.y }, k = 0;
+    while (placed.some(q => Math.hypot(q.x - p.x, q.y - p.y) < MINPX) && k < 24) {
+      k++;
+      const ang = k * 2.39996; // angle d'or : répartition régulière, jamais alignée
+      const r = MINPX * (1 + Math.floor((k - 1) / 8) * 0.85);
+      p = { x: base.x + r * Math.cos(ang), y: base.y + r * Math.sin(ang) };
+    }
+    placed.push(p);
+    const ll = IV.map.unproject([p.x, p.y]);
+    m.marker.setLngLat([ll.lng, ll.lat]);
+  });
+  ivDrawRoute();
+}
+
+// Recadre la carte sur l'ensemble des pins actuellement affichés (toutes étapes/variantes).
+// Appelé au chargement d'un jour ET après changement de variante : si la nouvelle option
+// tombe hors champ, le zoom s'ajuste pour l'inclure dans l'itinéraire visible.
+function ivFitDay() {
+  if (!IV.map) return;
+  // On cadre sur les VRAIES positions (trueLL) pour un zoom stable, pas sur les pins décalés.
+  const pts = IV.dayMk.filter(m => m.marker).map(m => m.trueLL || m.marker.getLngLat());
+  if (pts.length > 1) {
+    const b = new mapboxgl.LngLatBounds(); pts.forEach(p => b.extend([p.lng, p.lat]));
+    IV.map.fitBounds(b, { padding: { top: 60, bottom: 60, left: 60, right: 60 }, maxZoom: 15, duration: 700 });
+  } else if (pts.length === 1) {
+    IV.map.flyTo({ center: [pts[0].lng, pts[0].lat], zoom: 14, duration: 700 });
+  }
+}
+
+function ivDrawRoute() {
+  if (!IV.map) return;
+  const coords = IV.dayMk.filter(m => m.marker).map(m => { const ll = m.marker.getLngLat(); return [ll.lng, ll.lat]; });
+  const data = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+  if (IV.map.getSource('iv-route-src')) { IV.map.getSource('iv-route-src').setData(data); return; }
+  if (!coords.length) return;
+  IV.map.addSource('iv-route-src', { type: 'geojson', data });
+  IV.map.addLayer({ id: 'iv-route-line', type: 'line', source: 'iv-route-src',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#6E6356', 'line-width': 2.6, 'line-opacity': 0.85, 'line-dasharray': [0.1, 2.2] } });
+}
+
+async function ivMoveMarker(num, i, tid) {
+  if (!IV.ready) return;
+  const c = await ivCoords(num, tid, ivCurOpt(num, tid));
+  if (!c) return;
+  const mk = IV.dayMk[i];
+  if (mk && mk.marker) {
+    mk.trueLL = { lng: c.lng, lat: c.lat };
+    mk.marker.setLngLat([c.lng, c.lat]);
+    if (mk.inner) mk.inner.classList.toggle('approx', c.precision === 'approx');
+    ivFitDay();
+    ivDecluster();
+  }
+  else if (mk && !mk.marker) {
+    const { root, inner } = ivMakeMarker(i + 1, c.precision);
+    root.addEventListener('mouseenter', () => ivHl(i, true));
+    root.addEventListener('mouseleave', () => ivHl(i, false));
+    root.addEventListener('click', () => { const st = document.getElementById('iv-step-' + i); if (st) { st.scrollIntoView({ behavior: 'smooth', block: 'center' }); ivOpenStep(st, true); } });
+    const m = new mapboxgl.Marker({ element: root, anchor: 'bottom' }).setLngLat([c.lng, c.lat]).addTo(IV.map);
+    IV.dayMk[i] = { tid, marker: m, inner, trueLL: { lng: c.lng, lat: c.lat } };
+    ivFitDay();
+    ivDecluster();
+  }
+}
+
+// ── AUTO-RESIZE IFRAME ───────────────────────────────────
+function sendHeight() {
+  const h = document.documentElement.scrollHeight;
+  // Position de la carte (offset depuis le haut du document de l'iframe) et état résultat.
+  // Permet à la page Ghost de placer son bouton flottant « ↑ Carte » et d'y scroller.
+  let mapY = null, hasResult = false;
+  try {
+    hasResult = document.getElementById('result-wrap').classList.contains('visible');
+    const shell = document.querySelector('.iv-mapshell');
+    if (shell) mapY = Math.round(shell.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0));
+  } catch(e) {}
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'resize', height: h, mapY: mapY, hasResult: hasResult }, '*');
+  }
+}
+const resizeObserver = new ResizeObserver(() => sendHeight());
+resizeObserver.observe(document.body);
+window.addEventListener('load', sendHeight);
+
+// ── START ────────────────────────────────────────────────
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  setTimeout(init, 50);
 }
 </script>
+
 </body>
 </html>
