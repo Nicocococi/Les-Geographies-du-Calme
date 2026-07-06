@@ -1160,6 +1160,7 @@ body.gate-mode { background: transparent; }
 .iv-step.open .iv-detail { opacity: 1; }
 .iv-detail-inner { padding: 0 16px 16px; }
 .iv-text { font-size: 0.92rem; line-height: 1.7; color: #3c382f; margin: 0 0 12px; }
+.iv-photo { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin: 0 0 12px; background: #ece5d8; } /* VAGUE 1 : vraie photo du lieu (Wikidata/Commons) */
 .iv-points { border-top: 1px solid var(--bordure); padding-top: 10px; margin-bottom: 14px; }
 .iv-points-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--or); margin-bottom: 6px; }
@@ -1447,6 +1448,7 @@ const DAY_MIN_ACT=3; // en-dessous de ce nb d'activités marchables, on autorise
 const THEME_LABEL={gastronomie:'Gastronomie',nature:'Nature',culture:'Culture',sport:'Bouger & Explorer',festif:'Vie locale & festif',bienetre:'Bien-être',urbain:'Urbain'};
 
 const _norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+const _escHtml=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); // extrait Wikipédia = texte brut inséré en HTML -> échapper &<> (Vague 1)
 // Similarité « même lieu / même activité » : on réduit le nom à ses mots distinctifs (sans la ville ni les mots génériques)
 const _STOP=new Set(['de','du','des','la','le','les','aux','au','et','en','sur','sous','un','une','club','centre','complexe','salle','stade','base','espace','parc','park','sport','sports','loisir','loisirs','municipal','municipale','ecole','association','de']);
 function coreTokens(nom,ville){const vil=_norm(ville||'').split(/[^a-z0-9]+/).filter(Boolean);
@@ -1769,6 +1771,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
       || /marketplace|march[ée]\b|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' ')))
     )),
     tags:{name:p.name},address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
+    extract:(p.tags&&p.tags.extract)||null,image:(p.tags&&p.tags.image)||null, // VAGUE 1 : vraie phrase Wikipédia + vraie photo Commons (si POI matché Wikidata à l'enrich)
     season:(p.tags&&p.tags.season)||seasonOf(p.name,p.category_src||[])};
 }
 async function collectFromBase(dc,themes,budget,voyage){
@@ -2381,6 +2384,7 @@ function _bcVariant(place, step, tid){
     nom: place.nom||'', titre: place.nom||'',
     texte: cap + ' &agrave; proximit&eacute; &mdash; une autre adresse pour cette &eacute;tape.',
     adresse: place.address||place.adresse||null,
+    image: place.image||null,
     points_chute: [],
     _coords: (place.lat!=null&&place.lng!=null)?{lat:place.lat,lng:place.lng,precision:'exact'}:null
   };
@@ -2417,6 +2421,7 @@ function adaptDayToJours(day){
       titre: step.titre || '',
       texte: step.texte || '',
       adresse: step.adresse || null,
+      image: step.image || null,
       points_chute: [],
       _coords: (step.lat!=null && step.lng!=null) ? {lat: step.lat, lng: step.lng, precision:'exact'} : null
     };
@@ -2584,7 +2589,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var actsArr=steps.filter(s=>s.theme!=='gastronomie'||(themes.includes('gastronomie')&&s._c&&s._c.foodExp)); // les expériences food ne deviennent des activités QUE si gastronomie est un thème CHOISI — sinon le gastronomie ne sert qu'aux repas (le LLM peut en proposer, on les écarte ici)
       // REPÈRES NOTABLES LOCAUX (autour du quartier du jour) — évite le biais du top-500 ville qui sous-couvre la périphérie (ex. Bel-Air à Paris)
       var _dayLM=LANDMARKS;
-      if(useBase){try{var _rlm=await fetchT(API+'/places?lat='+center.lat+'&lng='+center.lng+'&km=2&themes=culture,nature,urbain&limit=200',{},12000);var _jlm=await _rlm.json();var _loc=(_jlm.places||[]).filter(p=>p.name&&p.lat&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({nom:p.name,lat:p.lat,lng:p.lng,score:p.score||0,imp:(p.tags&&typeof p.tags.importance==='number'?p.tags.importance:0),notable:!!p.notable,theme:p.primary_theme||'culture',address:p.address||null,cat:cleanCat(p.category_src)}));if(_loc.length)_dayLM=_loc;}catch(e){}} // LARGE : tous les POI culture/nature/urbain du quartier (notables ET non notables) ; les notables servent aux incontournables, le reste au comblage
+      if(useBase){try{var _rlm=await fetchT(API+'/places?lat='+center.lat+'&lng='+center.lng+'&km=2&themes=culture,nature,urbain&limit=200',{},12000);var _jlm=await _rlm.json();var _loc=(_jlm.places||[]).filter(p=>p.name&&p.lat&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({nom:p.name,lat:p.lat,lng:p.lng,score:p.score||0,imp:(p.tags&&typeof p.tags.importance==='number'?p.tags.importance:0),notable:!!p.notable,theme:p.primary_theme||'culture',address:p.address||null,cat:cleanCat(p.category_src),extract:(p.tags&&p.tags.extract)||null,image:(p.tags&&p.tags.image)||null}));if(_loc.length)_dayLM=_loc;}catch(e){}} // LARGE : tous les POI culture/nature/urbain du quartier (notables ET non notables) ; les notables servent aux incontournables, le reste au comblage
       // 1 à 2 INCONTOURNABLES du quartier (notables à proximité, TOUS thèmes), même HORS thème choisi -> évite le mono-itinéraire
       if(_dayLM&&_dayLM.length){
         var _exIco=new Set(actsArr.concat(mealsArr).map(x=>_norm(x.nom)));
@@ -2599,8 +2604,8 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
           var _ty=_ico.cat||'un lieu emblématique'; // déjà en français naturel avec article (cleanCat)
           var _tv=['Sur le chemin : '+_ty+' emblématique du secteur, à voir en passant.',_cap(_ty)+' du quartier qui vaut le coup d\'œil.','Un incontournable du quartier : '+_ty+', à découvrir en chemin.']; // 3 variantes (genre-neutres) choisies par nom -> deux icônes voisines n'ont pas la même phrase
           var _icoTitle=_latinTitle(_ico.nom,_ty); // titre lisible : nom si latin, sinon type FR (le pin garde le vrai nom)
-          var _icoTxt=_sensitive(_ico.nom,_ty)?_graveTxt(_icoTitle):_vari(_ico.nom,_tv); // lieu de mémoire -> ton grave, jamais « à découvrir en chemin »
-          var _icoC={nom:_ico.nom,lat:_ico.lat,lng:_ico.lng,theme:_ico.theme||'culture',score:_ico.score,imp:_ico.imp||0,notable:true,address:_ico.address||null,cat:_ico.cat||null,_incontournable:true};
+          var _icoTxt=_sensitive(_ico.nom,_ty)?_graveTxt(_icoTitle):(_ico.extract?_escHtml(_ico.extract):_vari(_ico.nom,_tv)); // VAGUE 1 : vraie phrase Wikipédia si dispo ; lieu de mémoire -> ton grave (template) inchangé ; sinon template varié
+          var _icoC={nom:_ico.nom,lat:_ico.lat,lng:_ico.lng,theme:_ico.theme||'culture',score:_ico.score,imp:_ico.imp||0,notable:true,address:_ico.address||null,cat:_ico.cat||null,extract:_ico.extract||null,image:_ico.image||null,_incontournable:true};
           actsArr.push(Object.assign({},_icoC,{_c:_icoC,carhop:false,periph:false,_incontournable:true,titre:_icoTitle,texte:_icoTxt}));
           log('  · incontournable du quartier ('+(_ico.theme||'?')+') : '+_ico.nom);
         });
@@ -2632,7 +2637,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       // COMBLER PLUTÔT QUE LAISSER « TEMPS LIBRE » : si le thème est épuisé dans le quartier, on remplit avec les ICÔNES hors-thème du secteur (culture/urbain/nature notables) — placées APRÈS le vivier thème, donc le thème reste prioritaire.
       var _offThemes=['culture','nature','urbain','bienetre'].filter(function(t){return !themes.includes(t);});
       var _offFill=(_dayLM||[]).filter(function(c){return _offThemes.indexOf(c.theme)>=0 && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')) && !/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall/i.test(c.nom||'') && !chosenNoms.has(_norm(c.nom)) && !usedLandmarks.has(_norm(c.nom)) && !used.has(_norm(c.nom)) && hav(center.lat,center.lng,c.lat,c.lng)<=BUBBLE;}) // COMBLAGE LARGE : TOUS les POI culture/nature/urbain du quartier (notables ET non-notables) dans le rayon marchable -> le temps libre devient un vrai dernier recours
-        .map(function(c){var _ct=c.cat||'un lieu emblématique';var _t=_latinTitle(c.nom,_ct);var _cv=[_cap(_ct)+' du quartier, à découvrir au fil de la marche.','Sur le chemin : '+_ct+' du secteur, à voir en flânant.',_cap(_ct)+' à voir en passant dans le quartier.'];return Object.assign({},c,{_c:c,carhop:false,periph:false,_d:hav(center.lat,center.lng,c.lat,c.lng),titre:_t,texte:_sensitive(c.nom,_ct)?_graveTxt(_t):_vari(c.nom,_cv)});}) // COMBLAGE aligné sur l'incontournable : titre lisible (nom si latin, sinon type FR ; pin garde le vrai nom), ton grave sur un lieu de mémoire, sinon 2-3 variantes par type (anti-monotonie, choix par nom)
+        .map(function(c){var _ct=c.cat||'un lieu emblématique';var _t=_latinTitle(c.nom,_ct);var _cv=[_cap(_ct)+' du quartier, à découvrir au fil de la marche.','Sur le chemin : '+_ct+' du secteur, à voir en flânant.',_cap(_ct)+' à voir en passant dans le quartier.'];return Object.assign({},c,{_c:c,carhop:false,periph:false,_d:hav(center.lat,center.lng,c.lat,c.lng),titre:_t,texte:_sensitive(c.nom,_ct)?_graveTxt(_t):(c.extract?_escHtml(c.extract):_vari(c.nom,_cv))});}) // COMBLAGE aligné sur l'incontournable : titre lisible (nom si latin, sinon type FR ; pin garde le vrai nom), ton grave sur un lieu de mémoire, sinon 2-3 variantes par type (anti-monotonie, choix par nom)
         .sort(function(a,b){return ((b.notable?1:0)-(a.notable?1:0))||(b.score-a.score);});
       poolActs=poolActs.concat(_offFill);
       // RÈGLE DURE : un festif NIGHTLIFE (bar/pub/club/salle de concert/cabaret — par CATÉGORIE) = sortie du SOIR uniquement, JAMAIS une activité de journée. Le festif de JOURNÉE = uniquement dayFestif (bowling/escape/arcade/mini-golf). Tout festif qui n'est pas dayFestif est donc « du soir » et exclu de la journée.
@@ -2789,7 +2794,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         if(kk<steps.length-1){var gap=steps[kk+1]._t0-steps[kk]._t1;
           if(gap>75){var _g=Math.min(gap,90);withFree.push({libre:true,theme:'libre',titre:'Temps libre',texte:'Un moment pour souffler : flâner dans le quartier, une terrasse de café, ou simplement du repos. Rien d\'imposé — c\'est aussi ça, voyager au calme.',heure:fmtH(rc(steps[kk]._t1)),fin:fmtH(rc(steps[kk]._t1+_g)),duree:_g});}}} // TEMPS LIBRE PLAFONNÉ à ~90 min (jamais un trou béant de 5h) : la journée finit plus tôt et assumée, plutôt qu'un vide déguisé
       steps=withFree;
-      steps.forEach(s=>{var _k=actKind(s._c||s);if(_k)usedKinds.add(_k);s.adresse=(s._c&&s._c.address)||null;
+      steps.forEach(s=>{var _k=actKind(s._c||s);if(_k)usedKinds.add(_k);s.adresse=(s._c&&s._c.address)||null;s.extract=(s._c&&s._c.extract)||null;s.image=(s._c&&s._c.image)||null; // VAGUE 1 : porter extrait Wikipédia + image sur l'étape (pour l'affichage)
         if(!s.libre){var _jf=joursFermes(s.opening_hours||(s._c&&s._c.opening_hours)||null); if(_jf && (s.texte||'').indexOf('Fermé le')<0 && (s.texte||'').indexOf('Ouvert seulement')<0) s.texte=(s.texte?s.texte+' ':'')+_jf;} // NOTE HORAIRE (jour de fermeture OU ouverture limitée), si connu -> on prévient sans rejeter (pas de date réelle)
         delete s._c;if(s.nom)used.add(_norm(s.nom||''));}); // variété inter-jours + on garde l'adresse réelle pour l'affichage
       if(steps.some(s=>BIKE.test(s.nom||'')))usedKinds.add('velo');
@@ -4030,6 +4035,7 @@ function ivDetailHTML(num, t, i, optOverride) {
   const opt = optOverride || ivCurOpt(num, t.id); const data = ivOpt(num, t.id, opt) || t;
   const pts = (data && data.points_chute) || [];
   let html = '<div class="iv-detail-inner">';
+  if (data && data.image) html += '<img class="iv-photo" src="' + String(data.image).replace(/"/g, '&quot;') + '" loading="lazy" alt="" onerror="this.style.display=\'none\'">'; // VAGUE 1 : vraie photo du lieu (Commons/Wikipédia) ; masquée si chargement échoue
   html += '<p class="iv-text">' + ((data && data.texte) || '') + '</p>';
   html += ivPointsHTML(pts);
   html += '<div class="iv-alts"><div class="iv-alts-label">Alternatives à proximité</div><div class="iv-alts-grid">';
