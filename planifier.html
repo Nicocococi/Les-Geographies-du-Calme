@@ -2565,7 +2565,11 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var _qname=_llmQ[i+1]?String(_llmQ[i+1]).trim():'';
       if(_qname && !usedQuartiers.has(_qname)){
         try{
-          var _gc=await geocode(_qname+', '+dest,[dc.lng,dc.lat],dc.cc||null,'neighborhood,locality,place',_cityBBox(dc.lat,dc.lng,REGION_KM)); // PAS 'address' (jamais une rue homonyme) ; bbox ville -> jamais un homonyme lointain (« Canal Saint-Martin » -> Pologne)
+          // bbox SERRÉE en grande ville (8 km ≈ garde-fou « >7 km ») : sinon Mapbox préfère un HOMONYME de banlieue
+          // (« Le Marais » à 13 km, « Canal Saint-Martin » à 28 km) au vrai quartier central -> tous rejetés -> repli
+          // central. Une métropole a ses quartiers < 6 km du centre. Petite ville : 35 km (excursions intactes).
+          var _qbb=_cityBBox(dc.lat,dc.lng,bigCity?8:REGION_KM);
+          var _gc=await geocode(_qname+', '+dest,[dc.lng,dc.lat],dc.cc||null,'neighborhood,locality,place',_qbb); // PAS 'address' (jamais une rue homonyme)
           if(_gc){
             // ÉTALEMENT INTER-JOURS : un quartier LLM dont le CENTRE géocodé est à < SPREAD_KM d'un jour DÉJÀ retenu est rejeté (fini « Jour 1 ≈ Jour 3 » quand le thème tire au centre). Vide au jour 1 -> toujours accepté. Rejeté -> repli densité (qui étale, seuil réduit en petite ville).
             if(usedZones.some(function(z){return hav(z.lat,z.lng,_gc.lat,_gc.lng)<SPREAD_KM;})){
@@ -3993,7 +3997,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v179</span></p>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v180</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
         `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
