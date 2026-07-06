@@ -2380,6 +2380,7 @@ function _bcVariant(place, step, tid){
     id: tid, label: place.nom||'', heure: step.heure||'', heure_fin: step.fin||'',
     nom: place.nom||'', titre: place.nom||'',
     texte: cap + ' &agrave; proximit&eacute; &mdash; une autre adresse pour cette &eacute;tape.',
+    adresse: place.address||place.adresse||null,
     points_chute: [],
     _coords: (place.lat!=null&&place.lng!=null)?{lat:place.lat,lng:place.lng,precision:'exact'}:null
   };
@@ -2415,6 +2416,7 @@ function adaptDayToJours(day){
       nom: step.nom || step.adresse || step.titre || '',
       titre: step.titre || '',
       texte: step.texte || '',
+      adresse: step.adresse || null,
       points_chute: [],
       _coords: (step.lat!=null && step.lng!=null) ? {lat: step.lat, lng: step.lng, precision:'exact'} : null
     };
@@ -3890,7 +3892,12 @@ function ivJourKey(num) { return 'j' + num; }
 function ivOpt(num, tid, opt) { const d = joursData[ivJourKey(num)]; return d && d[tid] ? d[tid][opt] : null; }
 function ivCurOpt(num, tid) { return (IV.sel[num] && IV.sel[num][tid]) || 'a'; }
 function ivTeaser(data) {
-  if (data && data.titre) return data.titre;
+  const nom = _norm((data && data.nom) || '');
+  // 1) un libellé UTILE différent du nom (ex. « Déjeuner — X », « Café de spécialité — X »)
+  if (data && data.titre && _norm(data.titre) !== nom) return data.titre;
+  // 2) sinon la VRAIE adresse si connue (évite de répéter le nom sur les places/icônes)
+  if (data && data.adresse && _norm(data.adresse) !== nom) return data.adresse;
+  // 3) sinon la 1re phrase de la description
   const tx = ((data && data.texte) || '').trim(); if (!tx) return '';
   const s = tx.split(/[.!?]/)[0]; return s.length > 70 ? s.slice(0, 67) + '…' : s;
 }
