@@ -2396,14 +2396,19 @@ function _bcAlts(day, step, n){
   if(!step.theme) return [];
   var pool=((day.cands&&day.cands[step.theme])||[]).concat(day.localLM||[]);
   var self=_norm(step.nom||'');
-  // noms déjà présents dans la JOURNÉE (toutes les étapes) -> une alternative n'est jamais un autre lieu du jour (anti-doublon inter-étapes)
-  var dayNames={}; (day.steps||[]).forEach(function(s){ if(s&&s.nom) dayNames[_norm(s.nom)]=1; });
+  // lieux déjà dans la JOURNÉE (toutes les étapes) -> une alternative n'est jamais un lieu du jour, ni une VARIANTE de nom
+  // (ex. « Assemblée Nationale » vs « Assemblée Nationale - Palais Bourbon » = même lieu, entrées base ≠). sharesBrand = ≥2 mots propres communs.
+  var dayNoms=(day.steps||[]).map(function(s){return s&&s.nom;}).filter(Boolean);
   var near=pool.filter(function(c){
-    return c&&c.nom&&c.lat!=null&&c.lng!=null&&c.theme===step.theme&&_norm(c.nom)!==self&&!dayNames[_norm(c.nom)]&&(step.theme!=='gastronomie'||!c.foodExp);
+    if(!(c&&c.nom&&c.lat!=null&&c.lng!=null&&c.theme===step.theme))return false;
+    if(_norm(c.nom)===self||sharesBrand(step.nom||'',c.nom||'',''))return false;                 // pas le lieu de l'étape ni sa variante de nom
+    if(dayNoms.some(function(dn){return _norm(dn)===_norm(c.nom)||sharesBrand(dn,c.nom||'','');}))return false; // ni un autre lieu du jour (ou sa variante)
+    if(step.theme==='gastronomie'&&c.foodExp)return false;
+    return true;
   }).map(function(c){return {c:c,d:hav(step.lat,step.lng,c.lat,c.lng)};})
-    .filter(function(x){return x.d<=1.2;}).sort(function(a,b){return a.d-b.d;});
-  var seen={},res=[];seen[self]=1; // dédup des alternatives par NOM normalisé
-  for(var i=0;i<near.length&&res.length<n;i++){var nm=_norm(near[i].c.nom||'');if(seen[nm])continue;seen[nm]=1;res.push(near[i].c);}
+    .filter(function(x){return x.d>=0.06 && x.d<=1.2;}).sort(function(a,b){return a.d-b.d;}); // >=60 m : une alternative est un AUTRE endroit, pas le même point
+  var seen={},res=[];seen[self]=1; // dédup des alternatives (nom exact + variante de marque)
+  for(var i=0;i<near.length&&res.length<n;i++){var nm=_norm(near[i].c.nom||'');if(seen[nm]||res.some(function(r){return sharesBrand(r.nom||'',near[i].c.nom||'','');}))continue;seen[nm]=1;res.push(near[i].c);}
   return res;
 }
 function adaptDayToJours(day){
