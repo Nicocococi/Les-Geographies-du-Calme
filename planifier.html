@@ -1160,6 +1160,8 @@ body.gate-mode { background: transparent; }
 .iv-step.open .iv-detail { opacity: 1; }
 .iv-detail-inner { padding: 0 16px 16px; }
 .iv-text { font-size: 0.92rem; line-height: 1.7; color: #3c382f; margin: 0 0 12px; }
+.iv-addr { font-size: 0.82rem; line-height: 1.5; color: #8a7d68; margin: 0 0 12px; display: flex; gap: 0.4em; align-items: flex-start; } /* adresse réelle du lieu (repas + activités), affichée dans le détail */
+.iv-addr .pin { flex: 0 0 auto; opacity: 0.8; }
 .iv-photo { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin: 0 0 12px; background: #ece5d8; } /* VAGUE 1 : vraie photo du lieu (Wikidata/Commons) */
 .iv-points { border-top: 1px solid var(--bordure); padding-top: 10px; margin-bottom: 14px; }
 .iv-points-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
@@ -3933,7 +3935,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v174</span></p>`+
+    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · v175</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
         `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
@@ -4048,6 +4050,11 @@ function ivDetailHTML(num, t, i, optOverride) {
   let html = '<div class="iv-detail-inner">';
   if (data && data.image) html += '<img class="iv-photo" src="' + String(data.image).replace(/"/g, '&quot;') + '" loading="lazy" alt="" onerror="this.style.display=\'none\'">'; // VAGUE 1 : vraie photo du lieu (Commons/Wikipédia) ; masquée si chargement échoue
   html += '<p class="iv-text">' + _escHtml((data && data.texte) || '') + '</p>'; // texte stocké EN CLAIR partout -> échappé ici (innerHTML) ; le sous-titre l'affiche via textContent (donc plus d'entités brutes)
+  // ADRESSE RÉELLE dans le détail : affichée pour TOUTE étape à adresse connue (repas inclus) — sauf temps libre,
+  // et sauf si le sous-titre la montre déjà (évite le doublon avec ivTeaser). Corrige les repas, dont le titre
+  // « Déjeuner — X » masquait toujours l'adresse en sous-titre.
+  if (data && data.adresse && !data.libre && _norm(data.adresse) !== _norm(data.nom || '') && _norm(data.adresse) !== _norm(ivTeaser(data)))
+    html += '<p class="iv-addr"><span class="pin">📍</span><span>' + _escHtml(data.adresse) + '</span></p>';
   html += ivPointsHTML(pts);
   html += '<div class="iv-alts"><div class="iv-alts-label">Alternatives à proximité</div><div class="iv-alts-grid">';
   ['a','b','c'].forEach(k => {
