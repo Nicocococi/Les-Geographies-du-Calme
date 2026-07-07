@@ -1446,7 +1446,7 @@ const WATER_CATS='waterway,maritime.marina,man_made.pier';
 const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, mini-golf, parc à thème, escape game, arcade, voie d'eau, marina, jetée. SEULE la pêche reste exclue.
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v188'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v196'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2424,21 +2424,36 @@ function _bcVariant(place, step, tid){
 // couvre les INCONTOURNABLES hors-thème (église, monument, musée…) dont le thème n'est pas dans cands.
 function _bcAlts(day, step, n){
   if(!step.theme) return [];
-  var pool=((day.cands&&day.cands[step.theme])||[]).concat(day.localLM||[]);
   var self=_norm(step.nom||'');
   // lieux déjà dans la JOURNÉE (toutes les étapes) -> une alternative n'est jamais un lieu du jour, ni une VARIANTE de nom
-  // (ex. « Assemblée Nationale » vs « Assemblée Nationale - Palais Bourbon » = même lieu, entrées base ≠). sharesBrand = ≥2 mots propres communs.
+  // (« Assemblée Nationale » vs « Assemblée Nationale - Palais Bourbon » = même lieu). sharesBrand = ≥2 mots propres communs.
   var dayNoms=(day.steps||[]).map(function(s){return s&&s.nom;}).filter(Boolean);
-  var near=pool.filter(function(c){
-    if(!(c&&c.nom&&c.lat!=null&&c.lng!=null&&c.theme===step.theme))return false;
-    if(_norm(c.nom)===self||sharesBrand(step.nom||'',c.nom||'',''))return false;                 // pas le lieu de l'étape ni sa variante de nom
-    if(dayNoms.some(function(dn){return _norm(dn)===_norm(c.nom)||sharesBrand(dn,c.nom||'','');}))return false; // ni un autre lieu du jour (ou sa variante)
+  var dayPts=(day.steps||[]).filter(function(s){return s&&s.lat!=null&&s.lng!=null;});
+  var seen={},res=[];seen[self]=1;
+  function _ok(c,sameTheme){
+    if(!(c&&c.nom&&c.lat!=null&&c.lng!=null))return false;
+    if(sameTheme && c.theme!==step.theme)return false;
     if(step.theme==='gastronomie'&&c.foodExp)return false;
+    if(_norm(c.nom)===self||sharesBrand(step.nom||'',c.nom||'',''))return false;                       // pas l'étape ni sa variante
+    if(dayNoms.some(function(dn){return _norm(dn)===_norm(c.nom)||sharesBrand(dn,c.nom||'','');}))return false; // ni un lieu du jour
+    if(dayPts.some(function(p){return hav(p.lat,p.lng,c.lat,c.lng)<0.12;}))return false;               // ni co-localisé (<120 m) avec une étape
+    var nm=_norm(c.nom||'');
+    if(seen[nm]||res.some(function(r){return sharesBrand(r.nom||'',c.nom||'','');}))return false;      // ni déjà retenu
     return true;
-  }).map(function(c){return {c:c,d:hav(step.lat,step.lng,c.lat,c.lng)};})
-    .filter(function(x){return x.d>=0.06 && x.d<=1.2;}).sort(function(a,b){return a.d-b.d;}); // >=60 m : une alternative est un AUTRE endroit, pas le même point
-  var seen={},res=[];seen[self]=1; // dédup des alternatives (nom exact + variante de marque)
-  for(var i=0;i<near.length&&res.length<n;i++){var nm=_norm(near[i].c.nom||'');if(seen[nm]||res.some(function(r){return sharesBrand(r.nom||'',near[i].c.nom||'','');}))continue;seen[nm]=1;res.push(near[i].c);}
+  }
+  function _collect(pool,sameTheme,maxD){
+    var near=pool.filter(function(c){return _ok(c,sameTheme);})
+      .map(function(c){return {c:c,d:hav(step.lat,step.lng,c.lat,c.lng)};})
+      .filter(function(x){return x.d>=0.06 && x.d<=maxD;}).sort(function(a,b){return a.d-b.d;}); // >=60 m : un AUTRE endroit
+    for(var i=0;i<near.length&&res.length<n;i++){ seen[_norm(near[i].c.nom||'')]=1; res.push(near[i].c); }
+  }
+  // 1) MÊME THÈME que l'étape (vivier + repères locaux), à pied — rayon 1,5 km (avant 1,2 : trop serré -> B/C vides)
+  _collect(((day.cands&&day.cands[step.theme])||[]).concat(day.localLM||[]), true, 1.5);
+  // 2) ÉLARGISSEMENT (activités seulement, pas les repas) si < n : icônes du quartier (culture/nature/urbain, tous
+  //    thèmes) = « d'autres lieux à voir juste à côté ». Comble les B/C vides dans les quartiers riches hors-thème.
+  if(res.length<n && step.theme!=='gastronomie'){
+    _collect((day.localLM||[]).filter(function(c){return c&&(c.theme==='culture'||c.theme==='nature'||c.theme==='urbain');}), false, 1.5);
+  }
   return res;
 }
 // Repères « EN CHEMIN » (👀) : lieux NOTABLES du quartier (day.localLM) qu'on longe entre deux étapes
@@ -2516,6 +2531,131 @@ function tranchesFromDay(day){
   const jk='j'+day.num;
   return (day.steps||[]).map(function(step,i){ return joursData[jk]['t'+(i+1)].a; });
 }
+// Titre de jour « Autour de [repère] » avec l'article français correct (de+le->du, de+la->de la, voyelle->de l',
+// de+les->des). Sur le REPÈRE géocodable (Plan C), jamais le nom LLM ni le reverse-geocode obscur (Maison-Blanche).
+function _autourDe(nom){
+  nom=String(nom||'').trim(); if(!nom) return '';
+  if(/^les\s+/i.test(nom)) return 'Autour des '+nom.replace(/^les\s+/i,'');
+  if(/^le\s+/i.test(nom))  return 'Autour du '+nom.replace(/^le\s+/i,'');
+  if(/^la\s+/i.test(nom))  return 'Autour de la '+nom.replace(/^la\s+/i,'');
+  if(/^l['’]\s*/i.test(nom))return 'Autour de l\''+nom.replace(/^l['’]\s*/i,'');
+  var w=nom.split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  var FEM=/^(place|rue|avenue|tour|gare|cathedrale|basilique|eglise|halle|colline|butte|fontaine|statue|esplanade|promenade|cite|villa|maison|plage|porte|allee|galerie|passerelle|mosquee|synagogue|pagode|citadelle|forteresse|abbaye|chapelle|cascade|riviere|baie|corniche)$/;
+  var MASC=/^(quai|parc|jardin|pont|palais|musee|chateau|temple|marche|square|boulevard|bois|canal|port|mont|monument|stade|theatre|cimetiere|hotel|bassin|belvedere|observatoire|zoo|aquarium|phare|fort|donjon|kiosque|cloitre)$/;
+  if(FEM.test(w))  return 'Autour de la '+nom;
+  if(MASC.test(w)) return 'Autour du '+nom;
+  if(/^[aeiouyàâäéèêëïîôöùûüh]/i.test(nom)) return 'Autour de l\''+nom; // voyelle initiale : « Autour de l'Opéra »
+  return 'Autour de '+nom; // nom propre / étranger : « Autour de Wat Traimit », « Autour de Place des Vosges »
+}
+// ===== PASSE DE COHÉRENCE UNIQUE (finalizeDay) =====
+// UN seul point de passage, appelé juste avant le rendu, qui DÉTECTE et RÉPARE les incohérences d'un jour
+// (répétitions, temps libre injustifié, description ≠ type, alternatives vides, dîner trop tôt). Toute règle de
+// cohérence future va ICI (plus jamais éparpillée). Chaque invariant est ajouté un par un, testé par tests/invariants.js.
+// ctx = { themes, voyage, budget, center, bubble, all }. Mute day.steps EN PLACE. Ne touche PAS au géocodage (gelé).
+function finalizeDay(day, ctx){
+  if(!day || !Array.isArray(day.steps)) return day;
+  // ===== INVARIANT 1 — ANTI-DOUBLON INTRA-JOUR (unifié) =====
+  // Deux étapes = MÊME lieu si : nom normalisé identique, OU < 150 m, OU même adresse, OU token de nom fort
+  // co-localisé (< 200 m : « Notre-Dame » parvis/tours, « Mur des Je t'aime »/« Buste de Dalida »…). On garde la
+  // mieux décrite / la plus notable, on retire les autres (en conservant l'horaire du créneau). EXEMPTÉS : temps
+  // libre (pas un lieu) et repas/foodExp (gastronomie — noms non distinctifs, mangés près d'un site = normal).
+  function _same1(a,b){
+    var na=_norm(a.nom||''), nb=_norm(b.nom||'');
+    if(na && nb && na===nb) return true;
+    var aa=_norm(a.adresse||''), ba=_norm(b.adresse||'');
+    if(aa && ba && aa.length>5 && aa===ba) return true;
+    if(a.lat!=null && b.lat!=null){
+      var d=hav(a.lat,a.lng,b.lat,b.lng);
+      if(d<0.15) return true;                                   // < 150 m = même endroit
+      if(d<0.20 && sharesBrand(a.nom||'', b.nom||'', '')) return true; // token fort commun + co-localisé
+    }
+    return false;
+  }
+  function _score1(s){ return (s.notable?2:0)+(s._incontournable?1:0)+Math.min(1,(String(s.texte||'').length)/400); }
+  var _kept1=[];
+  (day.steps||[]).forEach(function(s){
+    if(s.libre || s.theme==='gastronomie'){ _kept1.push(s); return; }
+    var di=-1;
+    for(var j=0;j<_kept1.length;j++){ var k=_kept1[j]; if(k.libre||k.theme==='gastronomie') continue; if(_same1(k,s)){ di=j; break; } }
+    if(di<0){ _kept1.push(s); return; }
+    if(_score1(s) > _score1(_kept1[di])){ // garder la meilleure, mais figer l'horaire du créneau existant
+      s._t0=_kept1[di]._t0; s._t1=_kept1[di]._t1; s.heure=_kept1[di].heure; s.fin=_kept1[di].fin; s.duree=_kept1[di].duree;
+      _kept1[di]=s;
+    }
+  });
+  day.steps=_kept1;
+  // ===== INVARIANT 2 — COMBLAGE AVANT TEMPS LIBRE =====
+  // Tant qu'il reste un POI culture/nature/urbain NON utilisé dans la BULLE, on remplace « temps libre » par ce POI
+  // (icône « à voir »). On préfère les NOTABLES, puis les non-notables (CLAUDE.md : on épuise le vivier AVANT le vide).
+  // « Temps libre » ne survit que si le vivier est réellement vide (petite ville calme = repli légitime).
+  var _c2=ctx&&ctx.center, _b2=(ctx&&ctx.bubble)||2.0, _compact2=Math.min(_b2,1.2), _pool2=(day.localLM&&day.localLM.length)?day.localLM:((ctx&&ctx.all)||[]);
+  if(_c2){
+    // Une icône de comblage ne doit JAMAIS être le MÊME lieu qu'une étape déjà présente (nom, <150 m, adresse, ou
+    // token fort co-localisé — Dôme = Basilique) : on réutilise la règle de l'invariant 1 contre les étapes en place.
+    function _dupOfStep2(cand){
+      for(var j=0;j<day.steps.length;j++){var s=day.steps[j]; if(s.libre)continue; if(_same1(s,cand))return true;}
+      return false;
+    }
+    function _icon2(notableOnly){
+      var best=null,bs=-1;
+      for(var i=0;i<_pool2.length;i++){var c=_pool2[i];
+        if(!c||!c.nom||c.lat==null||c.lng==null)continue;
+        if(!(c.theme==='culture'||c.theme==='nature'||c.theme==='urbain'))continue;
+        if(notableOnly && !c.notable)continue;
+        if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')))continue; // cinémas exclus des à-voir
+        if(/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall/i.test(c.nom||''))continue;
+        if(hav(_c2.lat,_c2.lng,c.lat,c.lng)>_compact2)continue; // ZONE COMPACTE (≤1,2 km) : un « à voir » est SUR le chemin, pas au bout de la bulle
+        if(_dupOfStep2(c))continue;                            // jamais un doublon d'une étape existante
+        var sc=(c.notable?100:0)+(c.score||0);
+        if(sc>bs){bs=sc;best=c;}
+      }
+      return best;
+    }
+    day.steps.forEach(function(s){
+      if(!s.libre)return;
+      var cand=_icon2(true)||_icon2(false); // notable d'abord, sinon non-notable
+      if(!cand)return; // vivier épuisé -> temps libre légitime (dernier recours)
+      var _ct=cand.cat||'un lieu emblématique';
+      s.libre=false; s.theme=cand.theme; s.nom=cand.nom; s.lat=cand.lat; s.lng=cand.lng;
+      s.adresse=cand.address||null; s.extract=cand.extract||null; s.image=cand.image||null; s._icon=true;
+      s.titre=(typeof _latinTitle==='function'?_latinTitle(cand.nom,_ct):cand.nom);
+      s.texte=cand.extract?cand.extract:(typeof _cap==='function'?_cap(_ct):_ct)+' du quartier, à voir en passant.';
+    });
+  }
+  // ===== INVARIANT 3 — DESCRIPTION COHÉRENTE avec le TYPE / la DURÉE =====
+  // Une VRAIE activité qu'on PRATIQUE (sport/bien-être) ne peut PAS être décrite « un monument » ni « à voir en
+  // passant » (bug piscine Pailleron : une piscine décrite comme un monument). Un lieu LONG (≥90 min) n'est pas non
+  // plus « à voir en passant ». Réparation : extrait encyclopédique si dispo, sinon fallbackProse (prose dérivée de
+  // la catégorie/thème), jamais une formule d'icône. Les icônes courtes (_icon) gardent « à voir en passant ».
+  var _sightRe=/à voir en passant|à découvrir en chemin|à voir en flânant|au fil de la (marche|promenade)|en flânant dans le secteur|halte du quartier à découvrir|qui vaut le coup d.œil/i;
+  var _monuRe=/\bmonument\b/i;
+  day.steps.forEach(function(s){
+    if(s.libre)return;
+    var txt=String(s.texte||''), doAct=(s.theme==='sport'||s.theme==='bienetre'), isLong=(typeof s.duree==='number' && s.duree>=90);
+    var bad = (doAct && (_sightRe.test(txt) || _monuRe.test(txt+' '+(s.titre||'')))) || (isLong && !s._icon && _sightRe.test(txt));
+    if(!bad)return;
+    if(s.extract){ s.texte=s.extract; return; } // vraie description dispo -> l'utiliser
+    var p=(typeof fallbackProse==='function')?fallbackProse({nom:s.nom,theme:s.theme,cat:s.cat,notable:s.notable,_incontournable:s._incontournable}):null;
+    if(p && p.texte && !_sightRe.test(p.texte) && !(doAct && _monuRe.test(p.texte))) s.texte=p.texte;
+    else s.texte='Une étape à part entière de la journée — prenez le temps de la découvrir.';
+  });
+  // ===== INVARIANT 5 — DÎNER ≥ 20h00 (plancher DUR) =====
+  // Un dîner ne commence jamais avant 20h (remplace le plancher 18h des journées minces). Un creux avant le dîner
+  // est assumé (l'invariant 2 a déjà comblé l'après-midi avec les icônes disponibles). (Invariant 4 = _bcAlts.)
+  var _DIN=20*60;
+  function _pmF(h){ var m=String(h||'').match(/(\d+)\s*h\s*(\d*)/i); return m?(+m[1]*60+(+(m[2]||0))):null; }
+  var _din=null;
+  for(var _di=day.steps.length-1;_di>=0;_di--){ var _s=day.steps[_di]; if(_s && _s.theme==='gastronomie' && !_s.libre && /d[îi]ner/i.test(_s.titre||'')){ _din=_s; break; } }
+  if(!_din){ for(var _dj=day.steps.length-1;_dj>=0;_dj--){ if(day.steps[_dj] && day.steps[_dj].theme==='gastronomie'){ _din=day.steps[_dj]; break; } } } // repli : dernière étape gastronomie = le dîner
+  if(_din){
+    var _cur=_pmF(_din.heure);
+    if(_cur!=null && _cur<_DIN && typeof fmtH==='function'){
+      var _dur=(typeof _din.duree==='number'?_din.duree:120);
+      _din.heure=fmtH(_DIN); _din._t0=_DIN; _din._t1=_DIN+_dur; _din.fin=fmtH(_DIN+_dur);
+    }
+  }
+  return day;
+}
 // ===== MOTEUR À VRAIS LIEUX (porté de archive/planifier_archi_test.html) =====
 // Construit la variable globale DAYS à partir des entrées du wizard. Ne touche JAMAIS à l'UI :
 // la belle UI (initJoursTabs / iv*) lit ensuite DAYS via adaptDayToJours(). useBase FORCÉ à true.
@@ -2583,7 +2723,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     const bigCity = all.length >= 500;
     for(let i=0;i<duree;i++){
       // on cherche un ancrage dans un QUARTIER encore inexploré (pas deux jours au même endroit)
-      let anchor=null,quartier=null,_didEnrich=false;const tried=new Set();
+      let anchor=null,quartier=null,_didEnrich=false,_dayRepere='';const tried=new Set();
       // NIVEAU 2 — PRIORITÉ au quartier NOMMÉ par le LLM (caractère). On ENRICHIT d'ABORD le quartier (lecture live) PUIS on compte : le garde-fou voit les POI DU QUARTIER, plus le pool central. ≥2 POI du thème sinon repli densité.
       var _qo=_llmQ[i+1]||null;
       var _qname=_qo?String(_qo.nom||'').trim():'';
@@ -2630,7 +2770,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
               // Plus de rejet par DISTANCE (« >7 km ») : Paris-tuné, il cassait LA/Bangkok (quartiers étalés). Le juge
               // UNIVERSEL est la densité de POI autour du point (l'enrich live a déjà ramené les POI DU quartier) :
               // un quartier réel, proche OU lointain, a ≥2 POI du thème + ≥7 exploitables ; un point vide est rejeté ici.
-              else if(_Tn>=2 && _Rn>=7){anchor={lat:_gc.lat,lng:_gc.lng,nom:_qname,distKm:+_qdist.toFixed(1)};quartier=_qname;_didEnrich=true;log('  · Jour '+(i+1)+' : quartier LLM « '+_qname+' » retenu ('+_Tn+' POI du thème, '+_Rn+' exploitables, +'+_add+' live).');}
+              else if(_Tn>=2 && _Rn>=7){anchor={lat:_gc.lat,lng:_gc.lng,nom:_qname,distKm:+_qdist.toFixed(1)};quartier=_qname;_didEnrich=true;if(_gc.src==='repère'&&_qrep)_dayRepere=_qrep;log('  · Jour '+(i+1)+' : quartier LLM « '+_qname+' » retenu ('+_Tn+' POI du thème, '+_Rn+' exploitables, +'+_add+' live).');}
               else log('  · Jour '+(i+1)+' : « '+_qname+' » écarté ('+_Tn+' POI du thème / '+_Rn+' exploitables — trop mince pour une journée) → repli densité.');
             }
           }
@@ -2649,6 +2789,9 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(!anchor){log('  ⚠ plus d\'ancrage qualitatif — séjour limité à '+i+' jour(s) (aucune invention).',true);break;}
       // LABEL = TOUJOURS le clusterLabel du VRAI ancrage final (jamais le nom LLM), pour le chemin LLM comme pour le repli. Ceinture + bretelles : un label ≠ pins devient structurellement IMPOSSIBLE, même si un géocodage foireux passe entre les mailles (le label collera au point réel des pins).
       if(anchor){var _lab=await clusterLabel({lat:anchor.lat,lng:anchor.lng,members:[anchor]}); if(_lab)quartier=_lab;}
+      // LABEL « Autour de [repère] » (Plan C) : prime sur le reverse-geocode obscur (Maison-Blanche…) quand le jour
+      // est ancré sur un repère géocodable. Sinon (repli densité, pas de repère) on garde le clusterLabel.
+      if(_dayRepere){var _al=_autourDe(_dayRepere); if(_al)quartier=_al;}
       const center={lat:anchor.lat,lng:anchor.lng};
       // LECTURE LIVE PAR QUARTIER fusionnée dans `all` AVANT de bâtir la journée. Quartier LLM déjà enrichi (avant le garde-fou) -> on ne refait pas ; repli densité -> on enrichit le center choisi.
       if(useBase && !_didEnrich){try{ var _ea=await _enrich(center); log('  · '+(/^quartier/i.test(quartier||'')?'':'quartier ')+quartier+' : +'+_ea+' lieux (lecture live /near + /places 2 km).'); }catch(e){}}
@@ -2912,7 +3055,9 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(steps.some(s=>BIKE.test(s.nom||'')))usedKinds.add('velo');
       if(steps.some(s=>FIT_RE.test(s.nom||'')))usedKinds.add('fitness');
       usedZones.push(center);
-      DAYS.push({num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM});
+      var _day={num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM};
+      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all}); // PASSE DE COHÉRENCE (avant rendu)
+      DAYS.push(_day);
     }
     if(!DAYS.length)throw new Error('aucun lieu trouvé pour ces thèmes');
     log('Terminé ✔');
