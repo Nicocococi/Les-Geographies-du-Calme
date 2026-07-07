@@ -1483,7 +1483,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v208'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v209'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2597,6 +2597,10 @@ function adaptDayToJours(day){
   const jk='j'+day.num;
   if(!joursData[jk]) joursData[jk]={};
   var chemin=_enChemin(day);
+  // DÉDUP AU NIVEAU DU JOUR (étapes + alternatives) : un lieu n'apparaît qu'UNE fois sur toute la journée. Sinon un lieu
+  // central (Grand Palais près des Champs-Élysées) est pêché en alternative par CHAQUE étape voisine -> « 3× Grand Palais »
+  // dans les cases A/B/C, alors qu'il n'est aucune étape. On sème l'ensemble avec tous les noms d'étapes.
+  var _altUsed={}; (day.steps||[]).forEach(function(s){ if(s&&s.nom&&!s.libre) _altUsed[_norm(s.nom)]=1; });
   (day.steps||[]).forEach(function(step,i){
     const tid='t'+(i+1);
     var a={
@@ -2620,13 +2624,17 @@ function adaptDayToJours(day){
     // gammes de prix mélangées, rayon ville-large) ; complétée au besoin par _bcAlts. Autres étapes : _bcAlts.
     var alts;
     if(step.theme==='gastronomie'){
-      alts=(Array.isArray(step.alts)?step.alts.slice(0,2):[]);
-      if(alts.length<2 && step.lat!=null && step.lng!=null){
-        _bcAlts(day, step, 2).forEach(function(x){ if(alts.length<2 && !alts.some(function(y){return _norm(y.nom||'')===_norm(x.nom||'');})) alts.push(x); });
+      alts=(Array.isArray(step.alts)?step.alts.slice(0,4):[]);
+      if(alts.length<4 && step.lat!=null && step.lng!=null){
+        _bcAlts(day, step, 4).forEach(function(x){ if(alts.length<4 && !alts.some(function(y){return _norm(y.nom||'')===_norm(x.nom||'');})) alts.push(x); });
       }
     } else {
-      alts=(step.lat!=null && step.lng!=null) ? _bcAlts(day, step, 2) : [];
+      alts=(step.lat!=null && step.lng!=null) ? _bcAlts(day, step, 4) : [];
     }
+    // DÉDUP JOUR : jamais un lieu déjà utilisé (étape OU alternative d'une autre étape). On pioche jusqu'à 4 puis on garde
+    // les 2 premiers ENCORE libres, et on les enregistre -> chaque lieu au plus 1× sur toute la journée.
+    alts=(alts||[]).filter(function(x){ return x && x.nom && !_altUsed[_norm(x.nom)]; }).slice(0,2);
+    alts.forEach(function(x){ _altUsed[_norm(x.nom)]=1; });
     joursData[jk][tid]={ a:a, b: alts[0]?_bcVariant(alts[0],step,tid):null, c: alts[1]?_bcVariant(alts[1],step,tid):null };
   });
   if(!IV.quartiers) IV.quartiers={};
