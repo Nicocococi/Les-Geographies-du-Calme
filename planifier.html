@@ -1446,7 +1446,7 @@ const WATER_CATS='waterway,maritime.marina,man_made.pier';
 const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, mini-golf, parc à thème, escape game, arcade, voie d'eau, marina, jetée. SEULE la pêche reste exclue.
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v199'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v200'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2556,6 +2556,87 @@ function _orderDaysByRichness(days){
   days.forEach(function(d,idx){ if(d) d.num=idx+1; });
   return days;
 }
+// RECONSTRUCTION PROPRE DE LA JOURNÉE (appelée en TOUTE FIN de finalizeDay) : après toutes les mutations, on rebâtit
+// une journée cohérente. 1) CLAMP ville : retirer toute étape (repas COMPRIS) hors ville de destination ou > bulle de
+// l'ancre. 2) CHAÎNE : ré-ordonner les activités (hors repas) en plus-proche-voisin (anti-zigzag, invariant CLAUDE.md #4).
+// 3) REPAS : déjeuner ~12h30, dîner ≥20h re-choisi dans un rayon SERRÉ (≤1,2 km) de la dernière étape. 4) HORAIRES
+// séquentiels le long de la chaîne + comblage (double borne) du trou avant le dîner, sinon temps libre honnête. Puis tri.
+function recomposeDay(day, ctx){
+  if(!day || !Array.isArray(day.steps)) return day;
+  var center=ctx&&ctx.center, bubble=(ctx&&ctx.bubble)||2.5, all=(ctx&&ctx.all)||[], localLM=(day.localLM&&day.localLM.length)?day.localLM:all, destCity=(ctx&&ctx.destCity)?_norm(ctx.destCity):'', _F=(typeof fmtH==='function');
+  function inZone(lat,lng,adr){
+    if(lat==null||lng==null) return true;
+    if(center && hav(center.lat,center.lng,lat,lng)>bubble) return false;
+    if(destCity && adr){ var a=_norm(adr); if(a.indexOf(destCity)<0){ var m=String(adr).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); if(m&&_norm(m[1])&&_norm(m[1])!==destCity) return false; } }
+    return true;
+  }
+  function _tr(a,b){ if(!a||!b||a.lat==null||b.lat==null) return 0; return Math.max(5,Math.round(hav(a.lat,a.lng,b.lat,b.lng)*1000/75)); } // marche ~75 m/min
+  function _dur(s){ return (typeof s.duree==='number'&&s.duree>0)?s.duree:(typeof dureeHint==='function'?dureeHint(s):60); }
+  function isDin(s){ return s.theme==='gastronomie' && /d[îi]ner/i.test(s.titre||''); }
+  function isLun(s){ return s.theme==='gastronomie' && /d[ée]jeuner/i.test(s.titre||''); }
+  var isMeal=function(s){ return isDin(s)||isLun(s); };
+  // 1. CLAMP + catégorisation
+  var lunch=null,dinner=null,evening=null,acts=[];
+  day.steps.forEach(function(s){
+    if(!s || s.libre) return;
+    if(!inZone(s.lat,s.lng,s.adresse)) return;         // hors ville / hors bulle -> retiré (repas compris)
+    if(isDin(s)){ if(!dinner)dinner=s; return; }
+    if(isLun(s)){ if(!lunch)lunch=s; return; }
+    if(s.openEnd){ if(!evening)evening=s; return; }     // sortie du soir -> après le dîner
+    acts.push(s);
+  });
+  // 2. CHAÎNE plus-proche-voisin (départ = activité la plus proche de l'ancre)
+  var withC=acts.filter(function(a){return a.lat!=null&&a.lng!=null;}), noC=acts.filter(function(a){return a.lat==null||a.lng==null;}), chain=[];
+  if(withC.length){
+    // départ = le FOOTING s'il existe (il ouvre la journée), sinon l'activité la plus proche de l'ancre
+    var si=-1; for(var f=0;f<withC.length;f++){ if(withC[f]._footing){ si=f; break; } }
+    if(si<0){ si=0; var sb=Infinity; for(var i=0;i<withC.length;i++){var d=center?hav(center.lat,center.lng,withC[i].lat,withC[i].lng):i; if(d<sb){sb=d;si=i;}} }
+    var used={}; chain.push(withC[si]); used[si]=1;
+    while(chain.length<withC.length){ var L=chain[chain.length-1],bi=-1,bd=Infinity; for(var j=0;j<withC.length;j++){ if(used[j])continue; var dd=hav(L.lat,L.lng,withC[j].lat,withC[j].lng); if(dd<bd){bd=dd;bi=j;} } chain.push(withC[bi]); used[bi]=1; }
+  }
+  chain=chain.concat(noC);
+  function _pickIcon(placed){
+    var best=null,bs=-1;
+    for(var i=0;i<localLM.length;i++){var c=localLM[i];
+      if(!c||!c.nom||c.lat==null||c.lng==null)continue;
+      if(!(c.theme==='culture'||c.theme==='nature'||c.theme==='urbain'))continue;
+      if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')))continue;
+      if(/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall/i.test(c.nom||''))continue;
+      if(center && hav(center.lat,center.lng,c.lat,c.lng)>bubble)continue;           // (2) ≤ bulle de l'ancre
+      var near=Infinity; for(var p=0;p<placed.length;p++){var q=placed[p]; if(q.lat==null)continue; var dd=hav(q.lat,q.lng,c.lat,c.lng); if(dd<near)near=dd;}
+      if(near>1.2)continue;                                                          // (1) ≤ 1,2 km d'une étape placée
+      if(placed.some(function(q){return _norm(q.nom||'')===_norm(c.nom||'') || (q.lat!=null&&hav(q.lat,q.lng,c.lat,c.lng)<0.12);}))continue;
+      var sc=(c.notable?100:0)+(c.score||0); if(sc>bs){bs=sc;best=c;}
+    }
+    return best;
+  }
+  function _iconStep(c){ var _ct=c.cat||'un lieu emblématique'; return {theme:c.theme,nom:c.nom,lat:c.lat,lng:c.lng,adresse:c.address||c.adresse||null,extract:c.extract||null,image:c.image||null,_icon:true,titre:(typeof _latinTitle==='function'?_latinTitle(c.nom,_ct):c.nom),texte:c.extract?c.extract:((typeof _cap==='function'?_cap(_ct):_ct)+' du quartier, à voir en passant.')}; }
+  // 3+4. HORAIRES séquentiels + repas
+  var out=[], t=8*60+30;
+  function place(s,d,minStart,openEnd){ var start=t+(out.length?_tr(out[out.length-1],s):0); if(minStart)start=Math.max(start,minStart); s._t0=start;s.duree=d;s._t1=start+d; if(_F){s.heure=fmtH(start);s.fin=fmtH(start+d);} s.openEnd=!!openEnd; out.push(s); t=s._t1; }
+  var idx=0,mc=0;
+  while(idx<chain.length && t<12*60 && mc<4){ place(chain[idx],_dur(chain[idx]),null,chain[idx].openEnd); idx++; mc++; } // matin : jusqu'à ~12h / 4 activités
+  if(lunch) place(lunch,90,Math.max(t,12*60));                                        // déjeuner ~12h+
+  while(idx<chain.length){ place(chain[idx],_dur(chain[idx]),null,chain[idx].openEnd); idx++; } // après-midi
+  var DINNER=20*60, lastChain=null; for(var z=out.length-1;z>=0;z--){ if(!isMeal(out[z]) && !out[z].libre){ lastChain=out[z]; break; } }
+  // dîner re-choisi ≤ 1,2 km de la dernière étape (proximité prime, invariant #4)
+  var _usedN=ctx&&ctx.usedNames;
+  if(lastChain && (!dinner || (lastChain.lat!=null && dinner.lat!=null && hav(lastChain.lat,lastChain.lng,dinner.lat,dinner.lng)>1.2))){
+    var _keep=dinner?_norm(dinner.nom||''):''; // le dîner actuel reste éligible (on ne se ré-exclut pas soi-même)
+    var nd=null,ndd=Infinity;
+    for(var m=0;m<all.length;m++){var c=all[m]; if(!c||c.theme!=='gastronomie'||c.foodExp||c.lat==null||c.lng==null)continue; if(!inZone(c.lat,c.lng,c.address||c.adresse))continue; if(lunch&&_norm(c.nom)===_norm(lunch.nom))continue; if(_usedN&&_usedN.has&&_usedN.has(_norm(c.nom))&&_norm(c.nom)!==_keep)continue; var d2=lastChain.lat!=null?hav(lastChain.lat,lastChain.lng,c.lat,c.lng):0; if(d2>1.2)continue; if(d2<ndd){ndd=d2;nd=c;} }
+    if(nd && _norm(nd.nom)!==_keep){ dinner={theme:'gastronomie',nom:nd.nom,lat:nd.lat,lng:nd.lng,adresse:nd.address||nd.adresse||null,price:(typeof nd.price==='number'?nd.price:null),extract:nd.extract||null,image:nd.image||null,titre:'Dîner — '+nd.nom,texte:(typeof _mealTxt==='function'?_mealTxt(nd.nom,'dîner'):('Dîner — '+nd.nom))}; if(_usedN&&_usedN.add)_usedN.add(_norm(nd.nom)); }
+  }
+  if(dinner){
+    while((DINNER-t)>45){ var ic=_pickIcon(out.filter(function(s){return !s.libre;})); if(!ic)break; var id2=Math.min(60,(DINNER-t)-30); if(id2<20)break; place(_iconStep(ic),id2,null,false); } // comble le trou avec des icônes (double borne)
+    if((DINNER-t)>45){ var _l0=t; out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler avant le dîner : flâner dans le quartier, s\'attabler en terrasse, ou se reposer.',duree:DINNER-_l0,_t0:_l0,_t1:DINNER,heure:_F?fmtH(_l0):'',fin:_F?fmtH(DINNER):''}); t=DINNER; } // sinon temps libre honnête couvrant tout le reste
+    place(dinner,120,DINNER); // dîner ≥ 20h
+  }
+  if(evening) place(evening,_dur(evening),Math.max(t,21*60+15),true);
+  out.sort(function(a,b){ return (a._t0!=null?a._t0:1e9)-(b._t0!=null?b._t0:1e9); });
+  day.steps=out;
+  return day;
+}
 // ===== PASSE DE COHÉRENCE UNIQUE (finalizeDay) =====
 // UN seul point de passage, appelé juste avant le rendu, qui DÉTECTE et RÉPARE les incohérences d'un jour
 // (répétitions, temps libre injustifié, description ≠ type, alternatives vides, dîner trop tôt). Toute règle de
@@ -2710,8 +2791,8 @@ function finalizeDay(day, ctx){
       }
     }
   }
-  // ===== (A) ORDRE — la journée est TOUJOURS chronologique (inconditionnel) : étape 1 = la plus tôt =====
-  day.steps.sort(function(a,b){ return (a._t0!=null?a._t0:1e9)-(b._t0!=null?b._t0:1e9); });
+  // ===== RECONSTRUCTION PROPRE FINALE (clamp ville + chaîne + repas + horaires séquentiels + tri chrono) =====
+  recomposeDay(day, ctx);
   return day;
 }
 // ===== MOTEUR À VRAIS LIEUX (porté de archive/planifier_archi_test.html) =====
@@ -3115,7 +3196,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(steps.some(s=>FIT_RE.test(s.nom||'')))usedKinds.add('fitness');
       usedZones.push(center);
       var _day={num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM};
-      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||''}); // PASSE DE COHÉRENCE (avant rendu)
+      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used}); // PASSE DE COHÉRENCE (avant rendu)
       DAYS.push(_day);
     }
     _orderDaysByRichness(DAYS); // (D) ORDRE DES JOURS : du plus riche au moins riche, Jour 1 = le plus fort (+ renumérotation)
