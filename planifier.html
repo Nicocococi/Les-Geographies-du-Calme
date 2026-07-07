@@ -1446,7 +1446,7 @@ const WATER_CATS='waterway,maritime.marina,man_made.pier';
 const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, mini-golf, parc à thème, escape game, arcade, voie d'eau, marina, jetée. SEULE la pêche reste exclue.
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v200'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v202'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2793,6 +2793,18 @@ function finalizeDay(day, ctx){
   }
   // ===== RECONSTRUCTION PROPRE FINALE (clamp ville + chaîne + repas + horaires séquentiels + tri chrono) =====
   recomposeDay(day, ctx);
+  // LABEL DU JOUR = le POI le PLUS NOTABLE réellement présent dans l'itinéraire (notoriété Wikidata : importance +
+  // sitelinks, portés par imp/score), et non le repère d'ancrage LLM (parfois périphérique, ex. « Marché Dejean »).
+  // Aucun POI notable dans le jour -> on garde le label du repère d'ancrage (déjà posé dans buildDAYS).
+  (function(){
+    var best=null,bs=-1;
+    (day.steps||[]).forEach(function(s){
+      if(!s || s.libre || s.theme==='gastronomie' || !s.notable || !s.nom) return; // ni temps libre, ni repas
+      var noto=(typeof s.imp==='number'?s.imp*1000:0)+(typeof s.score==='number'?s.score:0);
+      if(noto>bs){ bs=noto; best=s; }
+    });
+    if(best && typeof _autourDe==='function'){ var _al=_autourDe(best.nom); if(_al) day.quartier=_al; }
+  })();
   return day;
 }
 // ===== MOTEUR À VRAIS LIEUX (porté de archive/planifier_archi_test.html) =====
@@ -2893,9 +2905,13 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
               var _add=await _enrich(_gc); // lecture live DU QUARTIER avant le garde-fou (comble le trou de couverture périphérique)
               // _Tn = POI DU THÈME (≤600 m). _Rn = POI EXPLOITABLES (≤1,2 km) = thèmes choisis + culture/nature/urbain (vivier de comblage) + vrais restos : « y a-t-il de quoi tenir une journée ? ». Un quartier à 2 spots de footing mais RIEN autour (Bois de Boulogne) doit être rejeté.
               var _qdist=hav(dc.lat,dc.lng,_gc.lat,_gc.lng); // distance du quartier géocodé au centre-ville
-              var _Tn=0,_Rn=0; for(var _k=0;_k<all.length;_k++){var _a=all[_k];var _dd=hav(_gc.lat,_gc.lng,_a.lat,_a.lng);if(themes.includes(_a.theme)&&!(_a.theme==='gastronomie'&&!_a.foodExp)&&_dd<=1.0)_Tn++; if(_dd<=1.2&&(themes.includes(_a.theme)||_a.theme==='culture'||_a.theme==='nature'||_a.theme==='urbain'||(_a.theme==='gastronomie'&&!_a.foodExp)))_Rn++;}
-              // GÉOCODAGE SANITY (universel, ne casse pas Carcassonne/Bangkok) : un quartier doit géocoder DANS la ville de destination. Rejet si (i) le résultat EST la ville (nom ≈ destination : « Buttes-aux-Cailles » retombé sur « Paris ») ou (ii) une COMMUNE VOISINE (place-context ≠ destination : « Berges de Seine » retombé sur « Vincennes »). -> repli densité (ancre réelle + label correct). Repli aussi si excursion (>7 km) en grande ville.
               var _destCity=(dc&&dc.nom)?_norm(dc.nom):'';
+              // RICHESSE = uniquement les POI DANS la ville de destination (MÊME contrainte que le city-clamp de
+              // recomposeDay). Sinon une ancre de BORD (« Parc des Princes ») passe la gate grâce aux POI de banlieue
+              // (Boulogne), puis le clamp vide le jour (temps libre béant). Filtre par ville via l'adresse (« <CP> commune »).
+              function _inCityA(a){ if(!_destCity || !a || !a.address) return true; var ad=_norm(a.address); if(ad.indexOf(_destCity)>=0) return true; var mm=String(a.address).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); return !(mm && _norm(mm[1]) && _norm(mm[1])!==_destCity); }
+              var _Tn=0,_Rn=0; for(var _k=0;_k<all.length;_k++){var _a=all[_k];if(!_inCityA(_a))continue;var _dd=hav(_gc.lat,_gc.lng,_a.lat,_a.lng);if(themes.includes(_a.theme)&&!(_a.theme==='gastronomie'&&!_a.foodExp)&&_dd<=1.0)_Tn++; if(_dd<=1.2&&(themes.includes(_a.theme)||_a.theme==='culture'||_a.theme==='nature'||_a.theme==='urbain'||(_a.theme==='gastronomie'&&!_a.foodExp)))_Rn++;}
+              // GÉOCODAGE SANITY (universel, ne casse pas Carcassonne/Bangkok) : un quartier doit géocoder DANS la ville de destination. Rejet si (i) le résultat EST la ville (nom ≈ destination : « Buttes-aux-Cailles » retombé sur « Paris ») ou (ii) une COMMUNE VOISINE (place-context ≠ destination : « Berges de Seine » retombé sur « Vincennes »). -> repli densité (ancre réelle + label correct). Repli aussi si excursion (>7 km) en grande ville. (_destCity défini plus haut pour la gate.)
               // Un résultat de type 'neighborhood' est PAR CONSTRUCTION une subdivision de la ville -> jamais une
               // commune voisine : on l'exempte du test de nom de ville (fragile pour les quartiers parisiens dont le
               // contexte Mapbox n'est pas toujours « Paris »). Le test ne rejette donc que : (i) le nom == la ville,
