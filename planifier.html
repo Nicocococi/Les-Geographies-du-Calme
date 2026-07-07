@@ -1446,7 +1446,7 @@ const WATER_CATS='waterway,maritime.marina,man_made.pier';
 const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, mini-golf, parc à thème, escape game, arcade, voie d'eau, marina, jetée. SEULE la pêche reste exclue.
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v197'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v198'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2584,10 +2584,12 @@ function finalizeDay(day, ctx){
     }
   });
   day.steps=_kept1;
-  // Sélecteur d'ICÔNES partagé (invariants 2 ET A) : meilleure icône culture/nature/urbain NON utilisée de la ZONE
-  // COMPACTE (≤1,2 km), jamais un doublon d'étape (règle invariant 1), ni cinéma, ni mairie. + fabrique d'étape-icône.
+  // Sélecteur d'ICÔNES partagé (invariants 2 ET A). Une icône de comblage doit respecter À LA FOIS : (1) ≤ ~1,2 km de
+  // l'ÉTAPE PLACÉE LA PLUS PROCHE (elle suit le tracé, jamais un saut) ET (2) ≤ BUBBLE depuis l'ANCRE du quartier
+  // (borne dure anti-dérive : la journée ne sort pas du quartier). Jamais l'un sans l'autre. + pas de doublon/cinéma/mairie.
   var _c2=ctx&&ctx.center, _b2=(ctx&&ctx.bubble)||2.0, _compact2=Math.min(_b2,1.2), _pool2=(day.localLM&&day.localLM.length)?day.localLM:((ctx&&ctx.all)||[]);
   function _dupOfStep2(cand){ for(var j=0;j<day.steps.length;j++){var s=day.steps[j]; if(s.libre)continue; if(_same1(s,cand))return true;} return false; }
+  function _nearestStepKm(c){ var best=Infinity; for(var j=0;j<day.steps.length;j++){var s=day.steps[j]; if(s.libre||s.lat==null||s.lng==null)continue; var d=hav(s.lat,s.lng,c.lat,c.lng); if(d<best)best=d;} return best; }
   function _icon2(notableOnly){
     if(!_c2)return null; var best=null,bs=-1;
     for(var i=0;i<_pool2.length;i++){var c=_pool2[i];
@@ -2596,7 +2598,8 @@ function finalizeDay(day, ctx){
       if(notableOnly && !c.notable)continue;
       if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')))continue; // cinémas exclus des à-voir
       if(/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall/i.test(c.nom||''))continue;
-      if(hav(_c2.lat,_c2.lng,c.lat,c.lng)>_compact2)continue; // ZONE COMPACTE (≤1,2 km) : un « à voir » est SUR le chemin
+      if(hav(_c2.lat,_c2.lng,c.lat,c.lng)>_b2)continue;      // (2) BORNE DURE : ≤ BUBBLE depuis l'ancre (anti-dérive)
+      if(_nearestStepKm(c)>_compact2)continue;               // (1) SUIT LE TRACÉ : ≤ ~1,2 km de l'étape placée la plus proche
       if(_dupOfStep2(c))continue;                            // jamais un doublon d'une étape existante
       var sc=(c.notable?100:0)+(c.score||0);
       if(sc>bs){bs=sc;best=c;}
