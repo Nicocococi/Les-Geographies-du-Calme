@@ -1452,6 +1452,20 @@ const POUVOIR_NAME_FR_RE=/assembl[ée]e nationale|palais bourbon|palais du luxem
 const MUSEE_CAT_RE=/entertainment\.museum|\bmuseum\b|mus[ée]e/i;
 function _isPouvoir(catArr,name){ var cs=(Array.isArray(catArr)?catArr.join(' '):(catArr||'')); if(MUSEE_CAT_RE.test(cs))return false; if(POUVOIR_CAT_RE.test(cs))return true; if(POUVOIR_NAME_FR_RE.test(name||''))return true; return false; }
 function _pouvoirBlocked(c){ return !!(c&&(c._pouvoir||POUVOIR_NAME_FR_RE.test(c.nom||''))); } // pour les objets déjà normalisés (localLM/AMBIANCE : _pouvoir précalculé ; repli nom FR sinon)
+// Helpers PARTAGÉS (normalizeSteps + recomposeDay) : cinéma d'une étape, identité de deux étapes, lieu de pouvoir d'une étape.
+// Module-level pour que la RÈGLE soit appliquée au VRAI point de montage final (recomposeDay), pas seulement en amont.
+function _isCinemaStep(s){ return !!s && /cin[ée]ma|cinema|multiplex|\bmk2\b|entertainment\.cinema/i.test((s.catsrc||'')+' '+(s.cat||'')+' '+(s.nom||'')); }
+function _isPouvoirStep(s){ return !!s && s.theme!=='gastronomie' && _isPouvoir((s.catsrc||'')+' '+(s.cat||''), s.nom||''); }
+function _sameLieuStep(a,b){ // même lieu si : nom identique OU même QID ; OU (<150 m ET (tokens-cœur communs OU même adresse)). JAMAIS proximité seule.
+  if(!a||!b)return false;
+  var na=_norm(a.nom||''), nb=_norm(b.nom||''); if(na && nb && na===nb) return true;
+  var qa=(a.qid||(a.tags&&a.tags.wikidata_qid)||''), qb=(b.qid||(b.tags&&b.tags.wikidata_qid)||''); if(qa && qb && qa===qb) return true;
+  if(a.lat!=null && b.lat!=null && hav(a.lat,a.lng,b.lat,b.lng)<0.15){
+    if(sharesBrand(a.nom||'',b.nom||'','')) return true;
+    var aa=_norm(a.adresse||''), ba=_norm(b.adresse||''); if(aa && ba && aa.length>5 && aa===ba) return true;
+  }
+  return false;
+}
 // ÉTALEMENT INTER-JOURS (chemin quartier-LLM) — cible de séparation entre deux jours. PAS un seuil figé : on VISE
 // une bulle marchable (BUBBLE_FLOOR) puis on RELÂCHE cran par cran (motif elig 2,5→1,2→0). On renvoie le plus GRAND
 // palier auquel le POOL de densité (`all`, in-cœur) peut ENCORE offrir un quartier séparé des jours déjà retenus ;
@@ -1469,7 +1483,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v206'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v207'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2621,8 +2635,17 @@ function recomposeDay(day, ctx){
     if(isDin(s)){ if(!dinner)dinner=s; return; }
     if(isLun(s)){ if(!lunch)lunch=s; return; }
     if(s.openEnd){ if(!evening)evening=s; return; }     // sortie du soir -> après le dîner
+    // ===== DERNIER FILET, ICI (vrai point de montage) : cinéma / lieu de pouvoir JAMAIS une étape placée, quelle que soit
+    // la porte (activité, comblage, incontournable, ENRICHISSEMENT). + durée canonique par catégorie (musée = 2h). Ce point
+    // s'exécute APRÈS normalizeSteps mais AVANT le placement -> rien de sale ne peut plus être minuté puis affiché.
+    if(_isCinemaStep(s)) return;                        // cinéma -> jamais un arrêt (tolérance « en chemin » gérée par _enChemin)
+    if(_isPouvoirStep(s)) return;                       // lieu de pouvoir non visitable (Assemblée…) -> jamais une étape
+    if(s.theme!=='gastronomie'){ var _dc=dureeHint(s._c||s); if(typeof _dc==='number'&&_dc>0){ s.duree=_dc; if(s._c)s._c.duree=_dc; } } // durée canonique (musée/monument = 2h, jamais 40 min)
     acts.push(s);
   });
+  // DÉDOUBLONNAGE des activités au point de montage : multi-source (Grand Palais ×2 à ~10 m) / doubles portes. On garde la
+  // mieux décrite / la plus notable. Identité robuste (nom/QID OU proximité+tokens/adresse), JAMAIS proximité seule.
+  var _dd=[]; acts.forEach(function(a){ for(var _i=0;_i<_dd.length;_i++){ if(_sameLieuStep(_dd[_i],a)){ var _sa=(a.notable?2:0)+Math.min(1,String(a.texte||'').length/400), _sb=(_dd[_i].notable?2:0)+Math.min(1,String(_dd[_i].texte||'').length/400); if(_sa>_sb)_dd[_i]=a; return; } } _dd.push(a); }); acts=_dd;
   // 2. CHAÎNE plus-proche-voisin (départ = activité la plus proche de l'ancre)
   var withC=acts.filter(function(a){return a.lat!=null&&a.lng!=null;}), noC=acts.filter(function(a){return a.lat==null||a.lng==null;}), chain=[];
   if(withC.length){
@@ -2640,6 +2663,7 @@ function recomposeDay(day, ctx){
       if(!(c.theme==='culture'||c.theme==='nature'||c.theme==='urbain'))continue;
       if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')))continue;
       if(_pouvoirBlocked(c))continue; // LIEU DE POUVOIR non visitable (mairie/assemblée/ministère/ambassade…) -> jamais une icône/étape
+      if((c.imp||0)>=0.8 || /mus[eé]e|museum|monument|cath[ée]drale|basilique|ch[âa]teau|castle|palais|palace|abbaye/i.test((c.nom||'')+' '+(c.cat||'')))continue; // un GRAND lieu (musée/monument = visite ~2h) N'EST PAS un bouche-trou de 40 min : jamais ajouté en comblage pré-dîner (bug « Palais de Tokyo à 40 min »). Il doit être une VRAIE étape ou rien.
       if(center && hav(center.lat,center.lng,c.lat,c.lng)>bubble)continue;           // (2) ≤ bulle de l'ancre
       var near=Infinity; for(var p=0;p<placed.length;p++){var q=placed[p]; if(q.lat==null)continue; var dd=hav(q.lat,q.lng,c.lat,c.lng); if(dd<near)near=dd;}
       if(near>1.2)continue;                                                          // (1) ≤ 1,2 km d'une étape placée
@@ -3361,6 +3385,9 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       usedZones.push(center);
       var _day={num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM};
       finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used,excursion:excursion}); // PASSE DE COHÉRENCE (avant rendu)
+      // DIAGNOSTIC (vérité terrain) : dump de CHAQUE étape rendue avec sa catégorie + le verdict des classifieurs -> on voit
+      // EN LIVE pourquoi un lieu passe (ex. Assemblée : catsrc sans « government » + nom qui échappe au repli ?). À retirer une fois calé.
+      try{ (_day.steps||[]).forEach(function(_s){ if(_s&&!_s.libre) log('  · [rendu J'+(i+1)+'] "'+_s.nom+'" '+_s.theme+' '+Math.round(_s.duree||0)+'min · pouvoir='+_isPouvoirStep(_s)+' cinema='+_isCinemaStep(_s)+' · cat="'+((_s.catsrc||_s.cat||'')+'"').slice(0,60),true); }); }catch(_e){}
       // JAMAIS DE JOUR-CROUPION : un jour rendu doit avoir ≥ 4 vraies étapes (repas compris). Sinon, même après
       // élargissement région, on ne le crée pas -> on RACCOURCIT honnêtement (2 beaux jours > 3 dont un croupion).
       // On garde toujours ≥ 1 jour (sinon aucune sortie). Paris (dense) a toujours ≥ 4 étapes -> jamais concerné.
