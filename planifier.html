@@ -1469,7 +1469,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v205'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v206'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -1804,6 +1804,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
   if(theme==='culture' && /exposition|exhibit|\bgalerie\b|art gallery/i.test(_catC) && /mus[ée]e|museum/i.test(p.address||''))return null;
   if(theme==='culture' && _src0==='datatourisme' && !p.notable && /monument aux morts|m[ée]morial|comm[ée]morati|st[èe]le|calvaire|croix de chemin|capitelle|ossuaire/i.test(p.name))return null;
   if(/entertainment\.cinema|cin[ée]ma|\bcinema\b|movie theater|multiplex/i.test(_catC+' '+(p.name||'')))return null; // CINÉMA jamais une étape/à-voir — INVARIANT §5, NON conditionné au thème (un cinéma mal typé festif/urbain ne doit pas fuiter quand culture n'est qu'un pool de comblage). Par catégorie (repli nom). Reste possible « en chemin » (façade).
+  if(_isPouvoir(p.category_src||[],p.name))return null; // LIEU DE POUVOIR non visitable (assemblée/ministère/ambassade/préfecture/mairie…) : jamais une ÉTAPE. PORTE D'ENTRÉE #2 (enrichissement live du quartier) — c'est ELLE qui laissait passer l'Assemblée près de la Concorde (collectFromBase l'avait déjà, pas mapBasePlace). Château-MUSÉE (catégorie museum) non concerné. Le checkpoint normalizeSteps re-vérifie en dernier filet.
   const isFit=FIT_RE.test(p.name);
   if(isFit && /intercontinental|h[ôo]tel|marriott|hilton|hyatt|\britz\b|sofitel|westin|sheraton|kempinski|palace|resort/i.test(p.name))return null;
   var _price=(p.tags&&typeof p.tags.price==='number'&&p.tags.price>0)?p.tags.price:null;
@@ -2674,6 +2675,94 @@ function recomposeDay(day, ctx){
   day.steps=out;
   return day;
 }
+// ===== normalizeSteps(day, ctx) — LA passe de NORMALISATION PAR LIEU (une seule, au point de convergence) =====
+// Les portes d'entrée (activité de thème, comblage, incontournable, en-chemin, excursion) déposent des objets d'étape
+// plus ou moins COMPLETS -> une même règle (durée par type, cinéma, pouvoir, doublon) était respectée sur certaines
+// portes, pas toutes. Ici, JUSTE avant recomposeDay (là où TOUS les chemins se rejoignent), on ré-identifie chaque lieu
+// depuis le vivier complet (ctx.all) puis on ré-applique les règles qui dépendent du RÔLE FINAL — en écrasant ce que la
+// porte avait décidé. C'est CE point que tests/normalisation.js VERROUILLE (une règle revue ne peut plus resauter).
+// Ajouté par étapes : (a) ré-identification + (b) durée canonique [ici] ; (c) cinéma + (d) pouvoir ; (e) anti-doublon + (f) re-budget.
+function _reidStep(s, all){ // retrouve le POI complet (catégorie/notoriété réelles) par proximité + identité de nom
+  if(!s || s.lat==null || !Array.isArray(all)) return null;
+  var best=null, bd=Infinity;
+  for(var i=0;i<all.length;i++){ var c=all[i]; if(!c||c.lat==null)continue;
+    var d=hav(s.lat,s.lng,c.lat,c.lng); if(d>0.08) continue;                        // ≤ ~80 m
+    if(d<0.02 || _norm(c.nom||'')===_norm(s.nom||'') || sharesBrand(c.nom||'',s.nom||'','')){ if(d<bd){bd=d;best=c;} }
+  }
+  return best;
+}
+function normalizeSteps(day, ctx){
+  if(!day || !Array.isArray(day.steps)) return day;
+  var all=(ctx&&ctx.all)||[];
+  var kept=[];
+  day.steps.forEach(function(s){
+    if(!s || s.libre){ kept.push(s); return; }
+    // (a) RÉ-IDENTIFICATION : l'objet d'étape peut être MAIGRE selon la porte -> on récupère cat/notoriété/imp réelles
+    var full=_reidStep(s, all);
+    // (c) CINÉMA + (d) LIEU DE POUVOIR — DERNIER FILET, quelle que soit la porte (comblage/incontournable/enrichissement),
+    // jamais une ÉTAPE (repas exemptés). Cinéma : tolérance « en chemin » gérée à part (_enChemin). Le créneau libéré est
+    // recomblé par recomposeDay/finalize. Par CATÉGORIE d'abord (catsrc du POI ré-identifié), repli nom FR (§4).
+    if(s.theme!=='gastronomie'){
+      var catsrc=(s.catsrc||'')+' '+((full&&full.catsrc)||'');
+      if(/cin[ée]ma|cinema|multiplex|\bmk2\b|entertainment\.cinema/i.test(catsrc+' '+(s.cat||'')+' '+(s.nom||''))) return; // cinéma -> retiré des étapes
+      if(_isPouvoir(catsrc, s.nom)) return; // lieu de pouvoir non visitable -> retiré des étapes (château-musée : catsrc museum -> gardé)
+    }
+    if(full){
+      if(!s.cat && full.cat) s.cat=full.cat;
+      if(!s.catsrc && full.catsrc) s.catsrc=full.catsrc;
+      if((s.notable==null||s.notable===false) && full.notable) s.notable=true;
+      if(s.imp==null && full.imp!=null) s.imp=full.imp;
+      if(!s._c) s._c=full;
+    }
+    // (b) DURÉE CANONIQUE par catégorie (dureeHint sur l'objet ré-enrichi) — ÉCRASE la durée de la porte. Interdit un
+    // musée/monument à 30/90 « par défaut » (Palais de Tokyo, Grand Palais -> 2h toujours). Repas exemptés (durée fixe).
+    if(s.theme!=='gastronomie'){
+      var view={nom:s.nom,theme:s.theme,cat:s.cat||(full&&full.cat),catsrc:s.catsrc||(full&&full.catsrc),imp:(s.imp!=null?s.imp:(full&&full.imp)),notable:s.notable||(full&&full.notable),_incontournable:s._incontournable,_footing:s._footing,tags:s.tags};
+      var d=dureeHint(view);
+      if(typeof d==='number' && d>0){ s.duree=d; if(s._c) s._c.duree=d; }
+    }
+    kept.push(s);
+  });
+  // (e) ANTI-DOUBLON FINAL (balayage sur les étapes assemblées). Même lieu si : nom normalisé identique OU même QID
+  // (fusion directe) ; OU ( < ~150 m ET (tokens-cœur communs OU même adresse) ). ⚠️ JAMAIS par la seule proximité :
+  // deux lieux DIFFÉRENTS proches (2 musées à ~100 m, noms/adresses/QID distincts) RESTENT séparés. Repas exemptés.
+  // Attrape le Grand Palais ×2 (multi-source ~10 m, nom qui varie) que les sélecteurs séparés laissaient passer.
+  function _sameLieu(a,b){
+    var na=_norm(a.nom||''), nb=_norm(b.nom||''); if(na && nb && na===nb) return true;
+    var qa=(a.qid||(a.tags&&a.tags.wikidata_qid)||''), qb=(b.qid||(b.tags&&b.tags.wikidata_qid)||''); if(qa && qb && qa===qb) return true;
+    if(a.lat!=null && b.lat!=null && hav(a.lat,a.lng,b.lat,b.lng)<0.15){
+      if(sharesBrand(a.nom||'',b.nom||'','')) return true;                                  // proximité + tokens-cœur communs
+      var aa=_norm(a.adresse||''), ba=_norm(b.adresse||''); if(aa && ba && aa.length>5 && aa===ba) return true; // proximité + même adresse
+    }
+    return false; // proximité SEULE -> pas un doublon (anti-sur-fusion)
+  }
+  function _sc(s){ return (s.notable?2:0)+(s._incontournable?1:0)+Math.min(1,String(s.texte||'').length/400); }
+  var dedup=[];
+  kept.forEach(function(s){
+    if(s.libre || s.theme==='gastronomie'){ dedup.push(s); return; }
+    var di=-1; for(var j=0;j<dedup.length;j++){ var k=dedup[j]; if(k.libre||k.theme==='gastronomie')continue; if(_sameLieu(k,s)){ di=j; break; } }
+    if(di<0){ dedup.push(s); return; }
+    if(_sc(s) > _sc(dedup[di])){ dedup[di]=s; }                                              // garder la mieux décrite / la plus notable
+  });
+  day.steps=dedup;
+  // (f) RE-BUDGET : les durées corrigées ALLONGENT la journée (un musée 30 min -> 2h). On borne le total d'activités pour
+  // que recomposeDay ne déborde PAS dans la nuit (dîner 20h, fin ≤ ~22h30). Les étapes qui ne rentrent plus sont RETIRÉES
+  // (jamais poussées la nuit), en coupant les MOINS importantes (comblage / faible notoriété / hors-thème) — JAMAIS un
+  // musée / monument majeur. Résultat : une journée « 11 étapes expédiées » devient ~6-8 VRAIES étapes bien minutées.
+  var _START=8*60+30, _DINNER=20*60, _LUNCH=90, _RESERVE=60;                                  // fenêtre matin->dîner - déjeuner - marge trajets
+  var _ACT_BUDGET=_DINNER-_START-_LUNCH-_RESERVE;                                             // ≈ 540 min d'activités avant le dîner
+  var _themes=(ctx&&ctx.themes)||[];
+  function _majorLieu(s){ return !!s.notable || (s.imp||0)>=0.8 || /mus[eé]e|museum|monument|palais|palace|ch[âa]teau|castle|cath[ée]drale|basilique|abbaye/i.test((s.nom||'')+' '+(s.cat||'')); }
+  function _trimScore(s){ return (_majorLieu(s)?1000:0)+(_themes.indexOf(s.theme)>=0?60:0)+(s._incontournable?40:0)+(s.imp||0)*10+(s.duree||0)/1000; } // plus BAS = coupé en premier
+  function _actMin(arr){ var m=0; arr.forEach(function(s){ if(s&&!s.libre&&s.theme!=='gastronomie'&&!s.openEnd) m+=(s.duree||0); }); return m; }
+  var _cut=function(){ return day.steps.filter(function(s){return s&&!s.libre&&s.theme!=='gastronomie'&&!s.openEnd&&!s._footing;}); };
+  var _guard=0;
+  while(_actMin(day.steps)>_ACT_BUDGET && _cut().length>1 && _guard++<50){
+    var pool=_cut(), worst=pool[0]; for(var q=1;q<pool.length;q++){ if(_trimScore(pool[q])<_trimScore(worst)) worst=pool[q]; } // la moins importante
+    day.steps=day.steps.filter(function(s){return s!==worst;});
+  }
+  return day;
+}
 // ===== PASSE DE COHÉRENCE UNIQUE (finalizeDay) =====
 // UN seul point de passage, appelé juste avant le rendu, qui DÉTECTE et RÉPARE les incohérences d'un jour
 // (répétitions, temps libre injustifié, description ≠ type, alternatives vides, dîner trop tôt). Toute règle de
@@ -2828,6 +2917,10 @@ function finalizeDay(day, ctx){
       }
     }
   }
+  // ===== NORMALISATION PAR LIEU (durée canonique, cinéma, pouvoir, doublon) — AVANT recomposeDay =====
+  // Point de convergence unique : recompute durée par catégorie sur l'objet ré-enrichi (musée/monument = 2h toujours,
+  // quelle que soit la porte). recomposeDay reséquence ENSUITE les horaires sur ces durées correctes.
+  normalizeSteps(day, ctx);
   // ===== RECONSTRUCTION PROPRE FINALE (clamp ville + chaîne + repas + horaires séquentiels + tri chrono) =====
   recomposeDay(day, ctx);
   // LABEL DU JOUR = le POI le PLUS NOTABLE réellement présent dans l'itinéraire (notoriété Wikidata : importance +
