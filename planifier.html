@@ -1079,6 +1079,7 @@ body.gate-mode { background: transparent; }
 
 .iv-hint { font-size: 0.82rem; color: var(--gris); margin: -4px 0 18px; line-height: 1.5; }
 .iv-hint b { color: var(--or); font-weight: 600; }
+.iv-raccourci { font-size: 0.9rem; color: var(--encre, #2b2b2b); background: rgba(198,164,92,0.10); border-left: 3px solid var(--or); border-radius: 6px; padding: 10px 14px; margin: 0 0 14px; line-height: 1.5; }
 
 /* Two columns */
 .iv-layout { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); gap: 28px; align-items: start; }
@@ -1445,8 +1446,9 @@ const EXTRA_CATS='entertainment.bowling_alley,entertainment.miniature_golf,enter
 const WATER_CATS='waterway,maritime.marina,man_made.pier';
 const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, mini-golf, parc à thème, escape game, arcade, voie d'eau, marina, jetée. SEULE la pêche reste exclue.
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
+let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v202'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v203'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2016,14 +2018,14 @@ async function curateCands(cands,themesLab){
   return Object.keys(out).length?out:cands;
 }
 // ===== ZONAGE : construit la journée autour d'un ancrage (bulle marchable + saut voiture limité) =====
-function buildDayAround(center,all,themes,used,usedKinds){
+function buildDayAround(center,all,themes,used,usedKinds,isUsed){
   // RAYON MARCHABLE ADAPTATIF À LA DENSITÉ : on prend le rayon qui capte ~10 lieux autour de l'ancre, borné 1,5–3 km.
   // Ville dense (Paris/Bangkok) -> ~1,5 km (étapes serrées) ; zone clairsemée (Carcassonne/Annecy) -> jusqu'à 3 km.
   const _ds=all.filter(c=>themes.includes(c.theme)||c.theme==='gastronomie').map(c=>hav(center.lat,center.lng,c.lat,c.lng)).sort((a,b)=>a-b);
   const WALK=Math.max(1.1,Math.min(3.0, _ds[9]!=null?_ds[9]:2.0)); const cands={}; // plancher 1,1 km : en ville DENSE la journée se ramasse sur un vrai quartier ; les zones clairsemées gardent une bulle plus large (auto, via la distance au 10e lieu)
   const blockBike=usedKinds&&usedKinds.has('velo');
   const blockFit=usedKinds&&usedKinds.has('fitness'); // 1 salle de fitness max sur le séjour, pas tous les jours
-  const add=(c)=>{if(!c||used.has(_norm(c.nom)))return;if(blockBike&&BIKE.test(c.nom))return;if(blockFit&&FIT_RE.test(c.nom))return;var _sk=actKind(c);if(_sk&&usedKinds&&usedKinds.has(_sk))return;/* variété inter-jours : pas 2 fois le même type de sport (golf, tennis…) */if((cands[c.theme]||[]).some(o=>_norm(o.nom)===_norm(c.nom)))return;(cands[c.theme]=cands[c.theme]||[]).push(c);};
+  const add=(c)=>{if(!c||(isUsed?isUsed(c):used.has(_norm(c.nom))))return;if(blockBike&&BIKE.test(c.nom))return;if(blockFit&&FIT_RE.test(c.nom))return;var _sk=actKind(c);if(_sk&&usedKinds&&usedKinds.has(_sk))return;/* variété inter-jours : pas 2 fois le même type de sport (golf, tennis…) */if((cands[c.theme]||[]).some(o=>_norm(o.nom)===_norm(c.nom)))return;(cands[c.theme]=cands[c.theme]||[]).push(c);};
   const near=(arr)=>arr.map(c=>Object.assign({},c,{d:hav(center.lat,center.lng,c.lat,c.lng)}));
   // activités des thèmes choisis, À PIED autour de l'ancrage (qualité d'abord)
   themes.forEach(th=>{near(all.filter(c=>c.theme===th&&!used.has(_norm(c.nom)))).filter(c=>c.d<=WALK).sort((a,b)=>b.score-a.score||a.d-b.d).slice(0,8).forEach(add);});
@@ -2039,11 +2041,17 @@ function buildDayAround(center,all,themes,used,usedKinds){
   let actCount=themes.reduce((n,th)=>n+((cands[th]||[]).length),0);
   if(actCount<DAY_MIN_ACT){
     const have=new Set();themes.forEach(th=>(cands[th]||[]).forEach(c=>have.add(_norm(c.nom))));
-    const extra=all.filter(c=>themes.includes(c.theme)&&!used.has(_norm(c.nom))&&!have.has(_norm(c.nom)))
-      .map(c=>Object.assign({},c,{d:hav(center.lat,center.lng,c.lat,c.lng)}))
-      .filter(c=>c.d>WALK&&c.d<=CARHOP_KM)
-      .sort((a,b)=>(b.score-b.d*0.15)-(a.score-a.d*0.15));
-    for(const c of extra){if(actCount>=DAY_MIN_ACT)break;add(Object.assign({},c,{carhop:true}));actCount++;}
+    // ÉLARGISSEMENT RÉGION PROGRESSIF (villes pauvres) : on puise PLUSIEURS POI région, d'abord ≤ CARHOP_KM puis
+    // jusqu'à ≤ REGION_KM tant que la journée reste trop pauvre — pour NOURRIR le jour (≥ DAY_MIN_ACT activités) au
+    // lieu d'UNE seule excursion. On n'incrémente que sur un VRAI ajout (add durci peut refuser un variant déjà servi).
+    [CARHOP_KM, REGION_KM].forEach(function(R){
+      if(actCount>=DAY_MIN_ACT)return;
+      const extra=all.filter(c=>themes.includes(c.theme)&&!(isUsed?isUsed(c):used.has(_norm(c.nom)))&&!have.has(_norm(c.nom)))
+        .map(c=>Object.assign({},c,{d:hav(center.lat,center.lng,c.lat,c.lng)}))
+        .filter(c=>c.d>WALK&&c.d<=R)
+        .sort((a,b)=>(b.score-b.d*0.15)-(a.score-a.d*0.15));
+      for(const c of extra){if(actCount>=DAY_MIN_ACT)break;var _b4=(cands[c.theme]||[]).length;add(Object.assign({},c,{carhop:true}));if((cands[c.theme]||[]).length>_b4){have.add(_norm(c.nom));actCount++;}}
+    });
   }
   Object.keys(cands).forEach(k=>cands[k]=cands[k].sort((a,b)=>(hav(center.lat,center.lng,a.lat,a.lng)-hav(center.lat,center.lng,b.lat,b.lng))||(b.score-a.score)));
   return cands;
@@ -2563,13 +2571,13 @@ function _orderDaysByRichness(days){
 // séquentiels le long de la chaîne + comblage (double borne) du trou avant le dîner, sinon temps libre honnête. Puis tri.
 function recomposeDay(day, ctx){
   if(!day || !Array.isArray(day.steps)) return day;
-  var center=ctx&&ctx.center, bubble=(ctx&&ctx.bubble)||2.5, all=(ctx&&ctx.all)||[], localLM=(day.localLM&&day.localLM.length)?day.localLM:all, destCity=(ctx&&ctx.destCity)?_norm(ctx.destCity):'', _F=(typeof fmtH==='function');
-  function inZone(lat,lng,adr){
-    if(lat==null||lng==null) return true;
-    if(center && hav(center.lat,center.lng,lat,lng)>bubble) return false;
-    if(destCity && adr){ var a=_norm(adr); if(a.indexOf(destCity)<0){ var m=String(adr).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); if(m&&_norm(m[1])&&_norm(m[1])!==destCity) return false; } }
-    return true;
-  }
+  // JOUR-EXCURSION (ville pauvre, ancre hors-cœur) : la journée est ÉTALÉE sur la région (site à X km + repas en ville).
+  // On élargit alors la bulle à REGION_KM pour NE PAS clamper les étapes-excursion légitimes. Paris (dense) : jamais
+  // d'excursion -> bulle normale, snapshot intact.
+  var center=ctx&&ctx.center, bubble=(ctx&&ctx.excursion)?(typeof REGION_KM!=='undefined'?REGION_KM:35):((ctx&&ctx.bubble)||2.5), all=(ctx&&ctx.all)||[], localLM=(day.localLM&&day.localLM.length)?day.localLM:all, destCity=(ctx&&ctx.destCity)?_norm(ctx.destCity):'', _F=(typeof fmtH==='function');
+  function _inCity(adr){ if(!destCity || !adr) return true; var a=_norm(adr); if(a.indexOf(destCity)>=0) return true; var m=String(adr).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); return !(m&&_norm(m[1])&&_norm(m[1])!==destCity); }
+  function _inBubble(lat,lng){ if(lat==null||lng==null) return true; return !(center && hav(center.lat,center.lng,lat,lng)>bubble); }
+  function inZone(lat,lng,adr){ return _inBubble(lat,lng) && _inCity(adr); }
   function _tr(a,b){ if(!a||!b||a.lat==null||b.lat==null) return 0; return Math.max(5,Math.round(hav(a.lat,a.lng,b.lat,b.lng)*1000/75)); } // marche ~75 m/min
   function _dur(s){ return (typeof s.duree==='number'&&s.duree>0)?s.duree:(typeof dureeHint==='function'?dureeHint(s):60); }
   function isDin(s){ return s.theme==='gastronomie' && /d[îi]ner/i.test(s.titre||''); }
@@ -2579,7 +2587,10 @@ function recomposeDay(day, ctx){
   var lunch=null,dinner=null,evening=null,acts=[];
   day.steps.forEach(function(s){
     if(!s || s.libre) return;
-    if(!inZone(s.lat,s.lng,s.adresse)) return;         // hors ville / hors bulle -> retiré (repas compris)
+    if(!s.carhop){
+      if(!_inCity(s.adresse)) return;                     // HORS-VILLE -> retiré (repas COMPRIS : « Le Kanoun à Charenton »)
+      if(!isMeal(s) && !_inBubble(s.lat,s.lng)) return;    // activité hors bulle -> retirée. REPAS exemptés de la bulle : on mange EN VILLE (parfois loin d'une ancre-excursion, mais en ville = légitime). Paris dense : repas près de l'ancre -> aucun effet.
+    } // carhop = excursion voiture LÉGITIME (ville pauvre) : jamais clampé
     if(isDin(s)){ if(!dinner)dinner=s; return; }
     if(isLun(s)){ if(!lunch)lunch=s; return; }
     if(s.openEnd){ if(!evening)evening=s; return; }     // sortie du soir -> après le dîner
@@ -2840,10 +2851,26 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     const _QR=0.6; let _maxA=0;
     all.forEach(function(c){ if(!themes.includes(c.theme))return; var T=0; for(var k=0;k<all.length;k++){var a=all[k];if(themes.includes(a.theme)&&!(a.theme==='gastronomie'&&!a.foodExp)&&hav(c.lat,c.lng,a.lat,a.lng)<=_QR)T++;} c._T=T; c._A=ambianceAt(c.lat,c.lng,_QR); if(c._A>_maxA)_maxA=c._A; }); // GASTRO : la densité du thème compte les foodExp (marchés/caves/glaciers/commerces de bouche), PAS les restos (= repas, partout) -> un quartier foodie, pas une zone à restos
     all.forEach(function(c){ if(c._A!=null){var An=_maxA>0?c._A/_maxA:0; c._q=c._T*(An+0.3);} }); // A normalisé PAR VILLE ; +0.3 pour que la densité du thème compte aussi (thèmes de destination où A≈0 partout)
-    DAYS=[];const used=new Set();const usedKinds=new Set();const usedZones=[];const usedQuartiers=new Set();const usedLandmarks=new Set();const usedShow={cabaret:0,concert:0,theatre:0,footing:0}; // plafonds À 1 PAR SÉJOUR (sans base d'événements)
+    DAYS=[];RACCOURCI_MSG='';const used=new Set();const usedPlaces=[];const usedKinds=new Set();const usedZones=[];const usedQuartiers=new Set();const usedLandmarks=new Set();const usedShow={cabaret:0,concert:0,theatre:0,footing:0}; // plafonds À 1 PAR SÉJOUR (sans base d'événements)
+    // DÉDUP INTER-JOURS ROBUSTE AUX VARIANTES : un lieu utilisé un jour ne revient JAMAIS un autre, même sous un nom
+    // différent. Identité = nom exact OU co-localisation (<180 m) OU tokens-cœur communs (« Canal du Midi » / « Le Canal
+    // du Midi ») OU même QID. (En ville dense (Paris) : lieux distincts, loin, tokens uniques -> se comporte comme le nom
+    // exact, ZÉRO changement — cf. tests/paris-snapshot.js.)
+    function _qidOf(x){ return (x&&(x.qid||(x.tags&&x.tags.wikidata_qid)||(x._c&&x._c.tags&&x._c.tags.wikidata_qid)))||''; }
+    function _usedAlready(x){
+      if(!x) return false;
+      var n=_norm(x.nom||''); if(n && used.has(n)) return true;
+      var xq=_qidOf(x);
+      for(var _u=0;_u<usedPlaces.length;_u++){var up=usedPlaces[_u];
+        if(xq && up.qid && xq===up.qid) return true;
+        if(x.lat!=null && up.lat!=null && hav(up.lat,up.lng,x.lat,x.lng)<0.18) return true; // co-localisé <180 m = même lieu
+        if(sharesBrand(x.nom||'', up.nom||'', dest)) return true;                            // tokens-cœur communs = variante de nom
+      }
+      return false;
+    }
     const SPREAD_KM=2.5; // étalement inter-jours (grande ville) ; partagé par pickAnchor ET le contrôle de distance du quartier LLM. Repli à 1,2 km pour les petites villes (dans pickAnchor).
     function pickAnchor(extra){
-      function elig(minT,maxD,minSp){var _sp=(minSp==null?1.2:minSp);return all.filter(c=>themes.includes(c.theme)&&c._T>=minT&&!used.has(_norm(c.nom))&&!(extra&&extra.has(_norm(c.nom)))&&usedZones.every(z=>hav(z.lat,z.lng,c.lat,c.lng)>_sp)&&!Array.from(used).some(u=>sameKind(c.nom,u,dest))&&(maxD==null||(c.distKm!=null?c.distKm:hav(dc.lat,dc.lng,c.lat,c.lng))<=maxD));}
+      function elig(minT,maxD,minSp){var _sp=(minSp==null?1.2:minSp);return all.filter(c=>themes.includes(c.theme)&&c._T>=minT&&!_usedAlready(c)&&!(extra&&extra.has(_norm(c.nom)))&&usedZones.every(z=>hav(z.lat,z.lng,c.lat,c.lng)>_sp)&&!Array.from(used).some(u=>sameKind(c.nom,u,dest))&&(maxD==null||(c.distKm!=null?c.distKm:hav(dc.lat,dc.lng,c.lat,c.lng))<=maxD));}
       // PRÉFÉRER LE CŒUR : ancres intra-cœur (≤ CORE_KM) d'abord ; ancre LOINTAINE (banlieue/excursion) seulement si le cœur est ÉPUISÉ pour ce thème (grande ville -> jamais la banlieue ; petite ville -> excursion quand l'intra-muros est à court)
       // ÉTALEMENT : on préfère un quartier ≥ SPREAD_KM des jours précédents (grande ville -> Marais/Montmartre/Quartier latin, pas 3× le centre) ; repli à 1,2 km si la ville est trop petite pour étaler. (SPREAD_KM défini au scope de la boucle, partagé avec le contrôle LLM.)
       // RÈGLE QUARTIER : on EXIGE ≥ 2 POI du thème dans la zone (c'est ce qui définit un quartier « du thème »), priorité ABSOLUE sur l'étalement et la distance. On essaie donc TOUS les niveaux à _T≥2 d'abord (cœur+étalé -> cœur -> excursion), et seulement en TOUT DERNIER recours un quartier pauvre (_T<2). -> évite d'ancrer une journée « sport » dans un quartier à 1 seul lieu (cause des 4h de temps libre).
@@ -2954,7 +2981,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       const excursion=anchor.distKm>7 && !bigCity; // EXCURSION (bandeau voiture) seulement en PETITE ville pour un quartier éloigné (Carcassonne) — jamais en métropole (un quartier « à 8 km » dans Paris = géocodage foireux, déjà rejeté en amont)
       usedQuartiers.add(quartier);
       log('Jour '+(i+1)+' · '+quartier+(excursion?' — excursion ~'+Math.round(anchor.distKm)+' km (voiture)':'')+' · ancrage : '+anchor.nom);
-      let cands=buildDayAround(center,all,themes,used,usedKinds);
+      let cands=buildDayAround(center,all,themes,used,usedKinds,_usedAlready);
       const nbBrut=Object.values(cands).reduce((a,b)=>a+b.length,0);
       log('  · curateur qualité (LLM) sur '+nbBrut+' lieux…');
       cands=await curateCands(cands,themes.map(t=>THEME_LABEL[t]).join(' + '));
@@ -2968,7 +2995,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       while(distinctMin()<MINFILL && added<3 && !bigCity){ // MÉTROPOLE : pas d'activité voiture de remplissage (fini le trek 8 km au Bois pour un footing) -> journée plus courte assumée. PETITE VILLE : on garde (canoë/accro à 15 km légitimes).
         let far=null;
         for(const R of [5,10,20]){
-          far=all.filter(c=>themes.includes(c.theme)&&!used.has(_norm(c.nom))&&!taken.has(_norm(c.nom))&&!Array.from(used).some(u=>sameKind(c.nom,u,dest)))
+          far=all.filter(c=>themes.includes(c.theme)&&!_usedAlready(c)&&!taken.has(_norm(c.nom))&&!Array.from(used).some(u=>sameKind(c.nom,u,dest)))
             .map(c=>Object.assign({},c,{d:hav(center.lat,center.lng,c.lat,c.lng)}))
             .filter(c=>c.d>1.3&&c.d<=R)
             .sort((a,b)=>(b.score+(EXPERIENCE.test(b.nom)?2:0))-(a.score+(EXPERIENCE.test(a.nom)?2:0)))[0];
@@ -3005,7 +3032,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(_dayLM&&_dayLM.length){
         var _exIco=new Set(actsArr.concat(mealsArr).map(x=>_norm(x.nom)));
         var _poolIco=_dayLM.map(L=>Object.assign({},L,{d:hav(center.lat,center.lng,L.lat,L.lng)}))
-          .filter(L=>L.notable && !themes.includes(L.theme) && L.theme!=='gastronomie' && L.theme!=='festif' && !/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall|\bpost\b|\bposte\b/i.test(L.nom||'') && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((L.cat||'')+' '+(L.nom||'')) && !_exIco.has(_norm(L.nom)) && !used.has(_norm(L.nom)) && !usedLandmarks.has(_norm(L.nom))) // INCONTOURNABLES = NOTABLES uniquement (les non-notables servent au comblage, pas aux highlights)
+          .filter(L=>L.notable && !themes.includes(L.theme) && L.theme!=='gastronomie' && L.theme!=='festif' && !/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall|\bpost\b|\bposte\b/i.test(L.nom||'') && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((L.cat||'')+' '+(L.nom||'')) && !_exIco.has(_norm(L.nom)) && !_usedAlready(L) && !usedLandmarks.has(_norm(L.nom))) // INCONTOURNABLES = NOTABLES uniquement (les non-notables servent au comblage, pas aux highlights)
           .sort((a,b)=>(b.score-a.score)||(a.d-b.d));
         var _icos=[]; for(var _pq=0;_pq<_poolIco.length&&_icos.length<2;_pq++){var _Lq=_poolIco[_pq];if(_Lq.d>1.2)continue;if(_icos.some(function(ic){return hav(ic.lat,ic.lng,_Lq.lat,_Lq.lng)<0.12;}))continue;_icos.push(_Lq);} // 1 à 2 incontournables (~15 min) — ANTI-DOUBLON par PROXIMITÉ : jamais deux icônes au même endroit (ex. « Dôme du Sacré-Cœur » + « Basilique du Sacré-Cœur »)
         if(!_icos.length){for(var _pr=0;_pr<_poolIco.length&&_icos.length<1;_pr++){if(_poolIco[_pr].d<=2.0){_icos.push(_poolIco[_pr]);}}} // repli VILLE SECONDAIRE / quartier clairsemé : 1 icône jusqu'à ~2 km
@@ -3029,8 +3056,8 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         var dispo=gpool.filter(g=>!gch.has(_norm(g.nom))).length;
         if(mealsArr.length+dispo<2){ // bulle insuffisante -> on pioche dans toute la ville en PRIVILÉGIANT LA PROXIMITÉ (un repas ne justifie pas 3 km de voiture)
           var _gall=all.filter(c=>c.theme==='gastronomie'&&!c.foodExp).map(c=>Object.assign({},c,{d:hav(center.lat,center.lng,c.lat,c.lng)})).sort((a,b)=>(b.score-b.d*0.9)-(a.score-a.d*0.9)); // repas = restaurants uniquement (hors foodExp)
-          gpool=gpool.concat(_gall.filter(c=>!used.has(_norm(c.nom)))); // d'abord les restos PAS déjà servis un autre jour (anti-répétition inter-jours)
-          gpool=gpool.concat(_gall.filter(c=>used.has(_norm(c.nom)))); // filet ultime : plutôt réemployer un resto que finir la journée sans repas
+          gpool=gpool.concat(_gall.filter(c=>!_usedAlready(c))); // restos PAS déjà servis un autre jour (identité robuste aux variantes)
+          // FILET DE RÉUTILISATION SUPPRIMÉ (brief villes pauvres) : en ville pauvre, mieux vaut RACCOURCIR/assumer un creux que répéter un resto d'un autre jour.
         }
         for(var gi=0;gi<gpool.length && mealsArr.length<2;gi++){var g=gpool[gi];if(gch.has(_norm(g.nom)))continue;gch.add(_norm(g.nom));mealsArr.push(Object.assign({},g,{_c:g,theme:'gastronomie',titre:mealsArr.length===0?'Déjeuner gourmand':'Dîner du soir',texte:_mealTxt(g.nom,mealsArr.length===0?'déjeuner':'dîner')}));}
       }
@@ -3047,7 +3074,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var COMPACT=Math.min(BUBBLE,1.2); // rayon SERRÉ pour les icônes/comblage HORS-THÈME en ville dense : un « à voir » doit être SUR le chemin (≤ ~1,2 km), pas une destination de l'autre bout/de l'autre rive. Les activités DU THÈME gardent la bulle.
       // COMBLER PLUTÔT QUE LAISSER « TEMPS LIBRE » : si le thème est épuisé dans le quartier, on remplit avec les ICÔNES hors-thème du secteur (culture/urbain/nature notables) — placées APRÈS le vivier thème, donc le thème reste prioritaire.
       var _offThemes=['culture','nature','urbain','bienetre'].filter(function(t){return !themes.includes(t);});
-      var _offFill=(_dayLM||[]).filter(function(c){return _offThemes.indexOf(c.theme)>=0 && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')) && !/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall/i.test(c.nom||'') && !chosenNoms.has(_norm(c.nom)) && !usedLandmarks.has(_norm(c.nom)) && !used.has(_norm(c.nom)) && hav(center.lat,center.lng,c.lat,c.lng)<=BUBBLE;}) // COMBLAGE LARGE : TOUS les POI culture/nature/urbain du quartier (notables ET non-notables) dans le rayon marchable -> le temps libre devient un vrai dernier recours
+      var _offFill=(_dayLM||[]).filter(function(c){return _offThemes.indexOf(c.theme)>=0 && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')) && !/mairie|h[ôo]tel de ville|pr[ée]fecture|town ?hall|city ?hall/i.test(c.nom||'') && !chosenNoms.has(_norm(c.nom)) && !usedLandmarks.has(_norm(c.nom)) && !_usedAlready(c) && hav(center.lat,center.lng,c.lat,c.lng)<=BUBBLE;}) // COMBLAGE LARGE : TOUS les POI culture/nature/urbain du quartier (notables ET non-notables) dans le rayon marchable -> le temps libre devient un vrai dernier recours
         .map(function(c){var _ct=c.cat||'un lieu emblématique';var _t=_latinTitle(c.nom,_ct);var _cv=[_cap(_ct)+' du quartier, à découvrir au fil de la marche.','Sur le chemin : '+_ct+' du secteur, à voir en flânant.',_cap(_ct)+' à voir en passant dans le quartier.'];return Object.assign({},c,{_c:c,carhop:false,periph:false,_d:hav(center.lat,center.lng,c.lat,c.lng),titre:_t,texte:_sensitive(c.nom,_ct)?_graveTxt(_t):(c.extract?c.extract:_vari(c.nom,_cv))});}) // COMBLAGE aligné sur l'incontournable : titre lisible (nom si latin, sinon type FR ; pin garde le vrai nom), ton grave sur un lieu de mémoire, sinon 2-3 variantes par type (anti-monotonie, choix par nom)
         .sort(function(a,b){return ((b.notable?1:0)-(a.notable?1:0))||(b.score-a.score);});
       poolActs=poolActs.concat(_offFill);
@@ -3064,7 +3091,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var _ev=_fam?[]:actsArr.filter(isEveningFestif);
       if(themes.includes('festif') && !_fam){ // GARANTIR une sortie du soir : on puise aussi dans le vivier festif local (bars/clubs OSM), pas seulement dans les lieux choisis par le LLM
         (cands.festif||[]).forEach(function(c){var x=Object.assign({},c,{theme:'festif',_c:c});
-          if(isEveningFestif(x) && !_ev.some(function(e){return _norm(e.nom)===_norm(c.nom);}) && !used.has(_norm(c.nom)) && hav(center.lat,center.lng,c.lat,c.lng)<=BUBBLE) _ev.push(x);}); // sortie du soir = bar du vivier LOCAL, À PIED (bulle marchable). Jamais un taxi à l'autre bout : si aucun bar dans la bulle, c'est le QUARTIER festif qui est mal choisi (à corriger par l'ancrage festif), pas une raison de faire 8 km.
+          if(isEveningFestif(x) && !_ev.some(function(e){return _norm(e.nom)===_norm(c.nom);}) && !_usedAlready(c) && hav(center.lat,center.lng,c.lat,c.lng)<=BUBBLE) _ev.push(x);}); // sortie du soir = bar du vivier LOCAL, À PIED (bulle marchable). Jamais un taxi à l'autre bout : si aucun bar dans la bulle, c'est le QUARTIER festif qui est mal choisi (à corriger par l'ancrage festif), pas une raison de faire 8 km.
       }
       var evening=_fam?null:(_ev.filter(function(c){return _venueType(c)==='bar';}).sort(function(a,b){return (b.score||0)-(a.score||0);})[0]||null);
       if(!evening && !_fam){ // pas de bar/club -> cabaret puis salle de concert, chacun plafonné à 1 sur le séjour
@@ -3146,8 +3173,8 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         if(!dayActs.length||!mealsArr[0])return;
         var midA=dayActs[Math.min(2,dayActs.length-1)],lo=budget==='économique'?1:budget==='premium'?3:2,hi=lo+1,dinNom=mealsArr[1]?_norm(mealsArr[1].nom):'';
         if(hav(midA.lat,midA.lng,mealsArr[0].lat,mealsArr[0].lng)<=1.3)return; // déjeuner déjà proche du matin -> on ne touche pas
-        function pickL(R){return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!used.has(_norm(c.nom))&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(midA.lat,midA.lng,c.lat,c.lng)<=R;}).sort(function(a,b){return ((b.score||0)-hav(midA.lat,midA.lng,b.lat,b.lng)*3)-((a.score||0)-hav(midA.lat,midA.lng,a.lat,a.lng)*3);})[0];} // PROXIMITÉ prime (compromis qualité/distance) -> le bon resto le plus proche des activités du matin
-        function pickLNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!used.has(_norm(c.nom))&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return Object.assign({},c,{_dd:hav(midA.lat,midA.lng,c.lat,c.lng)});}).sort(function(a,b){return a._dd-b._dd;})[0];} // FILET PROXIMITÉ : déjeuner le PLUS PROCHE du matin en élargissant d'UN cran (±1) si rien EN BUDGET dans 2 km
+        function pickL(R){return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(midA.lat,midA.lng,c.lat,c.lng)<=R;}).sort(function(a,b){return ((b.score||0)-hav(midA.lat,midA.lng,b.lat,b.lng)*3)-((a.score||0)-hav(midA.lat,midA.lng,a.lat,a.lng)*3);})[0];} // PROXIMITÉ prime (compromis qualité/distance) -> le bon resto le plus proche des activités du matin
+        function pickLNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return Object.assign({},c,{_dd:hav(midA.lat,midA.lng,c.lat,c.lng)});}).sort(function(a,b){return a._dd-b._dd;})[0];} // FILET PROXIMITÉ : déjeuner le PLUS PROCHE du matin en élargissant d'UN cran (±1) si rien EN BUDGET dans 2 km
         var cl=pickL(1.0)||pickL(1.5)||pickL(2.0)||pickLNear();
         if(cl) mealsArr[0]=Object.assign({},cl,{_c:cl,theme:'gastronomie',titre:'Déjeuner',texte:_mealTxt(cl.nom,'déjeuner')});
       })();
@@ -3158,14 +3185,14 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         var curD=hav(last.lat,last.lng,mealsArr[1].lat,mealsArr[1].lng);
         if(curD<=1.3)return; // dîner déjà proche de la fin de journée -> on ne touche pas
         // sinon : on cherche le MEILLEUR resto DANS UN RAYON SERRÉ de la dernière étape (la proximité prime sur la notoriété — fini le resto célèbre à l'autre bout)
-        function pick(R){return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!used.has(_norm(c.nom))&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(last.lat,last.lng,c.lat,c.lng)<=R;}).sort(function(a,b){return ((b.score||0)-hav(last.lat,last.lng,b.lat,b.lng)*3)-((a.score||0)-hav(last.lat,last.lng,a.lat,a.lng)*3);})[0];} // PROXIMITÉ prime : compromis qualité/distance fortement pondéré par la distance -> le bon resto le PLUS PROCHE, fini le resto célèbre à l'autre bout du rayon
-        function pickNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!used.has(_norm(c.nom))&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return Object.assign({},c,{_dd:hav(last.lat,last.lng,c.lat,c.lng)});}).sort(function(a,b){return a._dd-b._dd;})[0];} // FILET PROXIMITÉ : aucun resto EN BUDGET dans 2 km -> on prend le PLUS PROCHE en élargissant d'UN cran de prix (±1) ; mieux vaut un resto à côté à 1 cran d'écart qu'un « dans la gamme » à 2,6 km. Les ACTIVITÉS gardent le budget strict.
+        function pick(R){return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(last.lat,last.lng,c.lat,c.lng)<=R;}).sort(function(a,b){return ((b.score||0)-hav(last.lat,last.lng,b.lat,b.lng)*3)-((a.score||0)-hav(last.lat,last.lng,a.lat,a.lng)*3);})[0];} // PROXIMITÉ prime : compromis qualité/distance fortement pondéré par la distance -> le bon resto le PLUS PROCHE, fini le resto célèbre à l'autre bout du rayon
+        function pickNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return Object.assign({},c,{_dd:hav(last.lat,last.lng,c.lat,c.lng)});}).sort(function(a,b){return a._dd-b._dd;})[0];} // FILET PROXIMITÉ : aucun resto EN BUDGET dans 2 km -> on prend le PLUS PROCHE en élargissant d'UN cran de prix (±1) ; mieux vaut un resto à côté à 1 cran d'écart qu'un « dans la gamme » à 2,6 km. Les ACTIVITÉS gardent le budget strict.
         var cand=pick(1.0)||pick(1.5)||pick(2.0)||pickNear();
         if(cand) mealsArr[1]=Object.assign({},cand,{_c:cand,theme:'gastronomie',titre:'Dîner',texte:_mealTxt(cand.nom,'dîner')});
       })();
       steps=planDay(dayActs,mealsArr[0]||null,mealsArr[1]||null,evening); // CADRE DUR : journée bornée, pas de débordement nocturne
       // ALTERNATIVES DE REPAS : pour chaque repas, 2 autres adresses DU MÊME RAYON, mélange de gammes (gamme cible + 1 cran au-dessus, le plus cher en tête des alternatives)
-      (function(){var lo=budget==='économique'?1:budget==='premium'?3:2,hi=lo+1;var gp=all.filter(c=>c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!used.has(_norm(c.nom))); // ALTERNATIVES de REPAS = vrais restaurants uniquement (hors foodExp), déjà filtré budget, SANS chaînes ni noms génériques, jamais un resto déjà servi un autre jour
+      (function(){var lo=budget==='économique'?1:budget==='premium'?3:2,hi=lo+1;var gp=all.filter(c=>c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)); // ALTERNATIVES de REPAS = vrais restaurants uniquement (hors foodExp), déjà filtré budget, SANS chaînes ni noms génériques, jamais un resto déjà servi un autre jour
         var _gd=gp.map(c=>hav(center.lat,center.lng,c.lat,c.lng)).sort((a,b)=>a-b);var altR=Math.max(1.2,Math.min(2.5,_gd[5]!=null?_gd[5]:2.5)); // rayon alternatives ADAPTATIF : ~1,2 km en ville dense, jusqu'à 2,5 km en petite ville
         var usedM=new Set(steps.filter(x=>x.theme==='gastronomie').map(x=>_norm(x.nom)));
         steps.forEach(function(s){if(s.theme!=='gastronomie')return;
@@ -3207,15 +3234,29 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       steps=withFree;
       steps.forEach(s=>{var _k=actKind(s._c||s);if(_k)usedKinds.add(_k);s.adresse=(s._c&&s._c.address)||null;s.extract=(s._c&&s._c.extract)||null;s.image=(s._c&&s._c.image)||null;s.price=(s._c&&typeof s._c.price==='number'&&s._c.price>0)?s._c.price:null; // VAGUE 1 : porter extrait Wikipédia + image + PRIX sur l'étape (pour l'affichage — _c sera supprimé)
         if(!s.libre){var _jf=joursFermes(s.opening_hours||(s._c&&s._c.opening_hours)||null); if(_jf && (s.texte||'').indexOf('Fermé le')<0 && (s.texte||'').indexOf('Ouvert seulement')<0) s.texte=(s.texte?s.texte+' ':'')+_jf;} // NOTE HORAIRE (jour de fermeture OU ouverture limitée), si connu -> on prévient sans rejeter (pas de date réelle)
-        delete s._c;if(s.nom)used.add(_norm(s.nom||''));}); // variété inter-jours + on garde l'adresse réelle pour l'affichage
+        if(s.nom && !s.libre){used.add(_norm(s.nom||''));usedPlaces.push({nom:s.nom,lat:s.lat,lng:s.lng,qid:_qidOf(s)});} // DÉDUP inter-jours : nom + coords + QID (identité robuste aux variantes)
+        delete s._c;}); // variété inter-jours + on garde l'adresse réelle pour l'affichage
       if(steps.some(s=>BIKE.test(s.nom||'')))usedKinds.add('velo');
       if(steps.some(s=>FIT_RE.test(s.nom||'')))usedKinds.add('fitness');
       usedZones.push(center);
       var _day={num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM};
-      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used}); // PASSE DE COHÉRENCE (avant rendu)
-      DAYS.push(_day);
+      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used,excursion:excursion}); // PASSE DE COHÉRENCE (avant rendu)
+      // JAMAIS DE JOUR-CROUPION : un jour rendu doit avoir ≥ 4 vraies étapes (repas compris). Sinon, même après
+      // élargissement région, on ne le crée pas -> on RACCOURCIT honnêtement (2 beaux jours > 3 dont un croupion).
+      // On garde toujours ≥ 1 jour (sinon aucune sortie). Paris (dense) a toujours ≥ 4 étapes -> jamais concerné.
+      var _realN=(_day.steps||[]).filter(function(s){return s && !s.libre;}).length;
+      if(_realN>=4 || DAYS.length===0){ DAYS.push(_day); }
+      else { log('  · Jour '+(i+1)+' écarté ('+_realN+' vraies étapes < 4) — séjour raccourci plutôt qu\'un jour-croupion.',true); }
     }
     _orderDaysByRichness(DAYS); // (D) ORDRE DES JOURS : du plus riche au moins riche, Jour 1 = le plus fort (+ renumérotation)
+    // RACCOURCI HONNÊTE (ville pauvre) : si on a rendu MOINS de jours pleins que demandé (jours-croupion écartés),
+    // on l'assume par un message générique (aucun nom de ville en dur : on utilise la destination réelle `dest`).
+    // Ville dense (Paris…) : DAYS.length === duree -> message vide, aucun impact.
+    RACCOURCI_MSG='';
+    if(DAYS.length < duree){
+      var _nd=DAYS.length, _jrs=function(n){return n+(n>1?' journées':' journée');};
+      RACCOURCI_MSG='Pour ces thèmes, '+(dest||'cette destination')+' se savoure pleinement en '+_jrs(_nd)+' : on a préféré '+_jrs(_nd)+' bien remplies à '+duree+' étirées. Élargissez les thèmes ou allongez plus tard, une fois d’autres lieux ajoutés.';
+    }
     if(!DAYS.length)throw new Error('aucun lieu trouvé pour ces thèmes');
     log('Terminé ✔');
     return DAYS; // la belle UI prend le relais (adaptDayToJours + rendu iv*)
@@ -4075,12 +4116,20 @@ async function generer() {
     if (!themeKeys.length) throw new Error('Aucun thème valide sélectionné.');
     try { await loadMapboxGL(); } catch(e) {} // non bloquant : le moteur pose accessToken si dispo
     await buildDAYS(destination, duree, voyageCat, budgetCat, saison, themeKeys); // remplit la globale DAYS
+    // RACCOURCI HONNÊTE : le moteur a pu rendre MOINS de jours que demandé (ville pauvre). On s'aligne sur le
+    // nombre RÉEL de jours (jamais de tampon fantôme) et on regénère le compteur + l'intro en conséquence.
+    const realDuree = (typeof DAYS !== 'undefined' && DAYS.length) ? DAYS.length : duree;
+    if (realDuree !== duree) {
+      const t0 = document.querySelector('#result-tags .result-tag');
+      if (t0) t0.textContent = realDuree + (realDuree > 1 ? ' jours' : ' jour');
+      if (mode !== 'chemin') document.getElementById('result-intro').textContent = genererIntroEditoriale(destination, realDuree, themes, voyageCat);
+    }
     // Adaptation de TOUS les jours d'un coup (DAYS est déjà entièrement construit).
     joursData = {};
     (typeof DAYS !== 'undefined' ? DAYS : []).forEach(function(d){ adaptDayToJours(d); });
     clearInterval(loadingInterval);
     loadingState.classList.remove('visible');
-    await initJoursTabs(duree, destination, budgetCat, periode, styleLabel);
+    await initJoursTabs(realDuree, destination, budgetCat, periode, styleLabel);
     document.getElementById('result-wrap').classList.add('visible');
     document.getElementById('result-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
     setTimeout(sendHeight, 100);
@@ -4341,6 +4390,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   ).join('');
   container.innerHTML =
     `<div class="iv-daytabs">${tabsHtml}</div>`+
+    ((typeof RACCOURCI_MSG!=='undefined'&&RACCOURCI_MSG)?`<p class="iv-raccourci">${RACCOURCI_MSG}</p>`:``)+
     `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · `+APP_VERSION+`</span></p>`+
     `<div class="iv-layout">`+
       `<div class="iv-mapcol"><div class="iv-mapshell">`+
