@@ -2146,6 +2146,63 @@ var FIT_RE=/fitness|wellness|cross.?fit|musculation|basic.?fit|orange bleue|keep
 // retail piscine (magasins/installateurs) — pas des lieux d'activité, malgré le mot « piscine »
 var POOLSHOP_RE=/cash piscines|irrijardin|desjoyaux|waterair|piscines? cdo|techniques? piscines|solutions ?&?.*piscines|hydro ?sud|mondial piscine|magiline|tec-?magex|aquadis|excel piscines/i;
 function durLabel(m){if(m<60)return m+' min';var h=Math.floor(m/60),mm=m%60;return h+'h'+(mm?(mm<10?'0'+mm:mm):'');}
+// ===== kindOf(poi) — CLASSEMENT CANONIQUE PAR LIEU (le RÔLE), une seule fonction universelle =====
+// Décide le rôle par PRIORITÉ DE SIGNAL : (1) catégorie structurée (OSM/FSQ/DATAtourisme) ; (2) NOTORIÉTÉ (notable /
+// tags.importance = sitelinks Wikidata) comme indice de FORCE quand la catégorie est muette (un lieu très notable sans
+// catégorie = un grand site -> monument/musée) ; (3) le NOM en tout dernier recours (repli FR, jamais méthode principale).
+// La base ne stocke PAS le TYPE Wikidata (P31) -> ce signal n'existe pas côté page ; les cas catégorie+notoriété+nom tous
+// muets (« Moulin Rouge » nu) ne sont classables qu'au Worker. TOUTES les règles (durée/thème/exclusion/desc/filler) lisent kindOf.
+function _kindCat(poi){ return (((poi&&poi.category_src&&poi.category_src.join(' '))||(poi&&poi.catsrc)||(poi&&poi.cat)||'')+'').toLowerCase(); }
+function kindOf(poi){
+  if(!poi) return 'lieu';
+  var c=_kindCat(poi), n=(poi.name||poi.nom||''), nn=_norm(n), s=c+' '+nn;
+  var notable=!!poi.notable, imp=(poi.imp!=null?poi.imp:((poi.tags&&poi.tags.importance)||0));
+  // (1) CATÉGORIE structurée — signaux forts / exclusions d'abord
+  if(/entertainment\.cinema|\bcinema\b|multiplex|movie theater/.test(c)) return 'cinema';
+  if(_isPouvoir(c, n)) return 'pouvoir';
+  if(/entertainment\.(zoo|aquarium)|\bzoo\b|\baquarium\b|leisure\.playground|\bplayground\b|aire de jeux|jeux d.enfants/.test(s)) return 'enfant';
+  // SPORT (souvent mal catégorisé -> on teste cat ET nom : « Piscine Pailleron » sort en cat « un monument »)
+  if(/piscine|swimming|natation|aqualud|\btennis\b|\bpadel\b|\bsquash\b|escalade|climb|boulder|patinoire|\bskate\b|karting|trampolin|\bgolf\b|[eé]quitation|\bski\b|kayak|cano[ëe]|rafting|accrobranche|via.?ferrata|nautique|fitness|\bgym\b/.test(s)) return 'sport';
+  if(/leisure\.spa|service\.beauty\.spa|\bspa\b|thermes|thalasso|hammam|baln[ée]o/.test(s)) return 'spa';
+  if(/catering\.(restaurant|cafe|food_court)|\brestaurant\b|\bcaf[ée]\b|brasserie|bistro|pizzeria|trattoria|osteria|foodestablishment|steak.?house|\bbouillon\b/.test(c)) return 'restaurant';
+  if(/catering\.(bar|pub|biergarten)|\bbar\b|\bpub\b|taproom|\bcave\b.?[àa].?manger/.test(c)) return 'bar';
+  if(/catering\.ice_cream|marketplace|coveredmarket|\bmarket\b|food.?court|food.?hall|\bhalle\b|winery|production\.(winery|brewery|distillery)|greengrocer|bakery|p[âa]tisser|fromager|chocolat|[ée]picerie|delicatess|glacier/.test(s)) return 'foodshop';
+  if(/entertainment\.museum|\bmuseum\b|mus[ée]e|galerie d.art|art gallery|exhibition|\bexhibit\b/.test(c)) return 'museum';
+  // façade monumentale (on OBSERVE, ~40 min) AVANT le monument visitable. \barc de\b : borne de mot -> ne matche PAS « pARC DEs Buttes »
+  if(/\barc de\b|triomphe|porte (de )?saint|porte st[- ]|ob[ée]lisque|obelisk|\bcolonne\b|triumphal/.test(s)) return 'landmark';
+  if(/cath[ée]drale|basilique|\b[ée]glise\b|chapel|chapelle|abbaye|abbey|\bch[âa]teau\b|castle|\bmonument\b|heritage|mausol[ée]e|\btour\b|\btower\b/.test(c)) return 'monument';
+  if(/cabaret|music.?hall|comedy|nightclub|discoth[èe]que|salle de spectacle|op[ée]ra|th[éeè][âa]tre|theatre|theater/.test(c)) return 'venue';
+  if(/leisure\.park|\bpark\b|\bparc\b|garden|jardin|parkandgarden/.test(c)) return 'park';
+  if(/viewpoint|panorama|belv[ée]d/.test(c)) return 'viewpoint';
+  if(/natural|waterway|\blac\b|\blake\b|river|\brivi[èe]re|for[êe]t|forest|\bbeach\b|\bplage\b|r[ée]serve|gorge|cascade/.test(c)) return 'nature';
+  if(/\bplace\b|\bsquare\b|fontaine|fountain|\bstatue\b|sculpture|artwork|kiosque/.test(c)) return 'place';
+  // NOMS DIAGNOSTIQUES FORTS (la catégorie ment souvent — « Théâtre » catégorisé « sportsandleisureplace ») : AVANT le
+  // repli notoriété, sinon un théâtre/cinéma notable devient « monument » par notoriété.
+  if(/th[éeè][âa]tre|cabaret|music.?hall|op[ée]ra|salle de spectacle/.test(nn)) return 'venue';
+  if(/cin[ée]ma/.test(nn)) return 'cinema';
+  if(/\barc de\b|triomphe|porte (de )?saint|ob[ée]lisque|\bcolonne\b/.test(nn)) return 'landmark';
+  if(/cath[ée]drale|basilique|\b[ée]glise\b|chapelle|abbaye|\bch[âa]teau\b|mausol[ée]e/.test(nn)) return 'monument'; // Notre-Dame & co, même si catégorie générique
+  if(/\bmus[ée]e\b|museum/.test(nn)) return 'museum';
+  // (2) CATÉGORIE GÉNÉRIQUE (« attraction / point of interest » sans TYPE) : un repère, PAS un monument 2h par défaut
+  // (un « Passage » notable n'est pas une cathédrale). Durée modérée. On ne promeut en monument QUE si la catégorie est VIDE.
+  if(/tourism\.(attraction|sights)|\battraction\b|pointofinterest|placeofinterest|culturalsite|remarkablebuilding|sightseeing/.test(c)) return 'sight';
+  // (3) NOTORIÉTÉ, catégorie totalement VIDE : un lieu notable sans AUCUN signal = un grand site (sauve Sainte-Chapelle)
+  var _catEmpty=!/[a-z]/.test(c);
+  if(_catEmpty && (notable || imp>=0.55)){ if(/mus[ée]e|museum/.test(nn)) return 'museum'; return 'monument'; }
+  // (4) NOM (dernier recours, FR)
+  if(/\bplace\b|\bsquare\b|fontaine|parvis/.test(nn)) return 'place';
+  if(/\bparc\b|jardin/.test(nn)) return 'park';
+  if(/belv[ée]d|panorama|point de vue/.test(nn)) return 'viewpoint';
+  if(/\blac\b|rivi[èe]re|for[êe]t|plage|gorge|cascade|\bcanal\b|\bquai\b|berge/.test(nn)) return 'nature';
+  if(/march[ée]|halle/.test(nn)) return 'foodshop';
+  return 'lieu';
+}
+// durée canonique par KIND (null = pas de durée canonique -> logique détaillée par sous-type dans dureeHint : sport, gastro…)
+function _dureeForKind(k,c){ switch(k){
+  case 'museum': return (c&&c.notable)?150:120; case 'monument': return 120; case 'spa': return 120;
+  case 'landmark': return 40; case 'place': return 40; case 'venue': return 40; case 'viewpoint': return 50;
+  case 'park': return 60; case 'nature': return 75; case 'foodshop': return 60; case 'sight': return 60;
+  case 'restaurant': return 90; case 'bar': return 90; default: return null; } }
 // durée réaliste d'une activité (minutes)
 function dureeHint(c){if(!c)return 90;
   if(c._footing)return 50; // séance de footing au grand air ~50 min
@@ -2661,9 +2718,9 @@ function recomposeDay(day, ctx){
     for(var i=0;i<localLM.length;i++){var c=localLM[i];
       if(!c||!c.nom||c.lat==null||c.lng==null)continue;
       if(!(c.theme==='culture'||c.theme==='nature'||c.theme==='urbain'))continue;
-      if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')))continue;
-      if(_pouvoirBlocked(c))continue; // LIEU DE POUVOIR non visitable (mairie/assemblée/ministère/ambassade…) -> jamais une icône/étape
-      if((c.imp||0)>=0.8 || /mus[eé]e|museum|monument|cath[ée]drale|basilique|ch[âa]teau|castle|palais|palace|abbaye/i.test((c.nom||'')+' '+(c.cat||'')))continue; // un GRAND lieu (musée/monument = visite ~2h) N'EST PAS un bouche-trou de 40 min : jamais ajouté en comblage pré-dîner (bug « Palais de Tokyo à 40 min »). Il doit être une VRAIE étape ou rien.
+      if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.catsrc||'')+' '+(c.cat||'')+' '+(c.nom||'')))continue;
+      if(_pouvoirBlocked(c))continue; // LIEU DE POUVOIR non visitable -> jamais une icône/étape
+      if((c.imp||0)>=0.8 || /mus[eé]e|museum|monument|cath[ée]drale|basilique|ch[âa]teau|castle|palais|palace|abbaye/i.test((c.nom||'')+' '+(c.cat||'')))continue; // un GRAND lieu (musée/monument = visite ~2h) N'EST PAS un bouche-trou de 40 min (bug « Palais de Tokyo à 40 min »).
       if(center && hav(center.lat,center.lng,c.lat,c.lng)>bubble)continue;           // (2) ≤ bulle de l'ancre
       var near=Infinity; for(var p=0;p<placed.length;p++){var q=placed[p]; if(q.lat==null)continue; var dd=hav(q.lat,q.lng,c.lat,c.lng); if(dd<near)near=dd;}
       if(near>1.2)continue;                                                          // (1) ≤ 1,2 km d'une étape placée
@@ -2944,9 +3001,10 @@ function finalizeDay(day, ctx){
   // ===== NORMALISATION PAR LIEU (durée canonique, cinéma, pouvoir, doublon) — AVANT recomposeDay =====
   // Point de convergence unique : recompute durée par catégorie sur l'objet ré-enrichi (musée/monument = 2h toujours,
   // quelle que soit la porte). recomposeDay reséquence ENSUITE les horaires sur ces durées correctes.
-  normalizeSteps(day, ctx);
+  // BRUYANT : si l'une PLANTE sur une donnée réelle, on le VOIT (console.error explicite) au lieu d'un jour brut silencieux.
+  try{ normalizeSteps(day, ctx); }catch(_ns){ log('  · ⚠️ normalizeSteps A PLANTÉ (jour '+(day&&day.num)+') : '+((_ns&&_ns.message)||_ns)+' — le jour reste NON normalisé (Grand Palais/Assemblée non retirés).',true); if(typeof console!=='undefined'&&console.error)console.error('[geocalme] normalizeSteps crash',_ns); }
   // ===== RECONSTRUCTION PROPRE FINALE (clamp ville + chaîne + repas + horaires séquentiels + tri chrono) =====
-  recomposeDay(day, ctx);
+  try{ recomposeDay(day, ctx); }catch(_rc){ log('  · ⚠️ recomposeDay A PLANTÉ (jour '+(day&&day.num)+') : '+((_rc&&_rc.message)||_rc)+' — jour NON reconstruit.',true); if(typeof console!=='undefined'&&console.error)console.error('[geocalme] recomposeDay crash',_rc); }
   // LABEL DU JOUR = le POI le PLUS NOTABLE réellement présent dans l'itinéraire (notoriété Wikidata : importance +
   // sitelinks, portés par imp/score), et non le repère d'ancrage LLM (parfois périphérique, ex. « Marché Dejean »).
   // Aucun POI notable dans le jour -> on garde le label du repère d'ancrage (déjà posé dans buildDAYS).
@@ -2982,7 +3040,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     // au centre. On relève au plafond Worker (2000) pour que les quartiers périphériques pèsent dans l'ambiance. NB : le
     // gate _Tn/_Rn n'utilise PAS AMBIANCE (il lit `all` + l'enrich live du quartier) -> ceci ne touche QUE le repli.
     if(useBase){try{const _lr=await fetchT(API+'/places?lat='+dc.lat+'&lng='+dc.lng+'&km='+REGION_KM+'&themes=culture,nature,gastronomie,festif,bienetre,sport,urbain&limit=2000',{},15000);const _lj=await _lr.json();
-      AMBIANCE=(_lj.places||[]).filter(p=>p.name&&p.lat&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({nom:p.name,lat:p.lat,lng:p.lng,score:p.score||0,theme:p.primary_theme||'culture',notable:!!p.notable,pop:(p.tags&&typeof p.tags.popularity==='number'?p.tags.popularity:0),address:p.address||null,cat:cleanCat(p.category_src),_pouvoir:_isPouvoir(p.category_src||[],p.name)}));
+      AMBIANCE=(_lj.places||[]).filter(p=>p.name&&p.lat&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({nom:p.name,lat:p.lat,lng:p.lng,score:p.score||0,theme:p.primary_theme||'culture',notable:!!p.notable,pop:(p.tags&&typeof p.tags.popularity==='number'?p.tags.popularity:0),address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),_pouvoir:_isPouvoir(p.category_src||[],p.name)}));
       LANDMARKS=AMBIANCE.filter(p=>p.notable); // repères notables = sous-ensemble
       log('  · '+AMBIANCE.length+' lieux pour l\'ambiance ('+LANDMARKS.length+' notables).');}catch(e){}}
     // SAISON : on écarte les lieux hors-saison. Par défaut (Indifférent) on bloque 'cold' (le ski n'apparaît qu'en Hiver explicite) -> jamais golf+ski.
@@ -3387,7 +3445,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used,excursion:excursion}); // PASSE DE COHÉRENCE (avant rendu)
       // DIAGNOSTIC (vérité terrain) : dump de CHAQUE étape rendue avec sa catégorie + le verdict des classifieurs -> on voit
       // EN LIVE pourquoi un lieu passe (ex. Assemblée : catsrc sans « government » + nom qui échappe au repli ?). À retirer une fois calé.
-      try{ (_day.steps||[]).forEach(function(_s){ if(_s&&!_s.libre) log('  · [rendu J'+(i+1)+'] "'+_s.nom+'" '+_s.theme+' '+Math.round(_s.duree||0)+'min · pouvoir='+_isPouvoirStep(_s)+' cinema='+_isCinemaStep(_s)+' · cat="'+((_s.catsrc||_s.cat||'')+'"').slice(0,60),true); }); }catch(_e){}
+      try{ (_day.steps||[]).forEach(function(_s){ if(_s&&!_s.libre) log('  · [rendu J'+(i+1)+'] "'+_s.nom+'" '+_s.theme+' '+Math.round(_s.duree||0)+'min · pouvoir='+_isPouvoirStep(_s)+' cinema='+_isCinemaStep(_s)+' · cat="'+((_s.catsrc||_s.cat||'')+'"').slice(0,60)); }); }catch(_e){}
       // JAMAIS DE JOUR-CROUPION : un jour rendu doit avoir ≥ 4 vraies étapes (repas compris). Sinon, même après
       // élargissement région, on ne le crée pas -> on RACCOURCIT honnêtement (2 beaux jours > 3 dont un croupion).
       // On garde toujours ≥ 1 jour (sinon aucune sortie). Paris (dense) a toujours ≥ 4 étapes -> jamais concerné.
