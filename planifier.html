@@ -1483,7 +1483,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v209'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v210'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2537,7 +2537,8 @@ function _bcAlts(day, step, n){
     if(!(c&&c.nom&&c.lat!=null&&c.lng!=null))return false;
     if(sameTheme && c.theme!==step.theme)return false;
     if(step.theme==='gastronomie'&&c.foodExp)return false;
-    if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')))return false; // CINÉMA jamais une ALTERNATIVE (invariant §5) — il reste possible « en chemin »
+    if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.catsrc||'')+' '+(c.cat||'')+' '+(c.nom||'')))return false; // CINÉMA jamais une ALTERNATIVE (invariant §5) — il reste possible « en chemin »
+    if(c._pouvoir || _isPouvoir((c.catsrc||'')+' '+(c.cat||''), c.nom||''))return false; // LIEU DE POUVOIR non visitable (Assemblée/ministère/mairie…) jamais une ALTERNATIVE non plus — c'est par là qu'il restait à l'écran alors que le [rendu] (étapes) était propre. Château-musée (cat museum) non concerné.
     if(_norm(c.nom)===self||sharesBrand(step.nom||'',c.nom||'',''))return false;                       // pas l'étape ni sa variante
     if(dayNoms.some(function(dn){return _norm(dn)===_norm(c.nom)||sharesBrand(dn,c.nom||'','');}))return false; // ni un lieu du jour
     if(dayPts.some(function(p){return hav(p.lat,p.lng,c.lat,c.lng)<0.12;}))return false;               // ni co-localisé (<120 m) avec une étape
