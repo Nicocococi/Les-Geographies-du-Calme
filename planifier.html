@@ -1803,7 +1803,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
   if(theme==='culture' && !p.notable && /memorial|war_memorial|wayside_cross/.test(_catC))return null;
   if(theme==='culture' && /exposition|exhibit|\bgalerie\b|art gallery/i.test(_catC) && /mus[ée]e|museum/i.test(p.address||''))return null;
   if(theme==='culture' && _src0==='datatourisme' && !p.notable && /monument aux morts|m[ée]morial|comm[ée]morati|st[èe]le|calvaire|croix de chemin|capitelle|ossuaire/i.test(p.name))return null;
-  if(theme==='culture' && /entertainment\.cinema|cin[ée]ma|\bcinema\b|movie theater|multiplex/i.test(_catC))return null;
+  if(/entertainment\.cinema|cin[ée]ma|\bcinema\b|movie theater|multiplex/i.test(_catC+' '+(p.name||'')))return null; // CINÉMA jamais une étape/à-voir — INVARIANT §5, NON conditionné au thème (un cinéma mal typé festif/urbain ne doit pas fuiter quand culture n'est qu'un pool de comblage). Par catégorie (repli nom). Reste possible « en chemin » (façade).
   const isFit=FIT_RE.test(p.name);
   if(isFit && /intercontinental|h[ôo]tel|marriott|hilton|hyatt|\britz\b|sofitel|westin|sheraton|kempinski|palace|resort/i.test(p.name))return null;
   var _price=(p.tags&&typeof p.tags.price==='number'&&p.tags.price>0)?p.tags.price:null;
@@ -1879,7 +1879,7 @@ async function collectFromBase(dc,themes,budget,voyage){
     // Repli mot-clé RÉSERVÉ à DATAtourisme (source France-only : ne peut jamais se déclencher sur une ville non-latine type Bangkok) -> couvre les mémoriaux mal catégorisés par cette seule source
     if(theme==='culture' && _src0==='datatourisme' && !p.notable && /monument aux morts|m[ée]morial|comm[ée]morati|st[èe]le|calvaire|croix de chemin|capitelle|ossuaire/i.test(p.name))return;
     // CINÉMAS exclus des « à voir » culture : pas une visite de jour, ne doit jamais ancrer une journée (ex. IMAX ICON en ouverture du J2). Par CATÉGORIE (universel).
-    if(theme==='culture' && /entertainment\.cinema|cin[ée]ma|\bcinema\b|movie theater|multiplex/i.test(_catC))return;
+    if(/entertainment\.cinema|cin[ée]ma|\bcinema\b|movie theater|multiplex/i.test(_catC+' '+(p.name||'')))return; // CINÉMA jamais une étape/à-voir — INVARIANT §5, NON conditionné au thème (un cinéma mal typé festif/urbain fuyait quand culture n'était qu'un pool de comblage : « Studio 28 » / « Le Louxor » en gastro+bien-être). Par catégorie (repli nom). Reste possible « en chemin ».
     const isFit=FIT_RE.test(p.name);
     // salle de fitness d'un hôtel/palace = quasi inaccessible au public -> écartée
     if(isFit && /intercontinental|h[ôo]tel|marriott|hilton|hyatt|\britz\b|sofitel|westin|sheraton|kempinski|palace|resort/i.test(p.name))return;
@@ -2465,6 +2465,7 @@ function _bcAlts(day, step, n){
     if(!(c&&c.nom&&c.lat!=null&&c.lng!=null))return false;
     if(sameTheme && c.theme!==step.theme)return false;
     if(step.theme==='gastronomie'&&c.foodExp)return false;
+    if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.cat||'')+' '+(c.nom||'')))return false; // CINÉMA jamais une ALTERNATIVE (invariant §5) — il reste possible « en chemin »
     if(_norm(c.nom)===self||sharesBrand(step.nom||'',c.nom||'',''))return false;                       // pas l'étape ni sa variante
     if(dayNoms.some(function(dn){return _norm(dn)===_norm(c.nom)||sharesBrand(dn,c.nom||'','');}))return false; // ni un lieu du jour
     if(dayPts.some(function(p){return hav(p.lat,p.lng,c.lat,c.lng)<0.12;}))return false;               // ni co-localisé (<120 m) avec une étape
@@ -2496,8 +2497,10 @@ function _enChemin(day){
   if(steps.length<2) return res;
   var stepKeys={}; steps.forEach(function(x){ stepKeys[_norm(x.s.nom||'')]=1; });
   var pool=(day.localLM||[]).filter(function(L){
-    return L && L.notable && L.lat!=null && L.lng!=null && !stepKeys[_norm(L.nom||'')]
-      && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((L.cat||'')+' '+(L.nom||'')); // cinémas exclus des à-voir (invariant)
+    // CINÉMA : jamais une ÉTAPE ni une alternative (invariant §5), MAIS un cinéma NOTABLE peut rester un repère
+    // « EN CHEMIN » (on passe devant la façade — Studio 28 / Le Louxor / Moulin Rouge restent charmants en repère,
+    // pas en arrêt). C'est le SEUL endroit où un cinéma est toléré, et seulement s'il est notable.
+    return L && L.notable && L.lat!=null && L.lng!=null && !stepKeys[_norm(L.nom||'')];
   });
   if(!pool.length) return res;
   var taken={};
