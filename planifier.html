@@ -1446,7 +1446,7 @@ const WATER_CATS='waterway,maritime.marina,man_made.pier';
 const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, mini-golf, parc à thème, escape game, arcade, voie d'eau, marina, jetée. SEULE la pêche reste exclue.
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v198'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v199'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2547,6 +2547,15 @@ function _autourDe(nom){
   if(/^[aeiouyàâäéèêëïîôöùûüh]/i.test(nom)) return 'Autour de l\''+nom; // voyelle initiale : « Autour de l'Opéra »
   return 'Autour de '+nom; // nom propre / étranger : « Autour de Wat Traimit », « Autour de Place des Vosges »
 }
+// (D) ORDRE DES JOURS : classe les jours du plus RICHE (nb d'activités/POI, hors temps libre) au moins riche
+// et renumérote (Jour 1 = le plus fort). Mute le tableau EN PLACE. Appelé après la construction de tous les jours.
+function _orderDaysByRichness(days){
+  if(!days || days.length<=1) return days;
+  var _rich=function(d){ return ((d&&d.steps)||[]).filter(function(s){return s && !s.libre;}).length; };
+  days.sort(function(a,b){ return _rich(b)-_rich(a); });
+  days.forEach(function(d,idx){ if(d) d.num=idx+1; });
+  return days;
+}
 // ===== PASSE DE COHÉRENCE UNIQUE (finalizeDay) =====
 // UN seul point de passage, appelé juste avant le rendu, qui DÉTECTE et RÉPARE les incohérences d'un jour
 // (répétitions, temps libre injustifié, description ≠ type, alternatives vides, dîner trop tôt). Toute règle de
@@ -2584,6 +2593,25 @@ function finalizeDay(day, ctx){
     }
   });
   day.steps=_kept1;
+  // ===== (B) ANTI-DÉRIVE — toute étape DANS la ville de destination ET ≤ BUBBLE de l'ancre =====
+  // Écarte une ACTIVITÉ (pas un repas — protège « repas garantis ») qui a dérivé : soit au-delà de la bulle globale
+  // depuis l'ancre, soit dans une COMMUNE VOISINE (adresse « …CP Gentilly » ≠ ville de destination). Le gel du
+  // géocodage n'est pas touché : on filtre sur des données déjà là (coords + adresse). Le vide éventuel se comble ensuite.
+  var _adC=ctx&&ctx.center, _adB=(ctx&&ctx.bubble)||2.5, _adCity=(ctx&&ctx.destCity)?_norm(ctx.destCity):'';
+  if(_adC){
+    function _outCity(s){ // adresse nommant une commune ≠ destination (France : « <code postal> <commune> »)
+      if(!_adCity || !s.adresse) return false;
+      if(_norm(s.adresse).indexOf(_adCity)>=0) return false; // mentionne la ville de destination -> in-city
+      var m=String(s.adresse).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/);
+      return !!(m && _norm(m[1]) && _norm(m[1])!==_adCity);
+    }
+    day.steps=day.steps.filter(function(s){
+      if(s.libre || s.theme==='gastronomie') return true; // temps libre + repas exemptés
+      if(s.lat!=null && s.lng!=null && hav(_adC.lat,_adC.lng,s.lat,s.lng)>_adB) return false; // hors bulle -> dérive
+      if(_outCity(s)) return false;                                                            // commune voisine -> écarté
+      return true;
+    });
+  }
   // Sélecteur d'ICÔNES partagé (invariants 2 ET A). Une icône de comblage doit respecter À LA FOIS : (1) ≤ ~1,2 km de
   // l'ÉTAPE PLACÉE LA PLUS PROCHE (elle suit le tracé, jamais un saut) ET (2) ≤ BUBBLE depuis l'ANCRE du quartier
   // (borne dure anti-dérive : la journée ne sort pas du quartier). Jamais l'un sans l'autre. + pas de doublon/cinéma/mairie.
@@ -2664,11 +2692,12 @@ function finalizeDay(day, ctx){
       if(_lastEnd!=null){
         // on retire les « temps libre » de l'intervalle [_lastEnd..dîner] : on recompose proprement (icônes + 1 libre honnête)
         day.steps=day.steps.filter(function(s){ return !(s.libre && typeof s._t0==='number' && s._t0>=_lastEnd-1 && s._t0<_dinStart); });
-        var _CAP=19*60+30, _GAP=45, _cursor=_lastEnd; // ne pas coller une activité juste avant le dîner ; trou toléré ≤45 min
-        while((_dinStart-_cursor)>_GAP && (_CAP-_cursor)>=40){
+        var _GAP=45, _cursor=_lastEnd; // trou toléré ≤45 min. On comble tant que le reste jusqu'au dîner dépasse ce seuil.
+        while((_dinStart-_cursor)>_GAP){
           var _cand=_icon2(true)||_icon2(false);
           if(!_cand)break; // vivier épuisé -> temps libre honnête
-          var _idur=Math.min(60,_CAP-_cursor);
+          var _idur=Math.min(60,(_dinStart-_cursor)-30); // la dernière icône finit ~30 min avant le dîner (jamais collée dessus)
+          if(_idur<20)break;
           day.steps.push(Object.assign(_iconFields(_cand),{duree:_idur,_t0:_cursor,_t1:_cursor+_idur,heure:fmtH(_cursor),fin:fmtH(_cursor+_idur)}));
           _cursor+=_idur+5; // +5 min de transition
         }
@@ -2681,6 +2710,8 @@ function finalizeDay(day, ctx){
       }
     }
   }
+  // ===== (A) ORDRE — la journée est TOUJOURS chronologique (inconditionnel) : étape 1 = la plus tôt =====
+  day.steps.sort(function(a,b){ return (a._t0!=null?a._t0:1e9)-(b._t0!=null?b._t0:1e9); });
   return day;
 }
 // ===== MOTEUR À VRAIS LIEUX (porté de archive/planifier_archi_test.html) =====
@@ -3084,9 +3115,10 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(steps.some(s=>FIT_RE.test(s.nom||'')))usedKinds.add('fitness');
       usedZones.push(center);
       var _day={num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM};
-      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all}); // PASSE DE COHÉRENCE (avant rendu)
+      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||''}); // PASSE DE COHÉRENCE (avant rendu)
       DAYS.push(_day);
     }
+    _orderDaysByRichness(DAYS); // (D) ORDRE DES JOURS : du plus riche au moins riche, Jour 1 = le plus fort (+ renumérotation)
     if(!DAYS.length)throw new Error('aucun lieu trouvé pour ces thèmes');
     log('Terminé ✔');
     return DAYS; // la belle UI prend le relais (adaptDayToJours + rendu iv*)
