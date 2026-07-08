@@ -1076,9 +1076,11 @@ html.iv-active, body.iv-active { background: var(--grad-time); }
 body.iv-active .result-wrap { max-width: none; background: transparent; padding-left: 0; padding-right: 0; }
 body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé dans le hero (brief : « plus de bandeau à part ») */
 .iv-wrap { max-width: 1120px; margin: 0 auto; padding: 0 40px 60px; }
-/* HERO PLEINE PAGE : occupe toute la hauteur visible (la journée se découvre en scrollant), contenu centré verticalement */
-.iv-hero { min-height: calc(100vh - 40px); display: flex; flex-direction: column; justify-content: center;
-  padding: 40px 4px 30px; position: relative; }
+/* HERO PLEINE PAGE : occupe la hauteur d'écran (la journée se découvre en scrollant). Contenu aligné EN HAUT (flex-start) :
+   en embed iframe (hauteur auto), centrer verticalement pousse le contenu au milieu d'un grand bloc -> haut de page vide
+   (« rien ne s'affiche »). Aligné en haut = toujours visible dès l'arrivée. */
+.iv-hero { min-height: calc(100vh - 40px); display: flex; flex-direction: column; justify-content: flex-start;
+  padding: 7vh 4px 40px; position: relative; }
 .iv-hero:before { content: ""; position: absolute; top: 14%; right: 30px; width: 280px; height: 190px; border-radius: 50%;
   background: radial-gradient(circle, rgba(235,205,155,.18), rgba(235,205,155,0) 70%); pointer-events: none; z-index: 0; }
 .iv-eyebrow { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #b07a44; margin: 0 0 12px; position: relative; }
@@ -1511,7 +1513,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v233'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v234'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
