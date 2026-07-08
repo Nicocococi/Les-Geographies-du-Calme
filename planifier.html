@@ -1432,7 +1432,7 @@ const EXPERIENCE=/canoe|kayak|rafting|paddle|nautique|escalade|via.?ferrata|accr
 const FACILITY=/gymnase|complexe sportif|cit[eé] des sports|salle de sports?|salle des sports|\bstade\b|tennis club|club de tennis|boulodrome|halle des sports|\bdojo\b/i;
 const SHARE=/^(lime|pony|dott|tier|bird|bolt|voi|jump|v[eé]lib|donkey|zoov|knot)\b/i;
 // FAMILLE — catégories enfants réintégrées au vivier UNIQUEMENT pour voyage==='famille' (par catégorie structurée OSM/Geoapify, jamais par nom propre)
-const KIDCAT=/entertainment\.(zoo|aquarium)|\bzoo\b|\baquarium\b|wildlife|animal_?park|parc animalier|m[ée]nagerie|petting|leisure\.playground|\bplayground\b|aire de jeux|bac [àa] sable|sandbox|sand ?pit|pataugeoire|jeux d.enfants|jeux pour enfants/i;
+const KIDCAT=/entertainment\.(zoo|aquarium)|\bzoo\b|\baquarium\b|wildlife|animal_?park|parc animalier|m[ée]nagerie|petting|leisure\.playground|\bplayground\b|aire de jeux|bac [àa] sable|sandbox|sand ?pit|pataugeoire|jeux d.enfants|jeux pour enfants|\bkids?\b|\bkidz\b/i; // « Royal Kids » & co (aire de jeux couverte enfants) : nom « kids » = filet de sécurité (exception §4 assumée). PAS « terrain de jeu » (sous-élément de vrais parcs -> faux positifs).
 // AMIS — activités de GROUPE (bowling, escape game, arcade, mini-golf, laser, karaoké…) : remontées en étape quand voyage==='entre amis' (par catégorie/signal, jamais par nom propre)
 const GROUPCAT=/entertainment\.(bowling_alley|escape_game|amusement_arcade|miniature_golf)|bowling|escape.?game|jeu d'?[ée]vasion|laser.?game|karaok|\bbillard\b|billiard|paintball|mini.?golf|\barcade\b|fl[ée]chette/i;
 // FESTIF — séparation JOUR / SOIR par CATÉGORIE structurée (OSM/Geoapify + libellés FSQ), jamais par le nom (universel).
@@ -1447,7 +1447,7 @@ function kidExcluded(name,cat,voyage){ return voyage!=='famille' && KIDCAT.test(
 // (universelle, taxonomie OSM/Geoapify), repli NOM en dernier recours et FR uniquement (ne se déclenche jamais sur une
 // ville non-latine, cf. §4). EXCEPTION : un lieu de pouvoir réellement VISITABLE catégorisé MUSÉE (château-musée…) n'est
 // PAS bloqué — les catégories « gouvernement » et « musée » s'excluent. Panthéon/Grand Palais : ni gouv. ni nom FR ciblé.
-const POUVOIR_CAT_RE=/office\.government|building\.government|amenity\.townhall|\btownhall\b|city[_ ]?hall|\bgovernment\b|\bparliament\b|\bministry\b|diplomatic|\bembassy\b|\bconsulate\b|law_courts|\bcourthouse\b|\bprefecture\b/i;
+const POUVOIR_CAT_RE=/office\.government|building\.government|amenity\.townhall|\btownhall\b|city[_ ]?hall|\bgovernment\b|gouvernement|\bcapitol(e)?\b|\bparliament\b|parlement|\bministry\b|minist[èe]re|diplomatic|\bembassy\b|ambassade|\bconsulate\b|consulat|law_courts|\bcourthouse\b|\bprefecture\b|pr[ée]fecture/i; // catégorie (pas nom) : mêmes signaux en FR aussi (« bâtiment gouvernemental / capitole » vus à Bangkok) -> §4 OK. Le vrai fix universel (toute langue) = type Wikidata au Worker.
 const POUVOIR_NAME_FR_RE=/assembl[ée]e nationale|palais bourbon|palais du luxembourg|\bs[ée]nat\b|\bparlement\b|minist[èe]re\b|\bambassade\b|\bconsulat\b|pr[ée]fecture|sous-pr[ée]fecture|\bmairie\b|h[ôo]tel de ville|palais de l['’ ]?[ée]lys[ée]e|\bmatignon\b|palais de justice|\btribunal\b|conseil r[ée]gional|conseil d[ée]partemental|h[ôo]tel de r[ée]gion|h[ôo]tel du d[ée]partement/i;
 const MUSEE_CAT_RE=/entertainment\.museum|\bmuseum\b|mus[ée]e/i;
 function _isPouvoir(catArr,name){ var cs=(Array.isArray(catArr)?catArr.join(' '):(catArr||'')); if(MUSEE_CAT_RE.test(cs))return false; if(POUVOIR_CAT_RE.test(cs))return true; if(POUVOIR_NAME_FR_RE.test(name||''))return true; return false; }
@@ -1484,7 +1484,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v212'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v214'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -1815,7 +1815,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
   if(theme==='sport' && /\bgym\b|fitness|musculation|remise en forme|\bwellness\b|salle de sport/i.test(p.name||'') && !/escalade|grimpe|climb|boulder|\bboxe|boxing|\byoga\b|pilates|cross.?fit|\bdanse|art.?martia|\bdojo\b|judo|karat|muay|tennis|padel|squash|natation|piscine|\bswim|aqua|nautique/i.test(p.name||''))return null; // gym générique exclu
   if(theme==='sport' && /f[eé]d[eé]ration|comit[eé]|\bdistrict\b|\bunss\b|\bligue\b|union sportive|olympique\b/i.test(p.name))return null;
   var _catC=((p.category_src||[]).join(' ')).toLowerCase();
-  if(theme==='culture' && !p.notable && /memorial|war_memorial|wayside_cross/.test(_catC))return null;
+  if(theme==='culture' && !p.notable && /memorial|war_memorial|wayside_cross|m[ée]morial|monument aux morts/.test(_catC))return null;
   if(theme==='culture' && /exposition|exhibit|\bgalerie\b|art gallery/i.test(_catC) && /mus[ée]e|museum/i.test(p.address||''))return null;
   if(theme==='culture' && _src0==='datatourisme' && !p.notable && /monument aux morts|m[ée]morial|comm[ée]morati|st[èe]le|calvaire|croix de chemin|capitelle|ossuaire/i.test(p.name))return null;
   if(/entertainment\.cinema|cin[ée]ma|\bcinema\b|movie theater|multiplex/i.test(_catC+' '+(p.name||'')))return null; // CINÉMA jamais une étape/à-voir — INVARIANT §5, NON conditionné au thème (un cinéma mal typé festif/urbain ne doit pas fuiter quand culture n'est qu'un pool de comblage). Par catégorie (repli nom). Reste possible « en chemin » (façade).
@@ -1889,7 +1889,7 @@ async function collectFromBase(dc,themes,budget,voyage){
     // CULTURE micro-patrimoine non visitable (mémoriaux / monuments aux morts / croix de chemin), sauf si NOTABLE (Wikidata)
     // UNIVERSEL : par CATÉGORIE structurée (taxonomie OSM/Geoapify, identique dans le monde entier). C'est le filet principal côté page pour les données déjà ingérées.
     var _catC=((p.category_src||[]).join(' ')).toLowerCase();
-    if(theme==='culture' && !p.notable && /memorial|war_memorial|wayside_cross/.test(_catC))return;
+    if(theme==='culture' && !p.notable && /memorial|war_memorial|wayside_cross|m[ée]morial|monument aux morts/.test(_catC))return;
     // ŒUVRES / SALLES À L'INTÉRIEUR D'UN MUSÉE : une « exposition » / « galerie d'art » dont l'ADRESSE est un musée = un sous-élément (œuvre, salle), pas un lieu à part -> écarté (le musée lui-même reste l'étape). UNIVERSEL : catégorie + adresse, jamais le nom (ex. « Victoire de Samothrace », « Mona Lisa » dans le Louvre).
     if(theme==='culture' && /exposition|exhibit|\bgalerie\b|art gallery/i.test(_catC) && /mus[ée]e|museum/i.test(p.address||''))return;
     // Repli mot-clé RÉSERVÉ à DATAtourisme (source France-only : ne peut jamais se déclencher sur une ville non-latine type Bangkok) -> couvre les mémoriaux mal catégorisés par cette seule source
