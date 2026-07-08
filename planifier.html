@@ -1486,7 +1486,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v223'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v229'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2691,21 +2691,12 @@ function tranchesFromDay(day){
   const jk='j'+day.num;
   return (day.steps||[]).map(function(step,i){ return joursData[jk]['t'+(i+1)].a; });
 }
-// Titre de jour « Autour de [repère] » avec l'article français correct (de+le->du, de+la->de la, voyelle->de l',
-// de+les->des). Sur le REPÈRE géocodable (Plan C), jamais le nom LLM ni le reverse-geocode obscur (Maison-Blanche).
+// Titre de jour « [repère] et ses environs » — on nomme le jour par SON lieu, pas par un article à accorder.
+// Format simple et universel (aucun accord de genre) : « Place de la République et ses environs », « Parc Montsouris
+// et ses environs », « Wat Traimit et ses environs ». Le repère est le lieu le plus connu du jour (cf. re-libellé post-finalize).
 function _autourDe(nom){
   nom=String(nom||'').trim(); if(!nom) return '';
-  if(/^les\s+/i.test(nom)) return 'Autour des '+nom.replace(/^les\s+/i,'');
-  if(/^le\s+/i.test(nom))  return 'Autour du '+nom.replace(/^le\s+/i,'');
-  if(/^la\s+/i.test(nom))  return 'Autour de la '+nom.replace(/^la\s+/i,'');
-  if(/^l['’]\s*/i.test(nom))return 'Autour de l\''+nom.replace(/^l['’]\s*/i,'');
-  var w=nom.split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  var FEM=/^(place|rue|avenue|tour|gare|cathedrale|basilique|eglise|halle|colline|butte|fontaine|statue|esplanade|promenade|cite|villa|maison|plage|porte|allee|galerie|passerelle|mosquee|synagogue|pagode|citadelle|forteresse|abbaye|chapelle|cascade|riviere|baie|corniche)$/;
-  var MASC=/^(quai|parc|jardin|pont|palais|musee|chateau|temple|marche|square|boulevard|bois|canal|port|mont|monument|stade|theatre|cimetiere|hotel|bassin|belvedere|observatoire|zoo|aquarium|phare|fort|donjon|kiosque|cloitre|quartier|faubourg|village|hameau|mont)$/;
-  if(FEM.test(w))  return 'Autour de la '+nom;
-  if(MASC.test(w)) return 'Autour du '+nom;
-  if(/^[aeiouyàâäéèêëïîôöùûüh]/i.test(nom)) return 'Autour de l\''+nom; // voyelle initiale : « Autour de l'Opéra »
-  return 'Autour de '+nom; // nom propre / étranger : « Autour de Wat Traimit », « Autour de Place des Vosges »
+  return nom.charAt(0).toUpperCase()+nom.slice(1)+' et ses environs';
 }
 // (D) ORDRE DES JOURS : classe les jours du plus RICHE (nb d'activités/POI, hors temps libre) au moins riche
 // et renumérote (Jour 1 = le plus fort). Mute le tableau EN PLACE. Appelé après la construction de tous les jours.
@@ -2770,21 +2761,21 @@ function recomposeDay(day, ctx){
     //      journée à 11h à cause d'un lieu qui n'ouvre que tard (effet de bord de l'item 1 « horaires d'ouverture ») ;
     //  (4) repli : le plus proche de l'ancre (comportement historique).
     var si=-1; for(var f=0;f<withC.length;f++){ if(withC[f]._footing){ si=f; break; } }
-    if(si<0){ var spb=Infinity; for(var sp=0;sp<withC.length;sp++){ if(kindOf(withC[sp])==='sport'){ var sw=_ohWindow(withC[sp].opening_hours||(withC[sp]._c&&withC[sp]._c.opening_hours)); if(sw && sw.open>9*60) continue; var ds=center?hav(center.lat,center.lng,withC[sp].lat,withC[sp].lng):sp; if(ds<spb){spb=ds;si=sp;} } } }
+    if(si<0){ var spb=Infinity; for(var sp=0;sp<withC.length;sp++){ if(kindOf(withC[sp])==='sport'){ var sw=_ohWindow(withC[sp].opening_hours||(withC[sp]._c&&withC[sp]._c.opening_hours)); if(sw && sw.open>9*60) continue; var ds=center?hav(center.lat,center.lng,withC[sp].lat,withC[sp].lng):sp; if(ds<spb){spb=ds;si=sp;} } } } // « sport en tête » par la NATURE du lieu (kindOf) : une piscine ouvre la matinée qu'elle soit choisie en SPORT ou en BIEN-ÊTRE (spa-piscine = les deux). Ne fait que réordonner des étapes déjà présentes ; seulement si ouverte tôt (≤ 9h)
     if(si<0){ var sb=Infinity; for(var i=0;i<withC.length;i++){ var ohw=_ohWindow(withC[i].opening_hours||(withC[i]._c&&withC[i]._c.opening_hours)); if(ohw && ohw.open>9*60) continue; var d=center?hav(center.lat,center.lng,withC[i].lat,withC[i].lng):i; if(d<sb){sb=d;si=i;} } }
     if(si<0){ si=0; var sb2=Infinity; for(var i2=0;i2<withC.length;i2++){var d2=center?hav(center.lat,center.lng,withC[i2].lat,withC[i2].lng):i2; if(d2<sb2){sb2=d2;si=i2;}} }
     var used={}; chain.push(withC[si]); used[si]=1;
     while(chain.length<withC.length){ var L=chain[chain.length-1],bi=-1,bd=Infinity; for(var j=0;j<withC.length;j++){ if(used[j])continue; var dd=hav(L.lat,L.lng,withC[j].lat,withC[j].lng); if(dd<bd){bd=dd;bi=j;} } chain.push(withC[bi]); used[bi]=1; }
   }
   chain=chain.concat(noC);
-  function _pickIcon(placed){
+  function _pickIcon(placed, allowMajor){
     var best=null,bs=-1;
     for(var i=0;i<localLM.length;i++){var c=localLM[i];
       if(!c||!c.nom||c.lat==null||c.lng==null)continue;
       if(!(c.theme==='culture'||c.theme==='nature'||c.theme==='urbain'))continue;
       if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.catsrc||'')+' '+(c.cat||'')+' '+(c.nom||'')))continue;
       if(_pouvoirBlocked(c))continue; // LIEU DE POUVOIR non visitable -> jamais une icône/étape
-      if((c.imp||0)>=0.8 || /mus[eé]e|museum|monument|cath[ée]drale|basilique|ch[âa]teau|castle|palais|palace|abbaye/i.test((c.nom||'')+' '+(c.cat||'')))continue; // un GRAND lieu (musée/monument = visite ~2h) N'EST PAS un bouche-trou de 40 min (bug « Palais de Tokyo à 40 min »).
+      if(!allowMajor && ((c.imp||0)>=0.8 || /mus[eé]e|museum|monument|cath[ée]drale|basilique|ch[âa]teau|castle|palais|palace|abbaye/i.test((c.nom||'')+' '+(c.cat||'')))) continue; // par défaut, un GRAND lieu (musée/monument = visite ~2h) N'EST PAS un bouche-trou de 40 min. EXCEPTION allowMajor (dernier recours anti gros temps libre) : on l'autorise, mais placé en VRAIE visite (durée canonique), jamais tronqué à 40 min.
       if(center && hav(center.lat,center.lng,c.lat,c.lng)>bubble)continue;           // (2) ≤ bulle de l'ancre
       var near=Infinity; for(var p=0;p<placed.length;p++){var q=placed[p]; if(q.lat==null)continue; var dd=hav(q.lat,q.lng,c.lat,c.lng); if(dd<near)near=dd;}
       if(near>1.2)continue;                                                          // (1) ≤ 1,2 km d'une étape placée
@@ -2833,6 +2824,12 @@ function recomposeDay(day, ctx){
     // temps libre. La boucle s'arrête dès qu'il n'y a plus d'icône (_pickIcon null) -> ville pauvre : rien à inventer, temps
     // libre honnête conservé. Le major-skip de _pickIcon empêche toujours un musée-bouche-trou.
     while((DIN_CEIL-t)>45){ var ic=_pickIcon(out.filter(function(s){return !s.libre;})); if(!ic)break; var id2=dureeHint(ic); if(!(id2>0))id2=40; var _room=(DIN_CEIL-t)-15; if(id2>_room)id2=_room; if(id2<20)break; if(!place(_iconStep(ic),id2,null,false))break; }
+    // DERNIER RECOURS anti gros-temps-libre : s'il reste un GROS trou (> 90 min) avant le dîner et que le comblage léger est
+    // ÉPUISÉ, on place un lieu NOTABLE proche (musée/monument/parc majeur — normalement « sauté ») en VRAIE VISITE plutôt que
+    // 3h de vide. Placé à sa durée canonique, borné à 20h (ne pousse pas le dîner), jamais < 40 min. S'arrête dès qu'il n'y a
+    // plus de notable proche (quartier vraiment vide -> un temps libre honnête ≤ ~90 min subsiste). Ne se déclenche JAMAIS en
+    // quartier dense (le comblage léger a déjà rempli jusqu'à ~20h -> pas de gros trou).
+    while((DIN_FLOOR-t)>90){ var icM=_pickIcon(out.filter(function(s){return !s.libre;}),true); if(!icM)break; var idM=dureeHint(icM); if(!(idM>0))idM=90; if(idM>(DIN_CEIL-t))idM=DIN_CEIL-t; if(idM<40)break; if(!place(_iconStep(icM),idM,null,false))break; } // le lieu notable garde sa VRAIE durée (musée 2h30) ; borné au MÊME plafond que le dîner (DIN_CEIL : 21h hors famille -> le dîner flotte plutôt que raboter le musée ; 20h famille -> borné, dîner à 20h). Aucune règle en plus : découle du profil.
     // DÎNER : flotte dans [20h,21h]. Se cale dès la fin de l'après-midi ; jamais avant 20h (plancher dur), jamais après 21h.
     var _dinStart=Math.max(DIN_FLOOR, Math.min(t, DIN_CEIL));
     if((_dinStart-t)>45){ var _l0=t; out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler avant le dîner : flâner dans le quartier, s\'attabler en terrasse, ou se reposer.',duree:_dinStart-_l0,_t0:_l0,_t1:_dinStart,heure:_F?fmtH(_l0):'',fin:_F?fmtH(_dinStart):''}); t=_dinStart; } // temps libre SEULEMENT si un trou subsiste (rien à placer) — couvre le reste honnêtement
@@ -3322,7 +3319,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(_dayLM&&_dayLM.length){
         var _exIco=new Set(actsArr.concat(mealsArr).map(x=>_norm(x.nom)));
         var _poolIco=_dayLM.map(L=>Object.assign({},L,{d:hav(center.lat,center.lng,L.lat,L.lng)}))
-          .filter(L=>L.notable && !themes.includes(L.theme) && L.theme!=='gastronomie' && L.theme!=='festif' && !_pouvoirBlocked(L) && !/\bpost\b|\bposte\b/i.test(L.nom||'') && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((L.cat||'')+' '+(L.nom||'')) && !_exIco.has(_norm(L.nom)) && !_usedAlready(L) && !usedLandmarks.has(_norm(L.nom))) // INCONTOURNABLES = NOTABLES uniquement (les non-notables servent au comblage, pas aux highlights) ; lieu de pouvoir non visitable exclu
+          .filter(L=>L.notable && ['culture','nature','urbain'].indexOf(L.theme)>=0 && !themes.includes(L.theme) && kindOf(L)!=='sport' && !_pouvoirBlocked(L) && !/\bpost\b|\bposte\b/i.test(L.nom||'') && !/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((L.cat||'')+' '+(L.nom||'')) && !_exIco.has(_norm(L.nom)) && !_usedAlready(L) && !usedLandmarks.has(_norm(L.nom))) // INCONTOURNABLES = « lieux à voir » NOTABLES, LISTE BLANCHE culture/nature/urbain (jamais sport/bien-être/gastro/festif : une piscine/un spa n'est pas un incontournable hors-thème) + garde-fou kindOf sport (équipement sportif mal étiqueté patrimoine, ex. « Piscine Pailleron ») ; hors-thème choisi ; lieu de pouvoir exclu
           .sort((a,b)=>(b.score-a.score)||(a.d-b.d));
         var _icos=[]; for(var _pq=0;_pq<_poolIco.length&&_icos.length<2;_pq++){var _Lq=_poolIco[_pq];if(_Lq.d>1.2)continue;if(_icos.some(function(ic){return hav(ic.lat,ic.lng,_Lq.lat,_Lq.lng)<0.12;}))continue;_icos.push(_Lq);} // 1 à 2 incontournables (~15 min) — ANTI-DOUBLON par PROXIMITÉ : jamais deux icônes au même endroit (ex. « Dôme du Sacré-Cœur » + « Basilique du Sacré-Cœur »)
         if(!_icos.length){for(var _pr=0;_pr<_poolIco.length&&_icos.length<1;_pr++){if(_poolIco[_pr].d<=2.0){_icos.push(_poolIco[_pr]);}}} // repli VILLE SECONDAIRE / quartier clairsemé : 1 icône jusqu'à ~2 km
@@ -3530,7 +3527,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(steps.some(s=>FIT_RE.test(s.nom||'')))usedKinds.add('fitness');
       usedZones.push(center);
       var _day={num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM};
-      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used,excursion:excursion}); // PASSE DE COHÉRENCE (avant rendu)
+      finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used,excursion:excursion}); // PASSE DE COHÉRENCE (avant rendu) — inclut le re-libellé « [lieu le plus notable] et ses environs »
       // DIAGNOSTIC (vérité terrain) : dump de CHAQUE étape rendue avec sa catégorie + le verdict des classifieurs -> on voit
       // EN LIVE pourquoi un lieu passe (ex. Assemblée : catsrc sans « government » + nom qui échappe au repli ?). À retirer une fois calé.
       try{ (_day.steps||[]).forEach(function(_s){ if(_s&&!_s.libre) log('  · [rendu J'+(i+1)+'] "'+_s.nom+'" '+_s.theme+' '+Math.round(_s.duree||0)+'min · pouvoir='+_isPouvoirStep(_s)+' cinema='+_isCinemaStep(_s)+' · cat="'+((_s.catsrc||_s.cat||'')+'"').slice(0,60)); }); }catch(_e){}
