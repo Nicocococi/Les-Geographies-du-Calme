@@ -1456,6 +1456,7 @@ function _pouvoirBlocked(c){ return !!(c&&(c._pouvoir||POUVOIR_NAME_FR_RE.test(c
 // Module-level pour que la RÈGLE soit appliquée au VRAI point de montage final (recomposeDay), pas seulement en amont.
 function _isCinemaStep(s){ return !!s && /cin[ée]ma|cinema|multiplex|\bmk2\b|entertainment\.cinema/i.test((s.catsrc||'')+' '+(s.cat||'')+' '+(s.nom||'')); }
 function _isPouvoirStep(s){ return !!s && s.theme!=='gastronomie' && _isPouvoir((s.catsrc||'')+' '+(s.cat||''), s.nom||''); }
+function _venueBlocked(s){ return !!s && s.theme!=='gastronomie' && !s.notable && kindOf(s)==='venue'; } // salle/théâtre/cabaret NON notable -> écartée (comme un cinéma) ; NOTABLE -> gardée en façade 40 min (durée via _dureeForKind)
 function _sameLieuStep(a,b){ // même lieu si : nom identique OU même QID ; OU (<150 m ET (tokens-cœur communs OU même adresse)). JAMAIS proximité seule.
   if(!a||!b)return false;
   var na=_norm(a.nom||''), nb=_norm(b.nom||''); if(na && nb && na===nb) return true;
@@ -1483,7 +1484,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v210'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v211'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2197,15 +2198,27 @@ function kindOf(poi){
   if(/march[ée]|halle/.test(nn)) return 'foodshop';
   return 'lieu';
 }
-// durée canonique par KIND (null = pas de durée canonique -> logique détaillée par sous-type dans dureeHint : sport, gastro…)
-function _dureeForKind(k,c){ switch(k){
-  case 'museum': return (c&&c.notable)?150:120; case 'monument': return 120; case 'spa': return 120;
-  case 'landmark': return 40; case 'place': return 40; case 'venue': return 40; case 'viewpoint': return 50;
-  case 'park': return 60; case 'nature': return 75; case 'foodshop': return 60; case 'sight': return 60;
-  case 'restaurant': return 90; case 'bar': return 90; default: return null; } }
+// DURÉE PAR KIND = MODE DE VISITE × NOTORIÉTÉ. Le kind porte le mode (entre&reste / passe&regarde / flâne / façade) ;
+// imp/notable module. null = pas de durée canonique -> logique détaillée par sous-type dans dureeHint (sport, gastro).
+function _dureeForKind(k,c){
+  var notable=!!(c&&c.notable), imp=(c&&(c.imp!=null?c.imp:(c.tags&&c.tags.importance)))||0;
+  switch(k){
+    case 'museum':   return imp>=0.7?150:(notable?120:90);   // TU ENTRES ET TU RESTES : 2h30 iconique / 2h notable / 1h30 sinon
+    case 'monument': return imp>=0.7?150:(notable?120:40);   // idem, mais MINEUR = 40 min (petite église : on entre/on ressort)
+    case 'spa':      return 120;
+    case 'landmark': case 'place': case 'viewpoint': return 40; // TU PASSES ET TU REGARDES (façade / place / point de vue)
+    case 'park': case 'nature': case 'foodshop': case 'sight': return 60; // TU FLÂNES (parc / jardin / marché / berge)
+    case 'venue':    return 40;                              // façade (si GARDÉ ; non-notable écarté à l'étape suivante)
+    case 'restaurant': case 'bar': return 90;
+    default: return null;                                    // sport / lieu -> logique détaillée
+  }
+}
 // durée réaliste d'une activité (minutes)
 function dureeHint(c){if(!c)return 90;
   if(c._footing)return 50; // séance de footing au grand air ~50 min
+  // SOURCE UNIQUE : le RÔLE (kindOf) décide la durée (mode de visite × notoriété). Robuste aux catégories vides/sales
+  // (Madeleine cat vide → monument 2h ; Palais de Tokyo → musée). null → logique détaillée ci-dessous (sport, gastro).
+  var _k=kindOf(c); var _dk=_dureeForKind(_k,c); if(_dk!=null) return _dk;
   if(c._incontournable){var _ni=(c.nom||'')+' '+(c.cat||'');
     if(/\bplace\b|square|fontaine|fountain|statue|sculpture|\boeuvre|\bœuvre|fresque|mural|street.?art|viewpoint|point.?de.?vue|panorama|belv[ée]d[èe]re|kiosque|terrain de jeu/i.test(_ni))return 40; // place / square / point de vue / œuvre = courte halte (~40 min), MÊME très notable (fini République & Square du Temple à 1h30)
     if(/th[éeè][âa]tre|cabaret|music.?hall|op[ée]ra|cin[ée]ma|salle de spectacle/i.test(_ni))return 40; // théâtre / cabaret / opéra / cinéma EN ICÔNE HORS-THÈME = on passe devant la façade (pas de spectacle réservé, surtout en soirée) -> ~40 min, pas 2h (ex. Moulin Rouge)
@@ -2539,6 +2552,7 @@ function _bcAlts(day, step, n){
     if(step.theme==='gastronomie'&&c.foodExp)return false;
     if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.catsrc||'')+' '+(c.cat||'')+' '+(c.nom||'')))return false; // CINÉMA jamais une ALTERNATIVE (invariant §5) — il reste possible « en chemin »
     if(c._pouvoir || _isPouvoir((c.catsrc||'')+' '+(c.cat||''), c.nom||''))return false; // LIEU DE POUVOIR non visitable (Assemblée/ministère/mairie…) jamais une ALTERNATIVE non plus — c'est par là qu'il restait à l'écran alors que le [rendu] (étapes) était propre. Château-musée (cat museum) non concerné.
+    if(_venueBlocked(c))return false; // salle/théâtre/cabaret NON notable -> jamais une alternative (comme un cinéma)
     if(_norm(c.nom)===self||sharesBrand(step.nom||'',c.nom||'',''))return false;                       // pas l'étape ni sa variante
     if(dayNoms.some(function(dn){return _norm(dn)===_norm(c.nom)||sharesBrand(dn,c.nom||'','');}))return false; // ni un lieu du jour
     if(dayPts.some(function(p){return hav(p.lat,p.lng,c.lat,c.lng)<0.12;}))return false;               // ni co-localisé (<120 m) avec une étape
@@ -2706,6 +2720,7 @@ function recomposeDay(day, ctx){
     // s'exécute APRÈS normalizeSteps mais AVANT le placement -> rien de sale ne peut plus être minuté puis affiché.
     if(_isCinemaStep(s)) return;                        // cinéma -> jamais un arrêt (tolérance « en chemin » gérée par _enChemin)
     if(_isPouvoirStep(s)) return;                       // lieu de pouvoir non visitable (Assemblée…) -> jamais une étape
+    if(_venueBlocked(s)) return;                        // salle/théâtre/cabaret NON notable -> écartée (notable = gardée en façade 40 min)
     if(s.theme!=='gastronomie'){ var _dc=dureeHint(s._c||s); if(typeof _dc==='number'&&_dc>0){ s.duree=_dc; if(s._c)s._c.duree=_dc; } } // durée canonique (musée/monument = 2h, jamais 40 min)
     acts.push(s);
   });
@@ -2738,7 +2753,7 @@ function recomposeDay(day, ctx){
     }
     return best;
   }
-  function _iconStep(c){ var _ct=c.cat||'un lieu emblématique'; return {theme:c.theme,nom:c.nom,lat:c.lat,lng:c.lng,adresse:c.address||c.adresse||null,extract:c.extract||null,image:c.image||null,_icon:true,titre:(typeof _latinTitle==='function'?_latinTitle(c.nom,_ct):c.nom),texte:c.extract?c.extract:((typeof _cap==='function'?_cap(_ct):_ct)+' du quartier, à voir en passant.')}; }
+  function _iconStep(c){ var _ct=c.cat||'un lieu emblématique'; return {theme:c.theme,nom:c.nom,lat:c.lat,lng:c.lng,adresse:c.address||c.adresse||null,catsrc:c.catsrc||'',cat:c.cat||null,extract:c.extract||null,image:c.image||null,_icon:true,titre:(typeof _latinTitle==='function'?_latinTitle(c.nom,_ct):c.nom),texte:c.extract?c.extract:((typeof _cap==='function'?_cap(_ct):_ct)+' du quartier, à voir en passant.')}; } // FONDATION durées : catsrc/cat conservés -> kindOf voit la catégorie de l'icône
   // 3+4. HORAIRES séquentiels + repas
   var out=[], t=8*60+30;
   function place(s,d,minStart,openEnd){ var start=t+(out.length?_tr(out[out.length-1],s):0); if(minStart)start=Math.max(start,minStart); s._t0=start;s.duree=d;s._t1=start+d; if(_F){s.heure=fmtH(start);s.fin=fmtH(start+d);} s.openEnd=!!openEnd; out.push(s); t=s._t1; }
@@ -2756,7 +2771,7 @@ function recomposeDay(day, ctx){
     if(nd && _norm(nd.nom)!==_keep){ dinner={theme:'gastronomie',nom:nd.nom,lat:nd.lat,lng:nd.lng,adresse:nd.address||nd.adresse||null,price:(typeof nd.price==='number'?nd.price:null),extract:nd.extract||null,image:nd.image||null,titre:'Dîner — '+nd.nom,texte:(typeof _mealTxt==='function'?_mealTxt(nd.nom,'dîner'):('Dîner — '+nd.nom))}; if(_usedN&&_usedN.add)_usedN.add(_norm(nd.nom)); }
   }
   if(dinner){
-    while((DINNER-t)>45){ var ic=_pickIcon(out.filter(function(s){return !s.libre;})); if(!ic)break; var id2=Math.min(60,(DINNER-t)-30); if(id2<20)break; place(_iconStep(ic),id2,null,false); } // comble le trou avec des icônes (double borne)
+    while((DINNER-t)>45){ var ic=_pickIcon(out.filter(function(s){return !s.libre;})); if(!ic)break; var id2=dureeHint(ic); if(!(id2>0))id2=40; var _room=(DINNER-t)-30; if(id2>_room)id2=_room; if(id2<20)break; place(_iconStep(ic),id2,null,false); } // comble à la VRAIE durée de l'icône (place 40, parc 60…), bornée par le créneau avant dîner ; le major-skip de _pickIcon empêche déjà un musée ici
     if((DINNER-t)>45){ var _l0=t; out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler avant le dîner : flâner dans le quartier, s\'attabler en terrasse, ou se reposer.',duree:DINNER-_l0,_t0:_l0,_t1:DINNER,heure:_F?fmtH(_l0):'',fin:_F?fmtH(DINNER):''}); t=DINNER; } // sinon temps libre honnête couvrant tout le reste
     place(dinner,120,DINNER); // dîner ≥ 20h
   }
@@ -2796,6 +2811,7 @@ function normalizeSteps(day, ctx){
       var catsrc=(s.catsrc||'')+' '+((full&&full.catsrc)||'');
       if(/cin[ée]ma|cinema|multiplex|\bmk2\b|entertainment\.cinema/i.test(catsrc+' '+(s.cat||'')+' '+(s.nom||''))) return; // cinéma -> retiré des étapes
       if(_isPouvoir(catsrc, s.nom)) return; // lieu de pouvoir non visitable -> retiré des étapes (château-musée : catsrc museum -> gardé)
+      if(_venueBlocked(s)) return; // salle/théâtre/cabaret NON notable -> écartée (notable = gardée en façade 40 min)
     }
     if(full){
       if(!s.cat && full.cat) s.cat=full.cat;
@@ -2932,7 +2948,7 @@ function finalizeDay(day, ctx){
     return best;
   }
   function _iconFields(cand){ var _ct=cand.cat||'un lieu emblématique';
-    return { theme:cand.theme, nom:cand.nom, lat:cand.lat, lng:cand.lng, adresse:cand.address||null, extract:cand.extract||null, image:cand.image||null, _icon:true,
+    return { theme:cand.theme, nom:cand.nom, lat:cand.lat, lng:cand.lng, adresse:cand.address||null, catsrc:cand.catsrc||'', cat:cand.cat||null, extract:cand.extract||null, image:cand.image||null, _icon:true, // FONDATION durées : catsrc/cat conservés -> kindOf voit la catégorie de l'icône
       titre:(typeof _latinTitle==='function'?_latinTitle(cand.nom,_ct):cand.nom),
       texte:cand.extract?cand.extract:((typeof _cap==='function'?_cap(_ct):_ct)+' du quartier, à voir en passant.') }; }
   // ===== INVARIANT 2 — COMBLAGE AVANT TEMPS LIBRE =====
