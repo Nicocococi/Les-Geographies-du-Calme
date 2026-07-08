@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Planifier mon voyage — Les Géographies du Calme</title>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400;1,600&family=Inter:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: auto; min-height: 0; }
@@ -16,6 +16,11 @@ html, body { height: auto; min-height: 0; }
   --terracotta: #CC583D; --terracotta-dk: #B4452C;
   --font-serif: 'Lora', Georgia, serif;
   --font-sans: 'Inter', -apple-system, sans-serif;
+  /* REFONTE OUTPUT (brief design) — tokens « fil continu + couleur du temps » */
+  --serif-display: 'Fraunces', Georgia, serif;
+  --ink: #3a2e22; --ink2: #6b5644; --ink3: #93826b; --clay: #b0552f; --clay-d: #8f3d1f;
+  --grad-time: linear-gradient(to bottom,#f8eeda 0%,#f2e4d0 26%,#ebd6c5 55%,#ddc1b6 82%,#cdb1ab 100%);
+  --grad-thread: linear-gradient(to bottom,#e6cba4 0%,#dc9b5e 28%,#b0552f 60%,#6f4340 100%);
 }
 body { font-family: var(--font-sans); background: var(--fond); color: var(--texte); }
 body.gate-mode { background: transparent; }
@@ -1064,6 +1069,18 @@ body.gate-mode { background: transparent; }
 .etapes-list { max-width: 760px; margin-left: auto; margin-right: auto; }
 
 /* Day tabs */
+/* REFONTE OUTPUT — fond « couleur du temps » (scopé à la vue itinéraire) + hero fondu + largeur contenue */
+body.iv-active { background: var(--grad-time); background-attachment: fixed; }
+.iv-wrap { max-width: 1120px; margin: 0 auto; padding: 0 40px 60px; }
+.iv-hero { padding: 28px 4px 4px; position: relative; }
+.iv-hero:before { content: ""; position: absolute; top: -6px; right: 20px; width: 260px; height: 170px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(240,200,140,.45), rgba(240,200,140,0) 70%); pointer-events: none; z-index: 0; }
+.iv-eyebrow { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #b07a44; margin: 0 0 10px; position: relative; }
+.iv-hero-title { font-family: var(--serif-display); font-weight: 500; font-size: 44px; line-height: 1.03; margin: 0;
+  color: #4a3526; letter-spacing: -.01em; position: relative; }
+.iv-facts { display: flex; gap: 44px; flex-wrap: wrap; margin-top: 20px; position: relative; }
+.iv-facts .flabel { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #b07a44; margin: 0 0 4px; }
+.iv-facts .fval { font-size: 14px; font-weight: 500; color: #4a3526; margin: 0; }
 .iv-daytabs { display: flex; gap: 10px; margin: 0 0 22px; flex-wrap: wrap; }
 .iv-daytab { flex: 1; min-width: 150px; text-align: left; background: var(--carte);
   border: 1px solid var(--bordure); border-radius: 14px; padding: 0.8em 1.1em; cursor: pointer;
@@ -1486,7 +1503,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v229'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v230'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4289,6 +4306,7 @@ async function resetForm() {
   document.getElementById('loading-state').classList.remove('visible');
   document.getElementById('error-state').classList.remove('visible');
   document.getElementById('main-content').innerHTML = '';
+  document.body.classList.remove('iv-active'); // retire le fond « couleur du temps » (retour au wizard)
   tranchesData = {}; joursData = {}; historiqueActivites = [];
   sendHeight();
 }
@@ -4694,24 +4712,38 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
     `<span class="iv-dt-num">${duree>1?'Jour '+n:'Journée'}</span>`+
     `<span class="iv-dt-sub" id="iv-tabsub-${n}">…</span></button>`
   ).join('');
+  // HERO FONDU (brief design) : eyebrow + grand titre serif (= quartier du jour) + 2 blocs de faits « Le séjour / Cette journée ».
+  const _th = (typeof params!=='undefined' && params && Array.isArray(params.themes)) ? params.themes.join(', ') : (styleLabel||'');
+  const _vo = (typeof params!=='undefined' && params && params.voyage) ? params.voyage : '';
+  const _sejour = [duree+' jour'+(duree>1?'s':''), _th, budget, _vo].filter(Boolean).join(' · ');
+  document.body.classList.add('iv-active'); // active le fond « couleur du temps » (retiré au retour wizard)
   container.innerHTML =
-    `<div class="iv-daytabs">${tabsHtml}</div>`+
-    ((typeof RACCOURCI_MSG!=='undefined'&&RACCOURCI_MSG)?`<p class="iv-raccourci">${RACCOURCI_MSG}</p>`:``)+
-    `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · `+APP_VERSION+`</span></p>`+
-    `<div class="iv-layout">`+
-      `<div class="iv-mapcol"><div class="iv-mapshell">`+
-        `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
-        `<div class="iv-map-legend" id="iv-legend" style="display:none">`+
-          `<div class="lg"><span class="dot exact"></span>Adresse confirmée</div>`+
-          `<div class="lg"><span class="dot approx"></span>Secteur (rue représentative)</div>`+
+    `<div class="iv-wrap">`+
+      `<div class="iv-hero">`+
+        `<p class="iv-eyebrow" id="iv-eyebrow">${dest||''}</p>`+
+        `<h1 class="iv-hero-title" id="iv-quartier">…</h1>`+
+        `<div class="iv-facts">`+
+          `<div><p class="flabel">Le séjour</p><p class="fval">${_sejour}</p></div>`+
+          `<div><p class="flabel">Cette journée</p><p class="fval" id="iv-daymeta">…</p></div>`+
         `</div>`+
-        `<div class="iv-map-loading" id="iv-maploading">Chargement de la carte…</div>`+
-        `<div id="iv-map"></div>`+
-      `</div></div>`+
-      `<div class="iv-stepscol">`+
-        `<div class="iv-dayhead"><div class="iv-quartier" id="iv-quartier">…</div><div class="iv-summary" id="iv-summary"></div></div>`+
-        `<div class="iv-steps" id="iv-steps"><div class="iv-loading-day" id="iv-dayloading">On compose la journée…</div></div>`+
-        `<p class="iv-prixnote">* Prix indicatifs — peuvent varier selon la saison et l'établissement.</p>`+
+      `</div>`+
+      `<div class="iv-daytabs">${tabsHtml}</div>`+
+      ((typeof RACCOURCI_MSG!=='undefined'&&RACCOURCI_MSG)?`<p class="iv-raccourci">${RACCOURCI_MSG}</p>`:``)+
+      `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · `+APP_VERSION+`</span></p>`+
+      `<div class="iv-layout">`+
+        `<div class="iv-mapcol"><div class="iv-mapshell">`+
+          `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
+          `<div class="iv-map-legend" id="iv-legend" style="display:none">`+
+            `<div class="lg"><span class="dot exact"></span>Adresse confirmée</div>`+
+            `<div class="lg"><span class="dot approx"></span>Secteur (rue représentative)</div>`+
+          `</div>`+
+          `<div class="iv-map-loading" id="iv-maploading">Chargement de la carte…</div>`+
+          `<div id="iv-map"></div>`+
+        `</div></div>`+
+        `<div class="iv-stepscol">`+
+          `<div class="iv-steps" id="iv-steps"><div class="iv-loading-day" id="iv-dayloading">On compose la journée…</div></div>`+
+          `<p class="iv-prixnote">* Prix indicatifs — peuvent varier selon la saison et l'établissement.</p>`+
+        `</div>`+
       `</div>`+
     `</div>`;
 
@@ -4754,11 +4786,12 @@ async function ivShowDay(num) {
   const tab = document.getElementById('iv-tab-' + num); if (tab) tab.classList.add('active');
   const quartier = IV.quartiers[num] || (IV.duree > 1 ? ('Jour ' + num) : '');
   const qEl = document.getElementById('iv-quartier'); if (qEl) qEl.textContent = quartier || ('Jour ' + num);
+  const ebEl = document.getElementById('iv-eyebrow'); if (ebEl) ebEl.textContent = [(IV.dest||''), (IV.duree>1?('Jour '+num):'Journée'), 'du matin au soir'].filter(Boolean).join(' · '); // eyebrow hero (par jour)
   const ovEl = document.getElementById('iv-overlay'); if (ovEl) ovEl.innerHTML = 'Jour ' + num + (quartier ? (' · <span>' + quartier + '</span>') : '');
   const stepsBox = document.getElementById('iv-steps');
   if (!IV.loaded[num]) {
     if (stepsBox) stepsBox.innerHTML = '<div class="iv-loading-day">' + (quartier ? ('Aujourd\'hui : ' + quartier) : 'On compose la journée…') + '</div>';
-    const sumEl = document.getElementById('iv-summary'); if (sumEl) sumEl.textContent = '';
+    const metaEl0 = document.getElementById('iv-daymeta'); if (metaEl0) metaEl0.textContent = '';
     try { await ivEnsureDay(num); }
     catch(e) { if (stepsBox) stepsBox.innerHTML = '<div class="iv-loading-day" style="color:#c00">Erreur : ' + (e.message || e) + '</div>'; return; }
   }
@@ -4783,8 +4816,12 @@ function ivRenderDay(num) {
   const first = tranches.find(t => t.heure) || tranches[0];
   const last = [...tranches].reverse().find(t => t.heure_fin || t.heure) || tranches[tranches.length - 1];
   const h0 = first.heure || '', hN = (last.heure_fin || last.heure || '');
-  const sumEl = document.getElementById('iv-summary');
-  if (sumEl) sumEl.innerHTML = '<b>' + tranches.length + ' étape' + (tranches.length>1?'s':'') + '</b>' + ((h0 && hN) ? (' · ' + h0 + ' → ' + hN) : '');
+  // « Cette journée » (hero) : nb étapes · distance à pied · mode. Km = somme des sauts entre étapes géolocalisées.
+  const _pts = tranches.filter(t => t && t._coords && typeof t._coords.lat === 'number');
+  let _km = 0; for (let i = 1; i < _pts.length; i++) { const a = _pts[i-1]._coords, b = _pts[i]._coords; const R = 6371, dLat = (b.lat-a.lat)*Math.PI/180, dLng = (b.lng-a.lng)*Math.PI/180, la1 = a.lat*Math.PI/180, la2 = b.lat*Math.PI/180; const x = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2; _km += 2*R*Math.asin(Math.sqrt(x)); }
+  const _kmTxt = _km >= 0.3 ? (' · ' + _km.toFixed(1).replace('.', ',') + ' km · à pied') : ' · à pied';
+  const metaEl = document.getElementById('iv-daymeta');
+  if (metaEl) metaEl.textContent = tranches.length + ' étape' + (tranches.length>1?'s':'') + _kmTxt;
 
   const box = document.getElementById('iv-steps'); box.innerHTML = '';
   tranches.forEach((t, i) => {
