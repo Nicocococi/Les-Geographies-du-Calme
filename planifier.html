@@ -1484,7 +1484,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v211'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v212'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2213,6 +2213,14 @@ function _dureeForKind(k,c){
     default: return null;                                    // sport / lieu -> logique détaillée
   }
 }
+// MODE DE VISITE d'un lieu (pour les ALTERNATIVES : une alternative doit être du même mode que l'étape — on ne propose
+// pas une église de 2h « à la place » d'une place de 40 min, ni l'inverse). Dérivé du kind.
+function _visitModeOf(x){ var k=kindOf(x);
+  if(k==='museum'||k==='monument'||k==='spa') return 'long';                 // on entre et on reste (1h30-2h30)
+  if(k==='landmark'||k==='place'||k==='viewpoint'||k==='venue') return 'court'; // on passe / façade (40 min)
+  if(k==='park'||k==='nature'||k==='foodshop'||k==='sight') return 'flane';  // on flâne (1h)
+  return 'autre';                                                            // resto/bar/sport/lieu…
+}
 // durée réaliste d'une activité (minutes)
 function dureeHint(c){if(!c)return 90;
   if(c._footing)return 50; // séance de footing au grand air ~50 min
@@ -2546,10 +2554,12 @@ function _bcAlts(day, step, n){
   var dayNoms=(day.steps||[]).map(function(s){return s&&s.nom;}).filter(Boolean);
   var dayPts=(day.steps||[]).filter(function(s){return s&&s.lat!=null&&s.lng!=null;});
   var seen={},res=[];seen[self]=1;
+  var _stepMode=_visitModeOf(step); // mode de visite de l'étape (long/court/flâne) — les alternatives doivent coller
   function _ok(c,sameTheme){
     if(!(c&&c.nom&&c.lat!=null&&c.lng!=null))return false;
     if(sameTheme && c.theme!==step.theme)return false;
     if(step.theme==='gastronomie'&&c.foodExp)return false;
+    if(step.theme!=='gastronomie' && (_visitModeOf(c)==='long')!==(_stepMode==='long'))return false; // pas un lieu de 2h « on entre et on reste » (musée/église) proposé À LA PLACE d'une place/parc de 40-60 min, ni l'inverse (la Madeleine 2h alternative de la Concorde 40 min)
     if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.catsrc||'')+' '+(c.cat||'')+' '+(c.nom||'')))return false; // CINÉMA jamais une ALTERNATIVE (invariant §5) — il reste possible « en chemin »
     if(c._pouvoir || _isPouvoir((c.catsrc||'')+' '+(c.cat||''), c.nom||''))return false; // LIEU DE POUVOIR non visitable (Assemblée/ministère/mairie…) jamais une ALTERNATIVE non plus — c'est par là qu'il restait à l'écran alors que le [rendu] (étapes) était propre. Château-musée (cat museum) non concerné.
     if(_venueBlocked(c))return false; // salle/théâtre/cabaret NON notable -> jamais une alternative (comme un cinéma)
