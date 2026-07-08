@@ -1484,7 +1484,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v215'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v217'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2204,7 +2204,8 @@ function _dureeForKind(k,c){
   var notable=!!(c&&c.notable), imp=(c&&(c.imp!=null?c.imp:(c.tags&&c.tags.importance)))||0;
   switch(k){
     case 'museum':   return imp>=0.7?150:(notable?120:90);   // TU ENTRES ET TU RESTES : 2h30 iconique / 2h notable / 1h30 sinon
-    case 'monument': return imp>=0.7?150:(notable?120:40);   // idem, mais MINEUR = 40 min (petite église : on entre/on ressort)
+    case 'monument': { var _maj=/basilique|cath[ée]drale|abbaye|mausol[ée]e|panth[ée]on|\bch[âa]teau\b/i.test(((c&&c.nom)||'')+' '+((c&&c.cat)||'')); // basilique/cathédrale/abbaye/château = monument MAJEUR par nature (Sacré-Cœur, Notre-Dame) -> 2h même si la notoriété n'est pas flaggée en base ; petite « église » sans autre signal -> 40 min
+      return imp>=0.7?150:((notable||_maj)?120:40); }
     case 'spa':      return 120;
     case 'landmark': case 'place': case 'viewpoint': return 40; // TU PASSES ET TU REGARDES (façade / place / point de vue)
     case 'park': case 'nature': case 'foodshop': case 'sight': return 60; // TU FLÂNES (parc / jardin / marché / berge)
@@ -3496,7 +3497,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     (function(){ var seenAll=[];
       DAYS.forEach(function(d){ var kept=[]; (d.steps||[]).forEach(function(s){
         if(!s || s.libre || s.theme==='gastronomie'){ kept.push(s); return; }             // repas + temps libre exemptés
-        if(seenAll.some(function(p){ return _sameLieuStep(p,s); })){ log('  · doublon inter-jours retiré : '+(s.nom||''),true); return; }
+        if(seenAll.some(function(p){ return _sameLieuStep(p,s); })){ log('  · doublon inter-jours retiré : '+(s.nom||'')); return; }
         kept.push(s); seenAll.push(s);
       }); d.steps=kept; });
       // Après le balayage, un jour redevenu trop mince (< 4 vraies étapes) est ÉCARTÉ -> raccourci honnête (villes pauvres),
