@@ -1484,7 +1484,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v214'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v215'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -3488,6 +3488,22 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(_realN>=4 || DAYS.length===0){ DAYS.push(_day); }
       else { log('  · Jour '+(i+1)+' écarté ('+_realN+' vraies étapes < 4) — séjour raccourci plutôt qu\'un jour-croupion.',true); }
     }
+    // BALAYAGE FINAL INTER-JOURS (filet) : après tous les jours, un lieu (non-repas) ne peut PAS répéter un lieu d'un jour
+    // ANTÉRIEUR — identité robuste (_sameLieuStep : nom/QID, ou <150 m + tokens-cœur/adresse ; jamais proximité seule).
+    // Attrape ce que le registre incrémental rate (ex. le filler de recomposeDay, qui pioche dans localLM sans consulter
+    // l'inter-jours). Ville pauvre compacte : le même Pont Vieux / Canal du Midi ne sort plus qu'UN jour. Paris dense : aucun
+    // doublon inter-jours (vivier immense) -> ce balayage ne retire rien -> snapshot intact. Universel (aucun nom de ville).
+    (function(){ var seenAll=[];
+      DAYS.forEach(function(d){ var kept=[]; (d.steps||[]).forEach(function(s){
+        if(!s || s.libre || s.theme==='gastronomie'){ kept.push(s); return; }             // repas + temps libre exemptés
+        if(seenAll.some(function(p){ return _sameLieuStep(p,s); })){ log('  · doublon inter-jours retiré : '+(s.nom||''),true); return; }
+        kept.push(s); seenAll.push(s);
+      }); d.steps=kept; });
+      // Après le balayage, un jour redevenu trop mince (< 4 vraies étapes) est ÉCARTÉ -> raccourci honnête (villes pauvres),
+      // jamais un jour-croupion. On garde toujours ≥ 1 jour. Paris (dense) : tous les jours restent ≥ 4 -> aucun retrait.
+      var _full=DAYS.filter(function(d){ return (d.steps||[]).filter(function(s){return s&&!s.libre;}).length>=4; });
+      if(_full.length && _full.length<DAYS.length){ log('  · '+(DAYS.length-_full.length)+' jour(s) écarté(s) après dédup inter-jours (trop mince) — séjour raccourci honnêtement.',true); DAYS=_full; }
+    })();
     _orderDaysByRichness(DAYS); // (D) ORDRE DES JOURS : du plus riche au moins riche, Jour 1 = le plus fort (+ renumérotation)
     // RACCOURCI HONNÊTE (ville pauvre) : si on a rendu MOINS de jours pleins que demandé (jours-croupion écartés),
     // on l'assume par un message générique (aucun nom de ville en dur : on utilise la destination réelle `dest`).
