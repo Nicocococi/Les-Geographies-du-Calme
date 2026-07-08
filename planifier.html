@@ -1076,11 +1076,11 @@ html.iv-active, body.iv-active { background: var(--grad-time); }
 body.iv-active .result-wrap { max-width: none; background: transparent; padding-left: 0; padding-right: 0; }
 body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé dans le hero (brief : « plus de bandeau à part ») */
 .iv-wrap { max-width: 1120px; margin: 0 auto; padding: 0 40px 60px; }
-/* HERO PLEINE PAGE : occupe la hauteur d'écran (la journée se découvre en scrollant). Contenu aligné EN HAUT (flex-start) :
-   en embed iframe (hauteur auto), centrer verticalement pousse le contenu au milieu d'un grand bloc -> haut de page vide
-   (« rien ne s'affiche »). Aligné en haut = toujours visible dès l'arrivée. */
-.iv-hero { min-height: calc(100vh - 40px); display: flex; flex-direction: column; justify-content: flex-start;
-  padding: 7vh 4px 40px; position: relative; }
+/* HERO — grand cover, MAIS hauteur en PIXELS (jamais de vh). En embed iframe auto-redimensionné (sendHeight), une hauteur
+   en vh crée une BOUCLE : le contenu dépend de la hauteur d'iframe, qui dépend du contenu -> croissance infinie / page
+   blanche (« il ne se passe rien »). min-height fixe en px = rendu fiable + effet cover. Contenu aligné en haut. */
+.iv-hero { display: flex; flex-direction: column; justify-content: flex-start;
+  padding: 48px 4px 22px; position: relative; }   /* hauteur = contenu (plus de gros vide) ; la zone « respiration » viendra à l'étape 3 (ruban) */
 .iv-hero:before { content: ""; position: absolute; top: 14%; right: 30px; width: 280px; height: 190px; border-radius: 50%;
   background: radial-gradient(circle, rgba(235,205,155,.18), rgba(235,205,155,0) 70%); pointer-events: none; z-index: 0; }
 .iv-eyebrow { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #b07a44; margin: 0 0 12px; position: relative; }
@@ -1152,46 +1152,48 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 .iv-loading-day { padding: 2.4em 0.5em; text-align: center; font-family: var(--font-serif);
   font-style: italic; font-size: 0.95rem; color: var(--gris); }
 
-.iv-steps { position: relative; margin-left: 6px; }
-.iv-steps::before { content: ''; position: absolute; left: 13px; top: 10px; bottom: 10px; width: 2px;
-  background: linear-gradient(var(--or-light), rgba(181,151,106,0.15)); }
-.iv-step { position: relative; padding-left: 44px; margin-bottom: 14px; }
-.iv-pin { position: absolute; left: 0; top: 14px; width: 28px; height: 28px; border-radius: 50%;
-  background: var(--terracotta); color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 0.85rem; border: 2px solid var(--beige); z-index: 2; transition: all .18s;
-  box-shadow: 0 0 0 1px rgba(181,151,106,0.4); }
-.iv-step.hl .iv-pin { background: var(--terracotta-dk); transform: scale(1.12); }
+/* ===== FIL CONTINU (refonte output étape 2) — plus de cartes : un fil vertical au dégradé du temps, des nœuds couleur kind, le contenu respire ===== */
+.iv-steps { position: relative; margin-left: 2px; }
+.iv-steps::before { content: ''; position: absolute; left: 16px; top: 14px; bottom: 26px; width: 4px; border-radius: 3px;
+  background: var(--grad-thread); opacity: .92; }  /* le FIL = dégradé chaud matin->soir */
+.iv-step { position: relative; padding-left: 54px; margin-bottom: 6px; }
+/* NŒUD coloré par le RÔLE (kind), posé sur le fil, bordure crème */
+.iv-pin { position: absolute; left: 7px; top: 7px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--node, var(--clay)); color: #fff; display: flex; align-items: center; justify-content: center;
+  font: 700 0.68rem/1 'Inter',sans-serif; border: 4px solid #f6f2ea; z-index: 2; transition: transform .18s, box-shadow .18s;
+  box-shadow: 0 0 0 1px rgba(120,80,50,0.18); }
+.iv-step.hl .iv-pin { transform: scale(1.22); box-shadow: 0 0 0 1px rgba(120,80,50,0.25), 0 3px 11px rgba(176,85,47,0.45); }
 
-.iv-card { background: var(--carte); border: 1px solid var(--bordure);
-  border-left: 3px solid var(--iv-accent, var(--or)); border-radius: 16px;
-  box-shadow: 0 4px 18px -12px rgba(40,32,20,0.22); transition: box-shadow .2s, transform .2s; overflow: hidden; }
-.iv-step.hl .iv-card { box-shadow: 0 12px 28px -14px rgba(40,32,20,0.34); transform: translateY(-1px); }
-.iv-head { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px; cursor: pointer; }
-.iv-timecol { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; margin-top: 1px; }
-.iv-time { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap;
-  padding: 0.32em 0.62em; border-radius: 7px; color: var(--iv-accent, var(--or));
-  background: var(--iv-soft, rgba(181,151,106,0.1)); }
-.iv-dur { font-size: 0.6rem; font-weight: 600; color: var(--gris); white-space: nowrap; letter-spacing: 0.01em; } /* durée / plage calculée par le moteur */
-.iv-leg { padding-left: 44px; margin: -6px 0 10px; font-size: 0.7rem; color: var(--gris); letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; } /* item 3 : temps de trajet entre 2 étapes */
-.iv-leg span { opacity: 0.85; }
-.iv-price { font-size: 0.8rem; font-weight: 700; color: #9a7b45; letter-spacing: 0.04em; white-space: nowrap; } /* badge prix €/€€/€€€ (restos) */
-.iv-titles { flex: 1; min-width: 0; }
-.iv-name { font-family: var(--font-serif); font-size: 1.1rem; font-weight: 600; color: var(--noir); line-height: 1.25;
+/* CARTE -> transparente : le contenu respire sur le fond (plus de boîte blanche) */
+.iv-card { background: transparent; border: 0; border-radius: 12px; transition: background .18s; overflow: hidden; }
+.iv-step.hl .iv-card { background: rgba(255,253,249,0.55); }
+.iv-head { display: flex; align-items: flex-start; gap: 16px; padding: 6px 4px 16px 0; cursor: pointer; }
+.iv-thumb { width: 92px; height: 92px; border-radius: 13px; object-fit: cover; flex: none; order: 2;
+  box-shadow: 0 3px 10px rgba(120,80,50,0.16); background: #ece5d8; }
+.iv-titles { flex: 1; min-width: 0; order: 1; }
+.iv-topline { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.iv-time { font-size: 0.8rem; font-weight: 600; color: #8a7256; white-space: nowrap; }
+.iv-kindchip { font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; white-space: nowrap;
+  padding: 3px 9px; border-radius: 6px; background: var(--chipbg, #f6e6de); color: var(--chipt, #8f3d1f); }
+.iv-dur { font-weight: 500; color: var(--ink3, #93826b); white-space: nowrap; } /* durée calculée par le moteur */
+.iv-star { color: var(--clay, #b0552f); font-weight: 500; white-space: nowrap; }
+.iv-leg { padding-left: 54px; margin: 2px 0; font-size: 0.72rem; color: var(--ink3, #93826b); display: flex; align-items: center; gap: 5px; } /* item 3 : temps de trajet entre 2 étapes */
+.iv-leg span { opacity: 0.9; }
+.iv-price { font-size: 0.82rem; font-weight: 700; color: #9a7b45; letter-spacing: 0.04em; white-space: nowrap; } /* badge prix €/€€/€€€ (restos) */
+.iv-name { font-family: var(--serif-display); font-size: 1.4rem; font-weight: 500; color: #3f2e20; line-height: 1.14; margin: 3px 0;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.iv-teaser { font-size: 0.82rem; color: var(--gris); margin-top: 3px; line-height: 1.35;
+.iv-teaser { font-size: 0.85rem; color: var(--ink2, #6b5644); margin-top: 2px; line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.iv-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; align-self: center; }
-.iv-altdots { display: flex; gap: 3px; align-items: center; transition: opacity .2s; }
-.iv-altdots span { width: 5px; height: 5px; border-radius: 50%; background: var(--iv-accent, var(--or)); opacity: .55; }
-.iv-step.hl .iv-altdots span { opacity: .9; }
-.iv-step.open .iv-altdots { opacity: 0; }
-.iv-chev { width: 22px; height: 22px; color: var(--gris); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+.iv-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 9px; font-size: 0.78rem; color: var(--ink3, #93826b); }
+.iv-altdots { display: none; }  /* plus d'aperçu de variantes dans le fil (une seule adresse par étape) */
+.iv-chev { width: 20px; height: 20px; color: var(--ink3, #93826b); opacity: .5; order: 3; align-self: center; flex: none;
+  transition: transform .3s cubic-bezier(.4,0,.2,1); }
 .iv-step.open .iv-chev { transform: rotate(180deg); }
 
 .iv-detail { max-height: 0; overflow: hidden; opacity: 0;
   transition: max-height .4s cubic-bezier(.4,0,.2,1), opacity .3s ease; }
 .iv-step.open .iv-detail { opacity: 1; }
-.iv-detail-inner { padding: 0 16px 16px; }
+.iv-detail-inner { padding: 2px 0 20px 0; }   /* fil : le détail s'aligne sous le contenu (plus de padding de carte) */
 .iv-text { font-size: 0.92rem; line-height: 1.7; color: #3c382f; margin: 0 0 12px; }
 .iv-addr { font-size: 0.82rem; line-height: 1.5; color: #8a7d68; margin: 0 0 12px; display: flex; gap: 0.4em; align-items: flex-start; } /* adresse réelle du lieu (repas + activités), affichée dans le détail */
 .iv-addr .pin { flex: 0 0 auto; opacity: 0.8; }
@@ -1236,6 +1238,13 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
   .iv-quartier { font-size: 1.6rem; }
   .iv-dayhead { flex-wrap: wrap; }
   .iv-summary { white-space: normal; }
+  /* (correctif 4) FIL sur mobile : la vignette passe en BANDE pleine largeur AU-DESSUS du texte (elle ne tiendrait pas à droite) */
+  .iv-head { flex-direction: column; gap: 10px; }
+  .iv-thumb { order: 0; width: 100%; height: 160px; }
+  .iv-titles { order: 1; width: 100%; }
+  .iv-chev { display: none; }   /* tap n'importe où sur l'étape pour déplier */
+  .iv-hero-title { font-size: 34px; }
+  .iv-facts { gap: 22px; }
 }
 </style>
 </head>
@@ -1513,7 +1522,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v234'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v239'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2639,11 +2648,13 @@ function _enChemin(day){
   var steps=[]; (day.steps||[]).forEach(function(s,idx){ if(s&&s.lat!=null&&s.lng!=null&&!s.libre) steps.push({s:s,idx:idx}); });
   if(steps.length<2) return res;
   var stepKeys={}; steps.forEach(function(x){ stepKeys[_norm(x.s.nom||'')]=1; });
+  var _seenLM={};
   var pool=(day.localLM||[]).filter(function(L){
     // CINÉMA : jamais une ÉTAPE ni une alternative (invariant §5), MAIS un cinéma NOTABLE peut rester un repère
     // « EN CHEMIN » (on passe devant la façade — Studio 28 / Le Louxor / Moulin Rouge restent charmants en repère,
     // pas en arrêt). C'est le SEUL endroit où un cinéma est toléré, et seulement s'il est notable.
-    return L && L.notable && L.lat!=null && L.lng!=null && !stepKeys[_norm(L.nom||'')];
+    if(!(L && L.notable && L.lat!=null && L.lng!=null && !stepKeys[_norm(L.nom||'')])) return false;
+    var _k=_norm(L.nom||''); if(!_k || _seenLM[_k]) return false; _seenLM[_k]=1; return true; // (correctif 3) une seule entrée par nom -> pas de « en chemin » en double (multi-source)
   });
   if(!pool.length) return res;
   var taken={};
@@ -2681,6 +2692,8 @@ function adaptDayToJours(day){
       heure_fin: (typeof step._t1==='number' ? fmtH(rc(step._t1)) : (step.fin || '')),
       duree: (typeof step.duree==='number' ? step.duree : null),      // (2) durée calculée par planDay -> affichage plage/≈min
       theme: step.theme || null,                                       // (3) pour le badge prix (restos)
+      kind: (typeof kindOf==='function' && !step.libre) ? kindOf(step) : null, // (refonte output étape 2) RÔLE du lieu -> couleur du nœud/chip du fil (mockup : musée/parc/point de vue/place/repas…)
+      cat: step.cat || null,                                           // (refonte output) sert à distinguer bord d'eau/canal des autres nature
       price: (typeof step.price==='number' ? step.price : null),       // (3) prix €..€€€€ (porté sur l'étape avant suppression de _c)
       nom: step.nom || step.adresse || step.titre || '',
       titre: step.titre || '',
@@ -2688,6 +2701,7 @@ function adaptDayToJours(day){
       adresse: step.adresse || null,
       image: step.image || null,
       libre: !!step.libre,
+      incontournable: !!step._incontournable,                          // (refonte output) étoile « ★ Incontournable » sur le fil
       points_chute: chemin[tid] || [],                                 // (1) repères « en chemin » entre étapes
       _trajMin: (typeof step._trajMin==='number'?step._trajMin:0),      // (item 3) trajet depuis l'étape précédente (min) — 0 pour la 1re / après temps libre
       _trajCar: !!step._trajCar,                                        // (item 3) true = 🚗 en voiture (excursion / > 2 km), sinon 🚶 à pied
@@ -4821,6 +4835,37 @@ function ivDurLabel(d){
   if(m>=90){ const h=Math.floor(m/60), mm=Math.round((m%60)/5)*5; return '≈'+h+'h'+(mm?((mm<10?'0':'')+mm):''); }
   return '≈'+(Math.max(5,Math.round(m/5)*5))+' min';
 }
+// COULEUR + LIBELLÉ par RÔLE (kind) — mockup « fil » : le point du fil, la pastille et (plus tard) le pin carte partagent
+// la même couleur. c = point/pin, bg = fond pastille, t = texte pastille, l = libellé FR. Défaut terracotta si kind inconnu.
+const IV_KIND = {
+  museum:{c:'#b0552f',bg:'#f6e6de',t:'#8f3d1f',l:'Musée'}, monument:{c:'#b0552f',bg:'#f6e6de',t:'#8f3d1f',l:'Monument'},
+  park:{c:'#7a8b3f',bg:'#eef0e0',t:'#4a5a1f',l:'Parc'}, nature:{c:'#7a8b3f',bg:'#eef0e0',t:'#4a5a1f',l:'Nature'},
+  viewpoint:{c:'#4f8a86',bg:'#e2efed',t:'#2c5a56',l:'Point de vue'}, water:{c:'#5b8aa6',bg:'#e4eef3',t:'#2f5a72',l:'Bord de l’eau'},
+  place:{c:'#9a9080',bg:'#efeae0',t:'#5f5648',l:'Place'}, landmark:{c:'#9a9080',bg:'#efeae0',t:'#5f5648',l:'Repère'},
+  sight:{c:'#9a9080',bg:'#efeae0',t:'#5f5648',l:'À voir'}, lieu:{c:'#9a9080',bg:'#efeae0',t:'#5f5648',l:'À voir'},
+  foodshop:{c:'#c68a3a',bg:'#f6ecd9',t:'#7a5314',l:'Gourmand'}, restaurant:{c:'#c68a3a',bg:'#f6ecd9',t:'#7a5314',l:'Table'},
+  dinner:{c:'#c68a3a',bg:'#f3e0d3',t:'#7a3f24',l:'Dîner'}, lunch:{c:'#c68a3a',bg:'#f6ecd9',t:'#7a5314',l:'Déjeuner'},
+  bar:{c:'#9a6a8f',bg:'#f0e5ee',t:'#6b3f63',l:'Sortie'}, venue:{c:'#9a6a8f',bg:'#f0e5ee',t:'#6b3f63',l:'Culture'},
+  spa:{c:'#5f9a93',bg:'#e2efed',t:'#2c5a56',l:'Bien-être'}, sport:{c:'#5f9a93',bg:'#e2efed',t:'#2c5a56',l:'Sport'},
+  enfant:{c:'#c68a3a',bg:'#f6ecd9',t:'#7a5314',l:'Famille'},
+  libre:{c:'#c9bda9',bg:'#efe9dd',t:'#8a7d68',l:'Temps libre'}, _def:{c:'#b0552f',bg:'#f6e6de',t:'#8f3d1f',l:''}
+};
+const _THEME_KIND = { nature:'nature', culture:'museum', urbain:'place', gastronomie:'restaurant', festif:'bar', bienetre:'spa', sport:'sport' };
+function ivKind(data){
+  if(data&&data.libre) return IV_KIND.libre;
+  var k = (data&&data.kind) || _THEME_KIND[(data&&data.theme)] || '';
+  var haystack = (((data&&data.cat)||'')+' '+((data&&data.nom)||'')).toLowerCase();
+  // repas : déjeuner vs dîner par le titre
+  if(k==='restaurant' || (data&&data.theme==='gastronomie' && !/march[ée]|glacier|cave|halle|fromage|chocolat|p[âa]tisser|[ée]picerie|boulanger/.test(haystack))){
+    var ti=((data&&data.titre)||'').toLowerCase();
+    if(/d[îi]ner/.test(ti)) return IV_KIND.dinner;
+    if(/d[ée]jeuner/.test(ti)) return IV_KIND.lunch;
+    return IV_KIND.restaurant;
+  }
+  // bord d'eau / canal -> bleu (sinon parc/nature = vert)
+  if((k==='nature'||k==='park') && /canal|quai|berge|rivi[èe]re|fleuve|\beau\b|\bport\b|bassin|\b[îi]le\b/.test(haystack)) return IV_KIND.water;
+  return IV_KIND[k] || IV_KIND._def;
+}
 function ivRenderDay(num) {
   const tranches = IV.tranches[num] || []; if (!tranches.length) return;
   if (!IV.sel[num]) IV.sel[num] = {};
@@ -4853,15 +4898,24 @@ function ivRenderDay(num) {
     const _price = (data && data.price) ? '<span class="iv-price">' + '€'.repeat(Math.min(4, data.price)) + '</span>' : '';
     let _teaser = ivTeaser(data);
     if (data && data.price) _teaser = _teaser.replace(/\s*·\s*€+\s*$/, ''); // le prix est montré par le badge -> pas de « · €€ » en double dans le sous-titre
+    // FIL CONTINU (refonte output étape 2) : nœud coloré par RÔLE (kind) sur le fil, contenu qui « respire » (plus de carte
+    // blanche). On GARDE l'ossature JS : .iv-head (clic->déplier), .iv-name/.iv-teaser (A/B/C), .iv-detail/.iv-detail-inner (expand).
+    const kd = ivKind(data);
+    step.style.setProperty('--node', kd.c); step.style.setProperty('--chipbg', kd.bg); step.style.setProperty('--chipt', kd.t);
+    const _chip = (kd.l && !data.libre) ? '<span class="iv-kindchip">' + kd.l + '</span>' : '';
+    const _star = (data && data.incontournable && !data.libre) ? '<span class="iv-star">★ Incontournable</span>' : '';
+    const _thumb = (data && data.image) ? '<img class="iv-thumb" src="' + String(data.image).replace(/"/g,'&quot;') + '" loading="lazy" alt="" onerror="this.style.display=\'none\'">' : '';
     step.innerHTML =
       '<div class="iv-pin">' + (i+1) + '</div>' +
       '<div class="iv-card">' +
-        '<div class="iv-head">' +
-          '<div class="iv-timecol"><span class="iv-time">' + (t.heure || '') + '</span>' + (_dur ? '<span class="iv-dur">' + _dur + '</span>' : '') + '</div>' +
-          '<div class="iv-titles"><div class="iv-name">' + stripNom(data.nom || '') + '</div>' +
-            '<div class="iv-teaser">' + _teaser + '</div></div>' +
-          '<div class="iv-meta">' + _price +
-          '<svg class="iv-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>' +
+        '<div class="iv-head">' + _thumb +
+          '<div class="iv-titles">' +
+            '<div class="iv-topline"><span class="iv-time">' + (t.heure || '') + '</span>' + _chip + '</div>' +
+            '<div class="iv-name">' + stripNom(data.nom || '') + '</div>' +
+            '<div class="iv-teaser">' + _teaser + '</div>' +
+            '<div class="iv-meta">' + (_dur ? '<span class="iv-dur">' + _dur + '</span>' : '') + _price + _star + '</div>' +
+          '</div>' +
+          '<svg class="iv-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>' +
         '</div>' +
         '<div class="iv-detail">' + ivDetailHTML(num, t, i) + '</div>' +
       '</div>';
@@ -4881,7 +4935,8 @@ function ivDetailHTML(num, t, i, optOverride) {
   const opt = optOverride || ivCurOpt(num, t.id); const data = ivOpt(num, t.id, opt) || t;
   const pts = (data && data.points_chute) || [];
   let html = '<div class="iv-detail-inner">';
-  if (data && data.image) html += '<img class="iv-photo" src="' + String(data.image).replace(/"/g, '&quot;') + '" loading="lazy" alt="" onerror="this.style.display=\'none\'">'; // VAGUE 1 : vraie photo du lieu (Commons/Wikipédia) ; masquée si chargement échoue
+  // (refonte output — correctif 1) UNE SEULE photo : la vignette à droite du texte (rendue dans l'en-tête, visible pliée ET
+  // dépliée) suffit. On NE ré-affiche PLUS la grande photo au dépliage (il y en avait deux).
   html += '<p class="iv-text">' + _escHtml((data && data.texte) || '') + '</p>'; // texte stocké EN CLAIR partout -> échappé ici (innerHTML) ; le sous-titre l'affiche via textContent (donc plus d'entités brutes)
   // ADRESSE RÉELLE dans le détail : affichée pour TOUTE étape à adresse connue (repas inclus) — sauf temps libre,
   // et sauf si le sous-titre la montre déjà (évite le doublon avec ivTeaser). Corrige les repas, dont le titre
@@ -4920,6 +4975,12 @@ function ivBindAlts(step, num, t, i) {
       const data = ivOpt(num, t.id, k) || t;
       const nameEl = step.querySelector('.iv-name'); if (nameEl) nameEl.textContent = stripNom(data.nom || '');
       const teaserEl = step.querySelector('.iv-teaser'); if (teaserEl) teaserEl.textContent = ivTeaser(data);
+      // (correctif 2) la VIGNETTE suit l'alternative choisie : on met à jour l'image de l'en-tête (ou on la crée/masque).
+      const head = step.querySelector('.iv-head'); let thumbEl = step.querySelector('.iv-thumb');
+      if (data && data.image) {
+        if (!thumbEl && head) { thumbEl = document.createElement('img'); thumbEl.className = 'iv-thumb'; thumbEl.loading = 'lazy'; thumbEl.alt = ''; thumbEl.onerror = function(){ this.style.display = 'none'; }; head.insertBefore(thumbEl, head.querySelector('.iv-chev') || null); }
+        if (thumbEl) { thumbEl.style.display = ''; thumbEl.src = data.image; }
+      } else if (thumbEl) { thumbEl.style.display = 'none'; }
       const detail = step.querySelector('.iv-detail');
       detail.innerHTML = ivDetailHTML(num, t, i);
       // Hauteur fixe : la box garde la taille max mesurée (A/B/C) — pas de redimensionnement
@@ -5005,6 +5066,15 @@ async function ivInitMap() {
   IV.map = new mapboxgl.Map({ container: 'iv-map', style: MAPBOX_STYLE, center: [0, 20], zoom: 1.4, attributionControl: false });
   IV.map.addControl(new mapboxgl.AttributionControl({ compact: true }));
   IV.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+  // MOBILE (détection JS robuste — pas seulement la media query CSS, qui peut rater dans l'iframe Ghost si sa largeur interne
+  // est « desktop ») : (1) on DÉSACTIVE le pan au doigt pour ne PAS piéger le scroll de page (la carte reste une bande, on
+  // scrolle par-dessus ; zoom via les boutons +/−) ; (2) on FORCE une bande courte (~300px) en sécurité si le CSS n'a pas pris.
+  const _mob = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
+  if (_mob) {
+    try { IV.map.dragPan.disable(); } catch(e) {}
+    const _sh = document.querySelector('.iv-mapshell'); if (_sh) { _sh.style.height = '300px'; }
+    setTimeout(() => { if (IV.map) IV.map.resize(); }, 60);
+  }
   IV.map.on('load', () => {
     ivEditorialStyle(); IV.ready = true;
     const l = document.getElementById('iv-maploading'); if (l) l.style.display = 'none';
