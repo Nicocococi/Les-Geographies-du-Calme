@@ -1145,6 +1145,8 @@ body.gate-mode { background: transparent; }
   padding: 0.32em 0.62em; border-radius: 7px; color: var(--iv-accent, var(--or));
   background: var(--iv-soft, rgba(181,151,106,0.1)); }
 .iv-dur { font-size: 0.6rem; font-weight: 600; color: var(--gris); white-space: nowrap; letter-spacing: 0.01em; } /* durée / plage calculée par le moteur */
+.iv-leg { padding-left: 44px; margin: -6px 0 10px; font-size: 0.7rem; color: var(--gris); letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; } /* item 3 : temps de trajet entre 2 étapes */
+.iv-leg span { opacity: 0.85; }
 .iv-price { font-size: 0.8rem; font-weight: 700; color: #9a7b45; letter-spacing: 0.04em; white-space: nowrap; } /* badge prix €/€€/€€€ (restos) */
 .iv-titles { flex: 1; min-width: 0; }
 .iv-name { font-family: var(--font-serif); font-size: 1.1rem; font-weight: 600; color: var(--noir); line-height: 1.25;
@@ -1484,7 +1486,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v217'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v221'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2391,6 +2393,22 @@ function estOuvert(oh,jour,minutes){
   for(var i=0;i<chk.length;i++){var d=chk[i];if(jour!=null&&dayOff[d])continue;var rs=dayR[d];for(var j=0;j<rs.length;j++){var a=rs[j][0],b=rs[j][1];if(minutes>=a&&minutes<b)return true;if(minutes+1440>=a&&minutes+1440<b)return true;}}
   return false;
 }
+// ENVELOPPE horaire journalière [ouverture la plus tôt, fermeture la plus tard] à travers TOUTES les plages parsables
+// (item 1 « horaires d'ouverture »). Sert à (a) décaler le départ d'une étape à son ouverture, (b) l'écarter si sa visite
+// finirait après la fermeture. Renvoie {open,close} en minutes, ou null si absent / 24-7 / illisible -> AUCUNE contrainte
+// (= « ouvert », dégradation gracieuse). Volontairement LARGE (min des ouvertures / max des fermetures) : on ne rejette
+// que le franchement fermé, jamais un cas ambigu. Pas de date réelle -> pas de fermeture hebdo ici (limite assumée, cf. joursFermes qui, lui, ne fait qu'informer).
+function _ohWindow(oh){
+  if(!oh) return null; var s=(''+oh).trim(); if(!s||/24\s*\/\s*7/.test(s)) return null;
+  var open=null, close=null;
+  s.split(';').forEach(function(rule){
+    rule=rule.trim(); if(!rule) return; var low=rule.toLowerCase();
+    if(/\b(ph|sh)\b/.test(low)||/sunrise|sunset|dusk|dawn/.test(low)) return; // fériés / heures variables -> ignorés
+    var tm=rule.match(/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}(\s*,\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})*/); if(!tm) return;
+    tm[0].split(',').forEach(function(tr){var mm=/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/.exec(tr);if(mm){var a=_ohMin(mm[1]),b=_ohMin(mm[2]);if(a!=null&&b!=null){if(b<=a)b+=1440;if(open==null||a<open)open=a;if(close==null||b>close)close=b;}}});
+  });
+  if(open==null||close==null) return null; return {open:open, close:close};
+}
 // JOUR(S) DE FERMETURE connus -> note informative dans le texte (« Fermé le lundi »). On ne REJETTE pas (pas de date réelle),
 // mais SI le(s) jour(s) sont clairement parsables et peu nombreux (1-2), on prévient. Sinon (inconnu, ouvert toute la semaine,
 // ou horaires trop limités) -> rien. Universel (format structuré), jamais un nom propre.
@@ -2535,7 +2553,7 @@ function _bcVariant(place, step, tid){
   var ct = place.cat || '';
   var cap = ct ? (ct.charAt(0).toUpperCase()+ct.slice(1)) : 'Une adresse';
   return {
-    id: tid, label: place.nom||'', heure: step.heure||'', heure_fin: step.fin||'',
+    id: tid, label: place.nom||'', heure: (typeof step._t0==='number'?fmtH(rc(step._t0)):(step.heure||'')), heure_fin: (typeof step._t1==='number'?fmtH(rc(step._t1)):(step.fin||'')), // (item 4) heure affichée arrondie 5 min (variante B/C = même créneau que A)
     nom: place.nom||'', titre: place.nom||'',
     texte: place.extract ? place.extract : (cap + ' à proximité — une autre adresse pour cette étape.'), // BUG 3 : vrai extrait si dispo (comme la variante A) ; sinon fallback EN CLAIR (plus d'entités &agrave; brutes)
     adresse: place.address||place.adresse||null,
@@ -2632,8 +2650,8 @@ function adaptDayToJours(day){
     var a={
       id: tid,
       label: step.titre || step.nom || '',
-      heure: step.heure || '',
-      heure_fin: step.fin || '',
+      heure: (typeof step._t0==='number' ? fmtH(rc(step._t0)) : (step.heure || '')),      // (item 4) heure AFFICHÉE arrondie à 5 min — _t0/_t1 gardés EXACTS (pas de dérive)
+      heure_fin: (typeof step._t1==='number' ? fmtH(rc(step._t1)) : (step.fin || '')),
       duree: (typeof step.duree==='number' ? step.duree : null),      // (2) durée calculée par planDay -> affichage plage/≈min
       theme: step.theme || null,                                       // (3) pour le badge prix (restos)
       price: (typeof step.price==='number' ? step.price : null),       // (3) prix €..€€€€ (porté sur l'étape avant suppression de _c)
@@ -2644,6 +2662,8 @@ function adaptDayToJours(day){
       image: step.image || null,
       libre: !!step.libre,
       points_chute: chemin[tid] || [],                                 // (1) repères « en chemin » entre étapes
+      _trajMin: (typeof step._trajMin==='number'?step._trajMin:0),      // (item 3) trajet depuis l'étape précédente (min) — 0 pour la 1re / après temps libre
+      _trajCar: !!step._trajCar,                                        // (item 3) true = 🚗 en voiture (excursion / > 2 km), sinon 🚶 à pied
       _coords: (step.lat!=null && step.lng!=null) ? {lat: step.lat, lng: step.lng, precision:'exact'} : null
     };
     // ALTERNATIVES B/C. Repas : on utilise d'abord step.alts (liste DÉDIÉE construite au moteur — vrais restos,
@@ -2706,7 +2726,7 @@ function recomposeDay(day, ctx){
   // JOUR-EXCURSION (ville pauvre, ancre hors-cœur) : la journée est ÉTALÉE sur la région (site à X km + repas en ville).
   // On élargit alors la bulle à REGION_KM pour NE PAS clamper les étapes-excursion légitimes. Paris (dense) : jamais
   // d'excursion -> bulle normale, snapshot intact.
-  var center=ctx&&ctx.center, bubble=(ctx&&ctx.excursion)?(typeof REGION_KM!=='undefined'?REGION_KM:35):((ctx&&ctx.bubble)||2.5), all=(ctx&&ctx.all)||[], localLM=(day.localLM&&day.localLM.length)?day.localLM:all, destCity=(ctx&&ctx.destCity)?_norm(ctx.destCity):'', _F=(typeof fmtH==='function');
+  var center=ctx&&ctx.center, bubble=(ctx&&ctx.excursion)?(typeof REGION_KM!=='undefined'?REGION_KM:35):((ctx&&ctx.bubble)||2.5), all=(ctx&&ctx.all)||[], localLM=(day.localLM&&day.localLM.length)?day.localLM:all, destCity=(ctx&&ctx.destCity)?_norm(ctx.destCity):'', voyage=(ctx&&ctx.voyage)||'', _F=(typeof fmtH==='function');
   function _inCity(adr){ if(!destCity || !adr) return true; var a=_norm(adr); if(a.indexOf(destCity)>=0) return true; var m=String(adr).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); return !(m&&_norm(m[1])&&_norm(m[1])!==destCity); }
   function _inBubble(lat,lng){ if(lat==null||lng==null) return true; return !(center && hav(center.lat,center.lng,lat,lng)>bubble); }
   function inZone(lat,lng,adr){ return _inBubble(lat,lng) && _inCity(adr); }
@@ -2767,9 +2787,25 @@ function recomposeDay(day, ctx){
   function _iconStep(c){ var _ct=c.cat||'un lieu emblématique'; return {theme:c.theme,nom:c.nom,lat:c.lat,lng:c.lng,adresse:c.address||c.adresse||null,catsrc:c.catsrc||'',cat:c.cat||null,extract:c.extract||null,image:c.image||null,_icon:true,titre:(typeof _latinTitle==='function'?_latinTitle(c.nom,_ct):c.nom),texte:c.extract?c.extract:((typeof _cap==='function'?_cap(_ct):_ct)+' du quartier, à voir en passant.')}; } // FONDATION durées : catsrc/cat conservés -> kindOf voit la catégorie de l'icône
   // 3+4. HORAIRES séquentiels + repas
   var out=[], t=8*60+30;
-  function place(s,d,minStart,openEnd){ var start=t+(out.length?_tr(out[out.length-1],s):0); if(minStart)start=Math.max(start,minStart); s._t0=start;s.duree=d;s._t1=start+d; if(_F){s.heure=fmtH(start);s.fin=fmtH(start+d);} s.openEnd=!!openEnd; out.push(s); t=s._t1; }
+  function place(s,d,minStart,openEnd){
+    var _pv=out.length?out[out.length-1]:null;
+    var start=t+(_pv?_tr(_pv,s):0); if(minStart)start=Math.max(start,minStart);
+    // HORAIRES D'OUVERTURE (item 1) : décaler au plus tôt à l'ouverture (Louvre 9h -> la journée démarre 9h) ; ÉCARTER
+    // l'étape (return false) si sa visite finirait après la fermeture (comme une activité qui ne rentre pas -> on comble
+    // avec autre chose). Exemptés : repas (§4) + sortie du soir (openEnd) + temps libre. Donnée absente/illisible -> ouvert.
+    if(!openEnd && !s.libre && !isMeal(s)){
+      var _oh=(s.opening_hours||(s._c&&s._c.opening_hours))||null, _w=_ohWindow(_oh);
+      if(_w){ if(start<_w.open)start=_w.open; if(start+d>_w.close) return false; }
+    }
+    s._t0=start;s.duree=d;s._t1=start+d; if(_F){s.heure=fmtH(start);s.fin=fmtH(start+d);} s.openEnd=!!openEnd;
+    // TRAJET depuis l'étape précédente (item 3, AFFICHAGE seul — ne modifie NI horaires NI snapshot) : distance réelle,
+    // mode (voiture si carhop/excursion ou > 2 km, sinon marche) et minutes (~600 m/min en voiture, ~75 m/min à pied).
+    if(_pv && _pv.lat!=null && s.lat!=null){ var _km=hav(_pv.lat,_pv.lng,s.lat,s.lng), _car=!!(s.carhop||_pv.carhop||_km>2); s._trajKm=_km; s._trajCar=_car; s._trajMin=_car?Math.max(5,Math.round(_km*1000/600)):Math.max(5,Math.round(_km*1000/75)); }
+    else { s._trajMin=0; s._trajCar=false; }
+    out.push(s); t=s._t1; return true;
+  }
   var idx=0,mc=0;
-  while(idx<chain.length && t<12*60 && mc<4){ place(chain[idx],_dur(chain[idx]),null,chain[idx].openEnd); idx++; mc++; } // matin : jusqu'à ~12h / 4 activités
+  while(idx<chain.length && t<12*60 && mc<4){ if(place(chain[idx],_dur(chain[idx]),null,chain[idx].openEnd)) mc++; idx++; } // matin : jusqu'à ~12h / 4 activités (une étape fermée à ce créneau est écartée, pas comptée)
   if(lunch) place(lunch,90,Math.max(t,12*60));                                        // déjeuner ~12h+
   while(idx<chain.length){ place(chain[idx],_dur(chain[idx]),null,chain[idx].openEnd); idx++; } // après-midi
   var DINNER=20*60, lastChain=null; for(var z=out.length-1;z>=0;z--){ if(!isMeal(out[z]) && !out[z].libre){ lastChain=out[z]; break; } }
@@ -2782,9 +2818,16 @@ function recomposeDay(day, ctx){
     if(nd && _norm(nd.nom)!==_keep){ dinner={theme:'gastronomie',nom:nd.nom,lat:nd.lat,lng:nd.lng,adresse:nd.address||nd.adresse||null,price:(typeof nd.price==='number'?nd.price:null),extract:nd.extract||null,image:nd.image||null,titre:'Dîner — '+nd.nom,texte:(typeof _mealTxt==='function'?_mealTxt(nd.nom,'dîner'):('Dîner — '+nd.nom))}; if(_usedN&&_usedN.add)_usedN.add(_norm(nd.nom)); }
   }
   if(dinner){
-    while((DINNER-t)>45){ var ic=_pickIcon(out.filter(function(s){return !s.libre;})); if(!ic)break; var id2=dureeHint(ic); if(!(id2>0))id2=40; var _room=(DINNER-t)-30; if(id2>_room)id2=_room; if(id2<20)break; place(_iconStep(ic),id2,null,false); } // comble à la VRAIE durée de l'icône (place 40, parc 60…), bornée par le créneau avant dîner ; le major-skip de _pickIcon empêche déjà un musée ici
-    if((DINNER-t)>45){ var _l0=t; out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler avant le dîner : flâner dans le quartier, s\'attabler en terrasse, ou se reposer.',duree:DINNER-_l0,_t0:_l0,_t1:DINNER,heure:_F?fmtH(_l0):'',fin:_F?fmtH(DINNER):''}); t=DINNER; } // sinon temps libre honnête couvrant tout le reste
-    place(dinner,120,DINNER); // dîner ≥ 20h
+    var DIN_FLOOR=DINNER, DIN_CEIL=(voyage==='famille')?DIN_FLOOR:21*60;                    // dîner : plancher 20h DUR (invariant) ; plafond souple 21h — SAUF FAMILLE : plafond 20h (enfants -> on ne décale pas le dîner, fin ~22h)
+    // COMBLAGE (item 2, fenêtre souple) : on comble avec de VRAIES icônes tant qu'il en reste et qu'une « de plus » RENTRE
+    // avant 21h. La dernière peut DÉBORDER dans [20h,21h] (visite pleine, plus tronquée à 20h pile) -> moins de trous et de
+    // temps libre. La boucle s'arrête dès qu'il n'y a plus d'icône (_pickIcon null) -> ville pauvre : rien à inventer, temps
+    // libre honnête conservé. Le major-skip de _pickIcon empêche toujours un musée-bouche-trou.
+    while((DIN_CEIL-t)>45){ var ic=_pickIcon(out.filter(function(s){return !s.libre;})); if(!ic)break; var id2=dureeHint(ic); if(!(id2>0))id2=40; var _room=(DIN_CEIL-t)-15; if(id2>_room)id2=_room; if(id2<20)break; if(!place(_iconStep(ic),id2,null,false))break; }
+    // DÎNER : flotte dans [20h,21h]. Se cale dès la fin de l'après-midi ; jamais avant 20h (plancher dur), jamais après 21h.
+    var _dinStart=Math.max(DIN_FLOOR, Math.min(t, DIN_CEIL));
+    if((_dinStart-t)>45){ var _l0=t; out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler avant le dîner : flâner dans le quartier, s\'attabler en terrasse, ou se reposer.',duree:_dinStart-_l0,_t0:_l0,_t1:_dinStart,heure:_F?fmtH(_l0):'',fin:_F?fmtH(_dinStart):''}); t=_dinStart; } // temps libre SEULEMENT si un trou subsiste (rien à placer) — couvre le reste honnêtement
+    place(dinner,120,_dinStart); // dîner ≥ 20h (plancher dur), ≤ 21h
   }
   if(evening) place(evening,_dur(evening),Math.max(t,21*60+15),true);
   out.sort(function(a,b){ return (a._t0!=null?a._t0:1e9)-(b._t0!=null?b._t0:1e9); });
@@ -4739,6 +4782,13 @@ function ivRenderDay(num) {
 
   const box = document.getElementById('iv-steps'); box.innerHTML = '';
   tranches.forEach((t, i) => {
+    // TRAJET (item 3) : petit repère « 🚶 ≈X min à pied » / « 🚗 ≈X min en voiture » AVANT l'étape (jamais avant la 1re,
+    // ni pour/après un temps libre — _trajMin=0 dans ces cas). Purement additif : n'altère ni l'horaire ni la carte.
+    if (i > 0 && !t.libre && t._trajMin > 0) {
+      const leg = document.createElement('div'); leg.className = 'iv-leg';
+      leg.innerHTML = (t._trajCar ? '🚗' : '🚶') + '<span>≈ ' + t._trajMin + ' min ' + (t._trajCar ? 'en voiture' : 'à pied') + '</span>';
+      box.appendChild(leg);
+    }
     const opt = ivCurOpt(num, t.id); const data = ivOpt(num, t.id, opt) || t;
     const [accent, soft] = ivSlot(t.heure);
     const step = document.createElement('div');
