@@ -1256,6 +1256,9 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 .iv-altname { font-size: 0.78rem; font-weight: 600; color: var(--noir); line-height: 1.2;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .iv-alt.active .iv-altname { color: #fff; }
+.iv-altprice { display: inline-block; margin-top: 4px; font-size: 0.68rem; font-weight: 700; color: #7a5314;
+  letter-spacing: 0.04em; background: #f6ecd9; padding: 1px 6px; border-radius: 5px; } /* prix €/€€/€€€/€€€€ propre à chaque alternative repas (mêmes tons gastronomie que le badge de l'étape) */
+.iv-alt.active .iv-altprice { background: rgba(255,255,255,0.9); color: var(--terracotta); }
 .iv-prixnote { font-size: 0.72rem; color: var(--gris); font-style: italic; margin-top: 18px; }
 
 @media (max-width: 620px), (hover: none) and (pointer: coarse) {
@@ -1500,6 +1503,11 @@ const JUNK=/inter[- ]?administratif|restaurant inter\b|cantine|crous|caf[eé]t[e
 // NOMS GÉNÉRIQUES / PLACEHOLDER (un lieu nommé juste « Rooftop Pool », « Gym », « Piscine »… = fiche sans identité réelle -> on écarte)
 const VAGUE=/^(rooftop ?pool|pool|swimming ?pool|the ?pool|piscine|gym|fitness|le ?gym|sports? ?cent(re|er)|salle de sport|stadium|stade|terrain de sport|sports? ?ground|playground|aire de jeux|club ?house|spa|hammam|sauna|massage|bar|pub|caf[ée]|restaurant|h[ôo]tel|hotel|parking|rooftop)$/i;
 const NOTSPORT=/^(la\s+)?gare\b|gare\s+(sncf|routi)|\basptt\b|^place\s|^esplanade\s|^parking\b/i;
+// TITRES DE REPAS admis pour un gastro NON-foodExp (un vrai resto n'apparaît QUE comme repas, jamais comme activité).
+// VOLONTAIREMENT sans « café|goûter|pause gourmande|dégustation » : c'étaient des mots du NOM (rustine §4) qui laissaient
+// « Café de la Paix » (un restaurant, foodExp=false) passer en ACTIVITÉ. Une vraie pause café n'est admise que si le lieu
+// est un café/commerce de bouche PAR CATÉGORIE (foodExp=true, traité en activité gourmande), jamais par le mot « café ».
+const _MEAL_TITLE_RE=/d[ée]jeuner|d[îi]ner|repas|table|brunch|petit[- ]?d[ée]j/i;
 const BIKE=/v[eé]lo|cyclo|bicycle/i;
 const MUNI=/gymnase|complexe sportif|centre sportif|cit[eé] des sports|stade\b|sports?[- ]?(centre|hall)|salle (de )?sports?|halle (des|aux) sports|boulodrome|palais des sports|maison des sports/i;
 const EXPERIENCE=/canoe|kayak|rafting|paddle|nautique|escalade|via.?ferrata|accro|spelolog|grotte|equitation|cheval|v[eé]lo|vtt|\brando|buggy|\bquad\b|parapente|base.?de.?loisirs|t[eé]l[eé]ski|wakeboard|plong[eé]e|grimpe|aventure|tyrolienne|golf/i;
@@ -1558,7 +1566,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v254'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v257'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2627,6 +2635,7 @@ function _bcVariant(place, step, tid){
   return {
     id: tid, label: place.nom||'', heure: (typeof step._t0==='number'?fmtH(rc(step._t0)):(step.heure||'')), heure_fin: (typeof step._t1==='number'?fmtH(rc(step._t1)):(step.fin||'')), // (item 4) heure affichée arrondie 5 min (variante B/C = même créneau que A)
     nom: place.nom||'', titre: place.nom||'',
+    price: (typeof place.price==='number' && place.price>0 ? place.price : null), // (carte_prix) prix propre À CETTE alternative -> badge €/€€/€€€/€€€€ dans sa case B/C
     texte: place.extract ? place.extract : (cap + ' à proximité — une autre adresse pour cette étape.'), // BUG 3 : vrai extrait si dispo (comme la variante A) ; sinon fallback EN CLAIR (plus d'entités &agrave; brutes)
     adresse: place.address||place.adresse||null,
     image: place.image||null,
@@ -2890,7 +2899,8 @@ function recomposeDay(day, ctx){
   // pas encore ouverts, on avance au prochain créneau d'ouverture en insérant un TEMPS LIBRE honnête (jamais un blanc). Sans
   // opening_hours (snapshot Paris synthétique) : _wOpen renvoie null partout -> aucun report, aucun temps libre inséré ->
   // ordre et horaires STRICTEMENT identiques à l'ancien code (matin en tête, cap ~12h / 4 activités, reste l'après-midi).
-  function _wOpen(s){ if(!s||isMeal(s)||s.libre||s.openEnd) return null; var _oh=(s.opening_hours||(s._c&&s._c.opening_hours))||null; return _ohWindow(_oh); }
+  var _hadWindows=false; // au moins un lieu À HORAIRES ce jour-là ? -> n'active le comblage matin + le filet temps-libre QUE ces jours (un jour SANS horaires = snapshot dense : chemins inchangés, byte-identique)
+  function _wOpen(s){ if(!s||isMeal(s)||s.libre||s.openEnd) return null; var _oh=(s.opening_hours||(s._c&&s._c.opening_hours))||null; var _w=_ohWindow(_oh); if(_w)_hadWindows=true; return _w; }
   function _startOf(s){ var _pv=out.length?out[out.length-1]:null; return t+(_pv?_tr(_pv,s):0); }
   var _GAP=45; // au-delà de 45 min d'attente avant l'ouverture -> on diffère (une attente ≤ 45 min = slack naturel toléré)
   // MATIN : jusqu'à ~12h / 4 activités OUVERTES. Un lieu pas encore ouvert est mis de côté (deferred), pas placé fermé.
@@ -2900,6 +2910,11 @@ function recomposeDay(day, ctx){
     if(w0 && _startOf(s0) < w0.open-_GAP){ deferred.push(pending.shift()); continue; } // ouvre trop tard pour ce créneau -> différé
     pending.shift(); if(place(s0,_dur(s0),null,s0.openEnd)) mc++;
   }
+  // COMBLAGE MATIN (anti-trou) : si la matinée s'est vidée tôt (lieux différés à cause d'horaires / peu d'ouverts) et qu'un
+  // trou précède le déjeuner, on remplit avec des ICÔNES du quartier (monuments/parcs, traités comme ouverts) plutôt que
+  // laisser un blanc muet. Ne tourne QUE les jours à horaires (_hadWindows) et QUE s'il reste un vrai trou (matin dense :
+  // t≈12h -> la boucle ne tourne pas). Snapshot dense : _hadWindows=false -> ne tourne jamais -> inchangé.
+  if(_hadWindows){ while(t<12*60-15){ var icAM=_pickIcon(out.filter(function(s){return !s.libre;})); if(!icAM)break; var dAM=dureeHint(icAM); if(!(dAM>0))dAM=40; if(t+dAM>12*60)dAM=12*60-t; if(dAM<20)break; if(!place(_iconStep(icAM),dAM,null,false))break; } }
   if(lunch) place(lunch,90,Math.max(t,12*60));                                        // déjeuner ~12h+
   // APRÈS-MIDI : suite de la chaîne + différés, en respectant les fenêtres. À chaque tour on place le PREMIER item ouvert à
   // ce créneau (ordre chaîne préservé) ; si AUCUN n'est ouvert, on saute au plus proche créneau d'ouverture EXPLOITABLE
@@ -2946,6 +2961,19 @@ function recomposeDay(day, ctx){
   }
   if(evening) place(evening,_dur(evening),Math.max(t,21*60+15),true);
   out.sort(function(a,b){ return (a._t0!=null?a._t0:1e9)-(b._t0!=null?b._t0:1e9); });
+  // FILET FINAL anti-trou invisible (dernier recours honnête) : tout écart > _GAP entre la fin d'une étape et le début de
+  // la suivante devient un TEMPS LIBRE EXPLICITE — jamais un blanc muet dans la timeline. Ne tourne QUE les jours à horaires
+  // (_hadWindows) : sur un jour sans horaires (snapshot dense), les étapes s'enchaînent déjà sans trou -> aucun ajout.
+  if(_hadWindows){
+    var _filled=[];
+    for(var fi=0;fi<out.length;fi++){ _filled.push(out[fi]);
+      var cur=out[fi], nxt=out[fi+1];
+      if(nxt && !cur.libre && !nxt.libre && cur._t1!=null && nxt._t0!=null && (nxt._t0-cur._t1)>_GAP){
+        _filled.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler dans le quartier avant la suite : flâner, s\'attabler en terrasse, se reposer.',duree:nxt._t0-cur._t1,_t0:cur._t1,_t1:nxt._t0,heure:_F?fmtH(cur._t1):'',fin:_F?fmtH(nxt._t0):''});
+      }
+    }
+    out=_filled;
+  }
   day.steps=out;
   return day;
 }
@@ -3406,7 +3434,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       const {prompt,pool}=selectPrompt(dest,quartier,i+1,themes,voyage,budget,cands,{excursion});
       const seen=new Set();
       let steps=(parseJSON(await llm(prompt,1800))||[]).map(s=>{const c=pool[s.id];return c?Object.assign({},s,{nom:c.nom,lat:c.lat,lng:c.lng,periph:c.periph,carhop:!!c.carhop,theme:c.theme,_c:c}):null;}).filter(Boolean).filter(s=>{if(seen.has(s.id))return false;seen.add(s.id);return true;});
-      let gc=0;steps=steps.filter(s=>{if(s.theme==='gastronomie'&&!(s._c&&s._c.foodExp)){if(!/d[ée]jeuner|d[îi]ner|repas|table|brunch|petit[- ]?d[ée]j|caf[ée]|go[ûu]ter|pause gourmande|d[ée]gustation/i.test(s.titre||''))return false;gc++;if(gc>2)return false;}return true;}); // les EXPÉRIENCES food (marché, halle…) ne comptent pas comme repas
+      let gc=0;steps=steps.filter(s=>{if(s.theme==='gastronomie'&&!(s._c&&s._c.foodExp)){if(!_MEAL_TITLE_RE.test(s.titre||''))return false;gc++;if(gc>2)return false;}return true;}); // gastro NON-foodExp = REPAS UNIQUEMENT (titre déjeuner/dîner/…), plafonné à 2. Fini le loophole « café/goûter » par NOM (§4) qui servait un resto en activité. Les EXPÉRIENCES food (marché, halle, glacier, cave = foodExp) restent des activités par ailleurs.
       // ANTI-DOUBLON de sous-type : pas 2 piscines / 2 golfs… dans la même journée
       var seenKind=new Set();
       steps=steps.filter(s=>{if(s.theme==='gastronomie')return true;var k=actKind(s._c||s);if(k&&seenKind.has(k))return false;if(k)seenKind.add(k);return true;}); // ANTI-DOUBLON DE TYPE pour TOUTES les activités (plus seulement le sport) : pas 2 spa/massage, 2 piscines… le même jour
@@ -5083,9 +5111,10 @@ function ivDetailHTML(num, t, i, optOverride) {
     const active = (k === opt);
     const loading = (k !== 'a' && !od);
     const name = od ? stripNom(od.nom || '') : '…';
+    const altPrice = (od && od.price) ? '<span class="iv-altprice">' + '€'.repeat(Math.min(4, od.price)) + '</span>' : '';
     html += '<button class="iv-alt' + (active?' active':'') + (loading?' loading':'') + '" ' +
       (loading ? '' : 'data-opt="' + k + '" ') + 'data-step="' + i + '">' +
-      '<span class="iv-altkey">' + k.toUpperCase() + '</span><span class="iv-altname">' + name + '</span></button>';
+      '<span class="iv-altkey">' + k.toUpperCase() + '</span><span class="iv-altname">' + name + '</span>' + altPrice + '</button>';
   });
   html += '</div></div></div>';
   return html;
