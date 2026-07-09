@@ -1558,7 +1558,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v251'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v254'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2649,7 +2649,7 @@ function _bcAlts(day, step, n){
   function _ok(c,sameTheme){
     if(!(c&&c.nom&&c.lat!=null&&c.lng!=null))return false;
     if(sameTheme && c.theme!==step.theme)return false;
-    if(step.theme==='gastronomie'&&c.foodExp)return false;
+    if(step.theme==='gastronomie'){ var _sf=!!(step.foodExp||(step._c&&step._c.foodExp)), _cf=!!(c.foodExp||(c._c&&c._c.foodExp)); if(_sf!==_cf)return false; } // ALTERNATIVES PAR RÔLE : une gastro-ACTIVITÉ (marché/glacier/café, foodExp) -> alternatives foodExp UNIQUEMENT ; un REPAS (déjeuner/dîner, !foodExp) -> vrais restos UNIQUEMENT. Jamais « resto suivi de resto » ni un marché en alternative d'un repas.
     if(step.theme!=='gastronomie' && (_visitModeOf(c)==='long')!==(_stepMode==='long'))return false; // pas un lieu de 2h « on entre et on reste » (musée/église) proposé À LA PLACE d'une place/parc de 40-60 min, ni l'inverse (la Madeleine 2h alternative de la Concorde 40 min)
     if(/cin[ée]ma|cinema|multiplex|\bmk2\b/i.test((c.catsrc||'')+' '+(c.cat||'')+' '+(c.nom||'')))return false; // CINÉMA jamais une ALTERNATIVE (invariant §5) — il reste possible « en chemin »
     if(c._pouvoir || _isPouvoir((c.catsrc||'')+' '+(c.cat||''), c.nom||''))return false; // LIEU DE POUVOIR non visitable (Assemblée/ministère/mairie…) jamais une ALTERNATIVE non plus — c'est par là qu'il restait à l'écran alors que le [rendu] (étapes) était propre. Château-musée (cat museum) non concerné.
@@ -2811,8 +2811,10 @@ function recomposeDay(day, ctx){
       if(!_inCity(s.adresse)) return;                     // HORS-VILLE -> retiré (repas COMPRIS : « Le Kanoun à Charenton »)
       if(!isMeal(s) && !_inBubble(s.lat,s.lng)) return;    // activité hors bulle -> retirée. REPAS exemptés de la bulle : on mange EN VILLE (parfois loin d'une ancre-excursion, mais en ville = légitime). Paris dense : repas près de l'ancre -> aucun effet.
     } // carhop = excursion voiture LÉGITIME (ville pauvre) : jamais clampé
-    if(isDin(s)){ if(!dinner)dinner=s; return; }
-    if(isLun(s)){ if(!lunch)lunch=s; return; }
+    var _mealFood=(isDin(s)||isLun(s)) && !!(s.foodExp||(s._c&&s._c.foodExp)); // REPAS = vrai resto UNIQUEMENT (§5-2) : un foodExp (marché/halle/glacier) titré « Déjeuner/Dîner » n'est PAS un repas -> requalifié en activité gourmande (jamais servi comme repas), le repas restant sera un vrai resto. Snapshot Paris : repas = !foodExp -> _mealFood faux -> comportement identique.
+    if(_mealFood){ s.titre=(typeof _latinTitle==='function'?_latinTitle(s.nom,(s.cat||'lieu gourmand')):s.nom); } // requalifié -> tombe dans les activités (gastro foodExp)
+    else if(isDin(s)){ if(!dinner)dinner=s; return; }
+    else if(isLun(s)){ if(!lunch)lunch=s; return; }
     if(s.openEnd){ if(!evening)evening=s; return; }     // sortie du soir -> après le dîner
     // ===== DERNIER FILET, ICI (vrai point de montage) : cinéma / lieu de pouvoir JAMAIS une étape placée, quelle que soit
     // la porte (activité, comblage, incontournable, ENRICHISSEMENT). + durée canonique par catégorie (musée = 2h). Ce point
@@ -2881,10 +2883,40 @@ function recomposeDay(day, ctx){
     else { s._trajMin=0; s._trajCar=false; }
     out.push(s); t=s._t1; return true;
   }
-  var idx=0,mc=0;
-  while(idx<chain.length && t<12*60 && mc<4){ if(place(chain[idx],_dur(chain[idx]),null,chain[idx].openEnd)) mc++; idx++; } // matin : jusqu'à ~12h / 4 activités (une étape fermée à ce créneau est écartée, pas comptée)
+  // ===== PLACEMENT CONSCIENT DES HORAIRES (anti-trou, item 1 du brief horaires) =====
+  // On place le prochain de la chaîne s'il est OUVERT à ce créneau ; sinon on le DIFFÈRE (au lieu de le décaler SUR PLACE, ce
+  // qui laissait un trou invisible : un glacier ouvert à 13h était calé à 13h en pleine matinée -> 9h30-13h de blanc muet +
+  // glacier collé au déjeuner). Les créneaux libérés se comblent avec la suite de la chaîne ; quand il ne reste QUE des lieux
+  // pas encore ouverts, on avance au prochain créneau d'ouverture en insérant un TEMPS LIBRE honnête (jamais un blanc). Sans
+  // opening_hours (snapshot Paris synthétique) : _wOpen renvoie null partout -> aucun report, aucun temps libre inséré ->
+  // ordre et horaires STRICTEMENT identiques à l'ancien code (matin en tête, cap ~12h / 4 activités, reste l'après-midi).
+  function _wOpen(s){ if(!s||isMeal(s)||s.libre||s.openEnd) return null; var _oh=(s.opening_hours||(s._c&&s._c.opening_hours))||null; return _ohWindow(_oh); }
+  function _startOf(s){ var _pv=out.length?out[out.length-1]:null; return t+(_pv?_tr(_pv,s):0); }
+  var _GAP=45; // au-delà de 45 min d'attente avant l'ouverture -> on diffère (une attente ≤ 45 min = slack naturel toléré)
+  // MATIN : jusqu'à ~12h / 4 activités OUVERTES. Un lieu pas encore ouvert est mis de côté (deferred), pas placé fermé.
+  var pending=chain.slice(), deferred=[], mc=0;
+  while(pending.length && t<12*60 && mc<4){
+    var s0=pending[0], w0=_wOpen(s0);
+    if(w0 && _startOf(s0) < w0.open-_GAP){ deferred.push(pending.shift()); continue; } // ouvre trop tard pour ce créneau -> différé
+    pending.shift(); if(place(s0,_dur(s0),null,s0.openEnd)) mc++;
+  }
   if(lunch) place(lunch,90,Math.max(t,12*60));                                        // déjeuner ~12h+
-  while(idx<chain.length){ place(chain[idx],_dur(chain[idx]),null,chain[idx].openEnd); idx++; } // après-midi
+  // APRÈS-MIDI : suite de la chaîne + différés, en respectant les fenêtres. À chaque tour on place le PREMIER item ouvert à
+  // ce créneau (ordre chaîne préservé) ; si AUCUN n'est ouvert, on saute au plus proche créneau d'ouverture EXPLOITABLE
+  // (≤ 18h30) en comblant le trou par un temps libre explicite, puis on place le lieu qui s'y ouvre. Un lieu qui n'ouvre
+  // qu'après 18h30 est abandonné (comme une activité qui ne rentre pas dans la journée).
+  var queue=pending.concat(deferred), _guard=0;
+  while(queue.length && _guard++<300){
+    var pi=-1; for(var qi=0;qi<queue.length;qi++){ var wq=_wOpen(queue[qi]); if(!wq || _startOf(queue[qi]) >= wq.open-_GAP){ pi=qi; break; } }
+    if(pi<0){
+      var nextOpen=Infinity, ni=-1;
+      for(var qk=0;qk<queue.length;qk++){ var wk=_wOpen(queue[qk]); if(wk){ var eff=Math.max(_startOf(queue[qk]),wk.open); if(eff<nextOpen && eff<=18*60+30){nextOpen=eff;ni=qk;} } }
+      if(ni<0) break;                                                                 // plus rien d'ouvrable avant 18h30 -> on arrête (le reste ne rentre pas)
+      if(nextOpen-t>_GAP){ out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler : flâner dans le quartier, s\'attabler en terrasse, le temps que la prochaine étape ouvre.',duree:nextOpen-t,_t0:t,_t1:nextOpen,heure:_F?fmtH(t):'',fin:_F?fmtH(nextOpen):''}); t=nextOpen; }
+      pi=ni;
+    }
+    var s1=queue.splice(pi,1)[0]; place(s1,_dur(s1),null,s1.openEnd);
+  }
   var DINNER=20*60, lastChain=null; for(var z=out.length-1;z>=0;z--){ if(!isMeal(out[z]) && !out[z].libre){ lastChain=out[z]; break; } }
   // dîner re-choisi ≤ 1,2 km de la dernière étape (proximité prime, invariant #4)
   var _usedN=ctx&&ctx.usedNames;
