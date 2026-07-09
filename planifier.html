@@ -1564,7 +1564,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v258'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v259'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5244,26 +5244,29 @@ function ivEditorialStyle() {
     }
     else if (l.type === 'line') {
       if (/water|river|canal/.test(id)) IV.map.setPaintProperty(id, 'line-color', '#5b8aa6');
-      else if (/(motorway|trunk|primary|secondary)/.test(id)) IV.map.setPaintProperty(id, 'line-color', '#cbb99a'); // grands axes plus foncés (la largeur d'origine, souvent une expression de zoom, est laissée telle quelle -> pas d'erreur)
-      else if (/(road|street|tertiary|bridge|path|rail)/.test(id)) IV.map.setPaintProperty(id, 'line-color', '#ddceb8'); // petites rues, un peu plus contrastées que le sol
+      else if (/(motorway|trunk|primary|secondary)/.test(id)) {
+        IV.map.setPaintProperty(id, 'line-color', '#c2ac82');            // GRANDS AXES : encre plus foncée que les petites rues
+        IV.map.setPaintProperty(id, 'line-width', ['interpolate', ['linear'], ['zoom'], 11, 1.6, 14, 3, 17, 7]); // + larges (NOUVELLE expression racine -> pas d'erreur « zoom expression »)
+      }
+      else if (/(road|street|tertiary|bridge|path|rail)/.test(id)) IV.map.setPaintProperty(id, 'line-color', '#d8c8ae'); // petites rues, un peu plus contrastées que le sol
     }
     else if (l.type === 'symbol') {
       // On cache SEULEMENT les POI/transports/aéroports (bruit). On GARDE les labels de RUES, QUARTIERS et PLANS D'EAU (Seine).
       if (/(poi|transit|airport)/.test(id)) { IV.map.setLayoutProperty(id, 'visibility', 'none'); }
       else {
-        IV.map.setPaintProperty(id, 'text-color', '#5f4a38');            // encre plus foncée -> plus lisible
-        IV.map.setPaintProperty(id, 'text-halo-color', '#f7f3ec'); IV.map.setPaintProperty(id, 'text-halo-width', 1.4);
-        // labels de QUARTIERS/villes un peu plus GROS via une taille fixe (on NE peut PAS multiplier une expression de zoom
-        // -> erreur ; on ne touche donc pas au text-size des rues, on ne fixe que les libellés de lieux, sûrs et souhaités).
-        if (/settlement|place-label|state|country|continent/.test(id)) IV.map.setLayoutProperty(id, 'text-size', 14);
-        if (/water|marine/.test(id)) IV.map.setPaintProperty(id, 'text-color', '#3f6b82'); // label des plans d'eau (Seine) en bleu
-        // NOMS DES GRANDS AXES : les labels de rues ont un minzoom élevé (souvent 13-14) -> invisibles à notre zoom (~12).
-        // On ABAISSE ce minzoom pour les faire remonter ; la détection de collision de Mapbox ne garde alors QUE les plus
-        // gros axes à faible zoom (les petites rues restent culées) -> grands axes lisibles, sans surcharger la carte.
-        // On garde leur expression de taille NATIVE (pas de multiply -> pas d'erreur « zoom expression »).
+        IV.map.setPaintProperty(id, 'text-color', '#463424');            // encre marron FONCÉE (contraste fort sur le fond crème)
+        IV.map.setPaintProperty(id, 'text-halo-color', '#f7f3ec'); IV.map.setPaintProperty(id, 'text-halo-width', 2); // halo clair ÉPAIS -> le texte se détache nettement
+        // labels de QUARTIERS/villes/arrondissements plus GROS (taille fixe, sûre).
+        if (/settlement|place-label|state|country|continent/.test(id)) IV.map.setLayoutProperty(id, 'text-size', 16);
+        if (/water|marine/.test(id)) IV.map.setPaintProperty(id, 'text-color', '#356178'); // label des plans d'eau (Seine) en bleu foncé
+        // NOMS DE RUES — le point n°1 : les rendre nettement plus VISIBLES et plus DENSES. (a) minzoom abaissé -> les labels
+        // remontent d'un/deux crans (plus de rues nommées affichées) ; (b) taille lisible imposée via une NOUVELLE expression
+        // de zoom AU NIVEAU RACINE — c'est autorisé ; l'erreur « zoom expression may only be used at top level » ne survient
+        // QUE si on MULTIPLIE une expression de zoom existante, ce qu'on ne fait pas ici.
         if (/road/.test(id) && !/(shield|number|junction|exit)/.test(id)) {
           const mz = (typeof l.minzoom === 'number') ? l.minzoom : 0;
-          if (mz > 11) { IV.map.setLayerZoomRange(id, 11, (typeof l.maxzoom === 'number') ? l.maxzoom : 24); }
+          if (mz > 10) { IV.map.setLayerZoomRange(id, 10, (typeof l.maxzoom === 'number') ? l.maxzoom : 24); }
+          IV.map.setLayoutProperty(id, 'text-size', ['interpolate', ['linear'], ['zoom'], 11, 11.5, 14, 13.5, 17, 16]);
         }
       }
     }
