@@ -1128,14 +1128,12 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 /* CARTE — FONDU PROFONDEUR (brief) : la carte se DISSOUT dans la page sur les bords GAUCHE + BAS (profondeur, pas lisibilité).
    Masque transparent sur ces 2 bords (intersection des 2 dégradés) + léger débord gauche/bas ; seul le coin HAUT-DROITE reste
    arrondi (les côtés estompés n'ont ni bord ni coin). Pins + tracé restent dans la zone nette centrale. */
-.iv-mapshell { position: relative; border-radius: 18px 18px 0 0; overflow: hidden; height: 606px;
-  border: 0; box-shadow: none; margin: 0 0 -12px 0; width: 100%;
-  /* Le FONDU GAUCHE + le débord -22px cassaient l'alignement gauche/droite de la page (la carte mordait dans la marge du
-     .iv-wrap). On retire le débord/masque GAUCHE (la carte s'aligne sur sa colonne, symétrique de la timeline à droite) et le
-     fond var(--beige) CONCURRENT (le fond uniforme du body doit rester seul). On GARDE le seul fondu BAS (vertical, sans effet
-     sur l'alignement horizontal) : la carte se dissout dans la page vers le bas. */
-  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 8%);
-  mask-image: linear-gradient(to top, transparent 0, #000 8%); }
+/* CARTE = CARTE PROPRE CONTENUE (restaurée depuis v247, avant le fondu) : le fondu (masque + débord + fond concurrent)
+   dissolvait la carte dans la page et cassait le fond UNIFORME bord-à-bord. On revient à la carte d'origine — coins arrondis,
+   bord + ombre, contenue dans sa colonne -> le dégradé du body reste seul, plein largeur, comme avant. (Le CONTENU carte —
+   labels, rues, alignement — n'est pas touché.) */
+.iv-mapshell { position: relative; border-radius: 20px; overflow: hidden; height: 606px;
+  box-shadow: 0 18px 50px -22px rgba(40,32,20,0.4); border: 1px solid var(--bordure); background: var(--beige); }
 /* Contrôles Mapbox REGROUPÉS en bas-droite (coin le moins estompé) : logo + attribution requis par les CGU, gardés tous les
    deux, mais côte à côte pour libérer le bas-gauche (fondu) et faire une seule référence propre. Relevés au-dessus du fondu. */
 .iv-mapshell .mapboxgl-ctrl-bottom-left { left: auto; right: 58px; bottom: 7px; }   /* logo décalé pour NE PAS chevaucher le ⓘ (gap ~8px) */
@@ -1566,7 +1564,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v262'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v263'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
