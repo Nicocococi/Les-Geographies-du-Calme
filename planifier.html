@@ -1207,8 +1207,6 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 .iv-star { color: var(--clay, #b0552f); font-weight: 500; white-space: nowrap; }
 .iv-leg { padding-left: 58px; margin: 2px 0; font-size: 0.82rem; color: var(--ink3, #93826b); display: flex; align-items: center; gap: 6px; } /* trajet entre 2 étapes (polish : un peu plus grand) */
 .iv-leg span { opacity: 0.9; }
-.iv-price { font-size: 0.76rem; font-weight: 700; color: #7a5314; letter-spacing: 0.05em; white-space: nowrap;
-  background: #f6ecd9; padding: 2px 8px; border-radius: 6px; } /* badge prix €/€€/€€€/€€€€ (restos) — pastille aux couleurs gastronomie */
 .iv-name { font-family: var(--serif-display); font-size: 1.4rem; font-weight: 500; color: #3f2e20; line-height: 1.14; margin: 3px 0;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .iv-teaser { font-size: 0.85rem; color: var(--ink2, #6b5644); margin-top: 2px; line-height: 1.4;
@@ -1256,9 +1254,9 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 .iv-altname { font-size: 0.78rem; font-weight: 600; color: var(--noir); line-height: 1.2;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .iv-alt.active .iv-altname { color: #fff; }
-.iv-altprice { display: inline-block; margin-top: 4px; font-size: 0.68rem; font-weight: 700; color: #7a5314;
-  letter-spacing: 0.04em; background: #f6ecd9; padding: 1px 6px; border-radius: 5px; } /* prix €/€€/€€€/€€€€ propre à chaque alternative repas (mêmes tons gastronomie que le badge de l'étape) */
-.iv-alt.active .iv-altprice { background: rgba(255,255,255,0.9); color: var(--terracotta); }
+.iv-altprice { display: block; margin-top: 3px; font-size: 0.72rem; font-weight: 600; color: var(--noir);
+  letter-spacing: 0.03em; } /* prix €/€€/€€€/€€€€ propre à chaque alternative : TEXTE SIMPLE, même couleur que le nom (pas de pastille) */
+.iv-alt.active .iv-altprice { color: #fff; }
 .iv-prixnote { font-size: 0.72rem; color: var(--gris); font-style: italic; margin-top: 18px; }
 
 @media (max-width: 620px), (hover: none) and (pointer: coarse) {
@@ -1566,7 +1564,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v257'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v258'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5053,9 +5051,8 @@ function ivRenderDay(num) {
     step.className = 'iv-step'; step.id = 'iv-step-' + i;
     step.style.setProperty('--iv-accent', accent); step.style.setProperty('--iv-soft', soft);
     const _dur = ivDurLabel(data);
-    const _price = (data && data.price) ? '<span class="iv-price">' + '€'.repeat(Math.min(4, data.price)) + '</span>' : '';
     let _teaser = ivTeaser(data);
-    if (data && data.price) _teaser = _teaser.replace(/\s*·\s*€+\s*$/, ''); // le prix est montré par le badge -> pas de « · €€ » en double dans le sous-titre
+    if (data && data.price) _teaser = _teaser.replace(/\s*·\s*€+\s*$/, ''); // le prix n'est montré QUE dans les cases A/B/C -> pas de « · €€ » dans le sous-titre de l'étape non plus
     // FIL CONTINU (refonte output étape 2) : nœud coloré par RÔLE (kind) sur le fil, contenu qui « respire » (plus de carte
     // blanche). On GARDE l'ossature JS : .iv-head (clic->déplier), .iv-name/.iv-teaser (A/B/C), .iv-detail/.iv-detail-inner (expand).
     const kd = ivTheme(data);
@@ -5071,7 +5068,7 @@ function ivRenderDay(num) {
             '<div class="iv-topline"><span class="iv-time">' + (t.heure || '') + '</span>' + _chip + '</div>' +
             '<div class="iv-name">' + stripNom(data.nom || '') + '</div>' +
             '<div class="iv-teaser">' + _teaser + '</div>' +
-            '<div class="iv-meta">' + (_dur ? '<span class="iv-dur">' + _dur + '</span>' : '') + _price + _star + '</div>' +
+            '<div class="iv-meta">' + (_dur ? '<span class="iv-dur">' + _dur + '</span>' : '') + _star + '</div>' +
           '</div>' +
           '<svg class="iv-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>' +
         '</div>' +
