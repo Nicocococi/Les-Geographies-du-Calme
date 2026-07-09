@@ -1564,7 +1564,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v259'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v260'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5255,7 +5255,7 @@ function ivEditorialStyle() {
       if (/(poi|transit|airport)/.test(id)) { IV.map.setLayoutProperty(id, 'visibility', 'none'); }
       else {
         IV.map.setPaintProperty(id, 'text-color', '#463424');            // encre marron FONCÉE (contraste fort sur le fond crème)
-        IV.map.setPaintProperty(id, 'text-halo-color', '#f7f3ec'); IV.map.setPaintProperty(id, 'text-halo-width', 2); // halo clair ÉPAIS -> le texte se détache nettement
+        IV.map.setPaintProperty(id, 'text-halo-color', '#f7f3ec'); IV.map.setPaintProperty(id, 'text-halo-width', 1.8); // halo clair -> le texte se détache nettement
         // labels de QUARTIERS/villes/arrondissements plus GROS (taille fixe, sûre).
         if (/settlement|place-label|state|country|continent/.test(id)) IV.map.setLayoutProperty(id, 'text-size', 16);
         if (/water|marine/.test(id)) IV.map.setPaintProperty(id, 'text-color', '#356178'); // label des plans d'eau (Seine) en bleu foncé
@@ -5266,7 +5266,10 @@ function ivEditorialStyle() {
         if (/road/.test(id) && !/(shield|number|junction|exit)/.test(id)) {
           const mz = (typeof l.minzoom === 'number') ? l.minzoom : 0;
           if (mz > 10) { IV.map.setLayerZoomRange(id, 10, (typeof l.maxzoom === 'number') ? l.maxzoom : 24); }
-          IV.map.setLayoutProperty(id, 'text-size', ['interpolate', ['linear'], ['zoom'], 11, 11.5, 14, 13.5, 17, 16]);
+          // Taille VOLONTAIREMENT modérée au zoom BAS : un label de rue n'est placé que si la rue est assez LONGUE à l'écran
+          // pour contenir son nom -> un texte plus PETIT en tient plus (plusieurs rues au lieu d'une seule au dézoom). Il
+          // grandit ensuite quand on zoome. (Constaté en preview Montmartre : ~11px -> 5-6 rues ; ~13px -> 1-2 rues.)
+          IV.map.setLayoutProperty(id, 'text-size', ['interpolate', ['linear'], ['zoom'], 11, 9.5, 13, 10.5, 15, 12.5, 17, 14.5]);
         }
       }
     }
@@ -5369,7 +5372,7 @@ function ivFitDay() {
   const pts = IV.dayMk.filter(m => m.marker).map(m => m.trueLL || m.marker.getLngLat());
   if (pts.length > 1) {
     const b = new mapboxgl.LngLatBounds(); pts.forEach(p => b.extend([p.lng, p.lat]));
-    IV.map.fitBounds(b, { padding: { top: 92, bottom: 92, left: 92, right: 92 }, maxZoom: 14.3, duration: 700 }); // dézoom léger : plus de contexte (quartiers, Seine) autour du parcours
+    IV.map.fitBounds(b, { padding: { top: 46, bottom: 46, left: 34, right: 34 }, maxZoom: 14.6, duration: 700 }); // padding resserré (la colonne carte est étroite -> 92px dézoomait trop) : la vue se cale un cran plus SERRÉ -> les rues deviennent assez longues à l'écran pour porter leur nom (plusieurs rues lisibles), tout en gardant le parcours entier + les quartiers/Seine
   } else if (pts.length === 1) {
     IV.map.flyTo({ center: [pts[0].lng, pts[0].lat], zoom: 14, duration: 700 });
   }
