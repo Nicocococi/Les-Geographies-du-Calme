@@ -1136,8 +1136,8 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
   mask-composite: intersect; }
 /* Contrôles Mapbox REGROUPÉS en bas-droite (coin le moins estompé) : logo + attribution requis par les CGU, gardés tous les
    deux, mais côte à côte pour libérer le bas-gauche (fondu) et faire une seule référence propre. Relevés au-dessus du fondu. */
-.iv-mapshell .mapboxgl-ctrl-bottom-left { left: auto; right: 32px; bottom: 8px; }
-.iv-mapshell .mapboxgl-ctrl-bottom-right { right: 5px; bottom: 8px; }
+.iv-mapshell .mapboxgl-ctrl-bottom-left { left: auto; right: 58px; bottom: 7px; }   /* logo décalé pour NE PAS chevaucher le ⓘ (gap ~8px) */
+.iv-mapshell .mapboxgl-ctrl-bottom-right { right: 6px; bottom: 7px; }
 #iv-map { position: absolute; inset: 0; }
 .iv-map-overlay { display: none; }   /* pavé « Jour X · quartier » retiré (polish item 3) : masque les pins + doublon avec les onglets */
 .iv-map-overlay span { color: var(--or); }
@@ -1558,7 +1558,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v250'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v251'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5199,6 +5199,14 @@ function ivEditorialStyle() {
         // -> erreur ; on ne touche donc pas au text-size des rues, on ne fixe que les libellés de lieux, sûrs et souhaités).
         if (/settlement|place-label|state|country|continent/.test(id)) IV.map.setLayoutProperty(id, 'text-size', 14);
         if (/water|marine/.test(id)) IV.map.setPaintProperty(id, 'text-color', '#3f6b82'); // label des plans d'eau (Seine) en bleu
+        // NOMS DES GRANDS AXES : les labels de rues ont un minzoom élevé (souvent 13-14) -> invisibles à notre zoom (~12).
+        // On ABAISSE ce minzoom pour les faire remonter ; la détection de collision de Mapbox ne garde alors QUE les plus
+        // gros axes à faible zoom (les petites rues restent culées) -> grands axes lisibles, sans surcharger la carte.
+        // On garde leur expression de taille NATIVE (pas de multiply -> pas d'erreur « zoom expression »).
+        if (/road/.test(id) && !/(shield|number|junction|exit)/.test(id)) {
+          const mz = (typeof l.minzoom === 'number') ? l.minzoom : 0;
+          if (mz > 11) { IV.map.setLayerZoomRange(id, 11, (typeof l.maxzoom === 'number') ? l.maxzoom : 24); }
+        }
       }
     }
   } catch(e) {} });
