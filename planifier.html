@@ -1564,7 +1564,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v260'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v261'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5254,8 +5254,8 @@ function ivEditorialStyle() {
       // On cache SEULEMENT les POI/transports/aéroports (bruit). On GARDE les labels de RUES, QUARTIERS et PLANS D'EAU (Seine).
       if (/(poi|transit|airport)/.test(id)) { IV.map.setLayoutProperty(id, 'visibility', 'none'); }
       else {
-        IV.map.setPaintProperty(id, 'text-color', '#463424');            // encre marron FONCÉE (contraste fort sur le fond crème)
-        IV.map.setPaintProperty(id, 'text-halo-color', '#f7f3ec'); IV.map.setPaintProperty(id, 'text-halo-width', 1.8); // halo clair -> le texte se détache nettement
+        IV.map.setPaintProperty(id, 'text-color', '#241810');            // encre marron TRÈS FONCÉE (contraste FORT ; #463424 rendait trop pâle sur le fond crème, surtout en petit)
+        IV.map.setPaintProperty(id, 'text-halo-color', '#faf6ef'); IV.map.setPaintProperty(id, 'text-halo-width', 1.6); // halo clair net (un peu plus serré -> le petit texte ne se délave pas)
         // labels de QUARTIERS/villes/arrondissements plus GROS (taille fixe, sûre).
         if (/settlement|place-label|state|country|continent/.test(id)) IV.map.setLayoutProperty(id, 'text-size', 16);
         if (/water|marine/.test(id)) IV.map.setPaintProperty(id, 'text-color', '#356178'); // label des plans d'eau (Seine) en bleu foncé
@@ -5274,6 +5274,12 @@ function ivEditorialStyle() {
       }
     }
   } catch(e) {} });
+  // DEBUG (une seule fois) : liste les VRAIES couches symbol recolorées -> permet de vérifier qu'on cible les bonnes
+  // (les IDs des couches de labels Mapbox varient selon le style ; on n'en devine aucun, on itère getStyle().layers).
+  if (!IV._loggedLabelLayers) { IV._loggedLabelLayers = true; try {
+    var _syms = IV.map.getStyle().layers.filter(function(l){ return l.type==='symbol' && l.layout && l.layout['text-field']; });
+    console.log('[carte] couches symbol (label) recolorées :', _syms.map(function(l){ return l.id + ' → ' + IV.map.getPaintProperty(l.id,'text-color') + (((IV.map.getLayoutProperty(l.id,'visibility')||'visible')==='none')?' (masquée)':''); }));
+  } catch(e){} }
 }
 
 function ivMakeMarker(num, precision, color) {
