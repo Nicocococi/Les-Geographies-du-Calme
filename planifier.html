@@ -1125,15 +1125,18 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 /* Two columns */
 .iv-layout { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); gap: 28px; align-items: start; }
 .iv-mapcol { order: 1; align-self: start; }
-/* CARTE — FONDU PROFONDEUR (brief) : la carte se DISSOUT dans la page sur les bords GAUCHE + BAS (profondeur, pas lisibilité).
-   Masque transparent sur ces 2 bords (intersection des 2 dégradés) + léger débord gauche/bas ; seul le coin HAUT-DROITE reste
-   arrondi (les côtés estompés n'ont ni bord ni coin). Pins + tracé restent dans la zone nette centrale. */
-/* CARTE = CARTE PROPRE CONTENUE (restaurée depuis v247, avant le fondu) : le fondu (masque + débord + fond concurrent)
-   dissolvait la carte dans la page et cassait le fond UNIFORME bord-à-bord. On revient à la carte d'origine — coins arrondis,
-   bord + ombre, contenue dans sa colonne -> le dégradé du body reste seul, plein largeur, comme avant. (Le CONTENU carte —
-   labels, rues, alignement — n'est pas touché.) */
-.iv-mapshell { position: relative; border-radius: 20px; overflow: hidden; height: 606px;
-  box-shadow: 0 18px 50px -22px rgba(40,32,20,0.4); border: 1px solid var(--bordure); background: var(--beige); }
+/* CARTE — FONDU PROFONDEUR v2 (masque PUR, sans débord ni fond concurrent) : la carte se DISSOUT dans le fond UNIFORME déjà
+   présent (page bord-à-bord) sur ses bords GAUCHE + BAS. Différence CLÉ avec l'ancien fondu (v248, retiré en v263) : AUCUN
+   débord (pas de marge négative ni width>100% -> la carte reste contenue dans sa colonne, gauche/droite alignés) et AUCUN
+   fond concurrent (background transparent -> le dégradé UNIFORME du body transparaît dans la zone estompée, pas de seam). Coin
+   HAUT-DROITE net (là où les contrôles Mapbox sont regroupés). Fond de secours au chargement = l'overlay .iv-map-loading.
+   Mobile : la règle @media garde mask-image:none (bande propre, passe séparée) — NE PAS toucher. */
+.iv-mapshell { position: relative; border-radius: 0 20px 0 0; overflow: hidden; height: 606px; background: transparent;
+  border: 0; box-shadow: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 90px), linear-gradient(to top, transparent 0, #000 90px);
+  -webkit-mask-composite: source-in;                     /* WebKit : source-in = intersection des 2 masques */
+  mask-image: linear-gradient(to right, transparent 0, #000 90px), linear-gradient(to top, transparent 0, #000 90px);
+  mask-composite: intersect; }
 /* Contrôles Mapbox REGROUPÉS en bas-droite (coin le moins estompé) : logo + attribution requis par les CGU, gardés tous les
    deux, mais côte à côte pour libérer le bas-gauche (fondu) et faire une seule référence propre. Relevés au-dessus du fondu. */
 .iv-mapshell .mapboxgl-ctrl-bottom-left { left: auto; right: 58px; bottom: 7px; }   /* logo décalé pour NE PAS chevaucher le ⓘ (gap ~8px) */
@@ -1564,7 +1567,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v263'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v264'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
