@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v285'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v286'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5702,15 +5702,23 @@ function _ivFilInit(num) {
 }
 function _ivFilDrawIn() {
   const fil = IV._fil; if (!fil) return;
+  const id = (fil.animId = (fil.animId || 0) + 1);
+  if (fil._safety) { clearTimeout(fil._safety); fil._safety = null; }
+  // ROBUSTESSE (audit) : le ruban ne doit JAMAIS rester caché. Si l'onglet est en arrière-plan (rAF gelé -> le dessin ne
+  // progresserait pas et le ruban resterait invisible), on affiche DIRECTEMENT le ruban COMPLET. Le dessin est un BONUS.
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') { _ivFilReveal(1); return; }
   const t0 = Date.now(), DUR = 2000;                     // ~2 s, easing doux -> lent et fluide (la lenteur EST la marque)
   _ivFilReveal(0);
-  const id = (fil.animId = (fil.animId || 0) + 1);
+  // FILET DE SÉCURITÉ : quoi qu'il arrive (rAF gelé en cours de route, onglet passé en fond, navigateur capricieux), le ruban
+  // FINIT complet. setTimeout tourne même quand rAF est throttlé -> garantie « jamais coincé caché ».
+  fil._safety = setTimeout(function () { if (IV._fil === fil && fil.animId === id && !fil.tracking) _ivFilReveal(1); }, DUR + 600);
   (function frame() {
     if (!IV._fil || IV._fil !== fil || fil.animId !== id) return; // jour changé / re-anim -> stop
-    if (fil.tracking) return;                            // le scroll a pris la main
+    if (fil.tracking) { if (fil._safety) { clearTimeout(fil._safety); fil._safety = null; } return; } // le scroll a pris la main
     const r = Math.min(1, (Date.now()-t0)/DUR), e = r < 0.5 ? 4*r*r*r : 1 - Math.pow(-2*r+2, 3)/2; // easeInOutCubic
     _ivFilReveal(e);
     if (r < 1) requestAnimationFrame(frame);
+    else if (fil._safety) { clearTimeout(fil._safety); fil._safety = null; } // dessin terminé proprement -> filet inutile
   })();
 }
 function _ivFilWireScroll() {
