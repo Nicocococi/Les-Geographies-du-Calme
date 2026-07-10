@@ -1268,10 +1268,13 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
   html, body { overflow-x: hidden; max-width: 100%; width: 100%; }
   .result-wrap { max-width: 100%; width: 100%; box-sizing: border-box; }
   .iv-layout { grid-template-columns: 1fr; max-width: 100%; }
-  /* A2/v3-#2 — FULL-BLEED + FALLBACK CHAUD. Le dégradé est porté par html+body pleine largeur (bord à bord) ; en plus on pose
-     une COULEUR de secours chaude (#eee6da, un ton du dégradé) sous le dégradé -> si un bord de l'iframe laisse voir le fond,
-     c'est ce ton chaud, JAMAIS le crème plat #f5f2ea (--fond). .iv-wrap gouttières minces. */
+  /* v4 — FULL-BLEED ROBUSTE. Sur iOS-en-iframe, le `overflow-x:hidden` sur html/body EMPÊCHE le fond du body de se propager
+     au canvas -> le dégradé « manque » sur les côtés de la LISTE (le hero, lui, passe) et le crème plat de l'iframe (#F8F6F2)
+     transparaît. FIX : on porte AUSSI le dégradé sur le conteneur pleine-largeur/pleine-hauteur de l'itinéraire
+     (`.result-wrap`, 0 marge / 0 max-width / 0 padding horizontal en mode iv-active) -> une seule teinte bord à bord, de haut
+     en bas, quoi qu'il arrive côté body. + couleur de secours chaude (#eee6da) : jamais de crème plat sur un bord. */
   html.iv-active, body.iv-active { background-color: #eee6da; }
+  body.iv-active .result-wrap { background-image: var(--grad-time); background-color: #eee6da; }
   .iv-wrap { padding-left: 14px; padding-right: 14px; padding-bottom: 36px; }
   /* A1/v3-#1 — la page démarrait trop bas : le vide venait du padding-top de .result-wrap (16px, hérité desktop) + du hero.
      On les réduit fort -> le contenu démarre juste sous le header. */
@@ -1631,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v270'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v271'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
