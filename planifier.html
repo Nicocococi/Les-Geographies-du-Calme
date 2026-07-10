@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v289'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v290'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5361,6 +5361,19 @@ function ivRefreshHeight(step) {
 function ivHl(i, on) {
   const st = document.getElementById('iv-step-' + i); if (st) st.classList.toggle('hl', on);
   const mk = IV.dayMk[i]; if (mk && mk.inner) mk.inner.classList.toggle('active', on);
+  // FIL DU TEMPS — SURVOL (v290, brief ruban_hover) : on augmente CE MÊME handler (highlight du pin) pour tracer le ruban
+  // JUSQU'AU pin de l'étape survolée. Précis par construction (étape N -> ruban à N). Desktop/dynamique uniquement. Le
+  // mouseleave (on=false) ne touche PAS le ruban -> aucun flicker entre étapes ; le retour au COMPLET se fait sur le
+  // mouseleave de la colonne (_ivFilWireHover). Réutilise le mapping étape->pin (mkIdx/fractions) de l'ancien scroll-linking.
+  if (on && typeof IV_FIL_DYNAMIC !== 'undefined' && IV_FIL_DYNAMIC && IV._fil && IV._fil.fractions && IV._fil.fractions.length) {
+    const _coarse = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
+    if (!_coarse) {
+      const fil = IV._fil; fil.tracking = true;                                     // coupe le dessin one-shot s'il tourne encore
+      let k = fil.mkIdx.indexOf(i); if (k < 0) { k = 0; for (let j = 0; j < fil.mkIdx.length; j++) if (fil.mkIdx[j] <= i) k = j; } // étape « temps libre » sans pin -> pin précédent
+      fil.activeMk = k;                                                              // mémorisé pour _ivFilGeomUpdate (si la géométrie droite->rues change pendant le survol)
+      _ivFilReveal(fil.fractions[k] != null ? fil.fractions[k] : 1);
+    }
+  }
 }
 
 // ── carte partagée unique ──
@@ -5638,6 +5651,9 @@ async function _ivWalkingRoute(coords, key) {
 // on ne câble pas, le ruban reste COMPLET, jamais à moitié dessiné) ; mobile -> au moins le dessin one-shot à l'ouverture
 // (ivMapSheetOpen/ivToggleMap rappellent ivSetMapDay -> _ivFilInit -> B1). L'export « carte postale » = l'état final (ruban
 // complet), l'anim ne s'exporte pas.
+// v290 (brief ruban_hover) : le SCROLL-LINKING (imprécis, « en avance » sur la lecture) est remplacé par le SURVOL (hover) —
+// précis PAR CONSTRUCTION : on pointe l'étape N -> le ruban va pile au pin N. Le dessin one-shot à l'ouverture est GARDÉ.
+const IV_FIL_DYNAMIC = true; // INTERRUPTEUR : false -> ruban COMPLET statique (tracé rues + dégradé « fil du temps » intacts), aucun dessin ni hover. Retour immédiat au statique, zéro chirurgie git.
 function _ivReducedMotion() { try { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch(e) { return false; } }
 function _ivDistM(a, b) { const R = 6371000, rad = Math.PI/180, x = (b[0]-a[0])*rad*Math.cos((a[1]+b[1])/2*rad), y = (b[1]-a[1])*rad; return Math.sqrt(x*x + y*y)*R; }
 // Fraction 0→1 le long de la ligne pour CHAQUE pin (point le plus proche projeté sur la polyline) -> mappe étape -> position sur le ruban.
@@ -5693,32 +5709,25 @@ function _ivFilInitNow(num) {
   if (!IV.map || !IV.map.getLayer || !IV.map.getLayer('iv-route-line')) return;
   const pins = [], mkIdx = []; IV.dayMk.forEach((m, i) => { if (m && m.marker) { const ll = m.marker.getLngLat(); pins.push([ll.lng, ll.lat]); mkIdx.push(i); } });
   if (pins.length < 2) return;
+  // INTERRUPTEUR (brief §1) : dynamique coupé -> ruban COMPLET statique (tracé rues + dégradé intacts), aucun dessin ni hover.
+  if (!IV_FIL_DYNAMIC) { _ivFilReveal(1); return; }
   const line = (IV._routeData && IV._routeData.geometry && IV._routeData.geometry.coordinates) || [];
   const fractions = _ivLineFractions(line, pins);
   IV._filPlayed = IV._filPlayed || {};
-  // RÉ-ENTRÉE pour le MÊME jour DÉJÀ lancé (P2, LE fix : ivSetMapDay est rappelé par le 'load' de la carte, les re-render, les
-  // passes de resize à ~320ms). BUG v283 : le 2e appel recréait IV._fil (la boucle d'anim, qui compare IV._fil, s'arrêtait) ET
-  // forçait le ruban COMPLET -> « rien ne s'animait » (le dessin était tué avant d'être visible). FIX : sur ré-entrée, on met
-  // à jour fractions/pins EN PLACE, sans recréer l'objet, SANS retoucher le trim -> le dessin en cours va jusqu'au bout.
+  // RÉ-ENTRÉE pour le MÊME jour DÉJÀ lancé (ivSetMapDay/ivDecluster rappelés au 'load', re-render, zoom) : on met à jour
+  // pins/mkIdx/fractions EN PLACE (le hover les relira à la volée), sans recréer l'objet ni relancer le dessin.
   if (IV._fil && IV._fil.day === num && IV._filPlayed[num]) {
     IV._fil.pins = pins; IV._fil.mkIdx = mkIdx; IV._fil.fractions = fractions;
-    if (IV._fil.tracking) _ivFilReveal(fractions[IV._fil.activeMk] != null ? fractions[IV._fil.activeMk] : 1);
     return;
   }
   // NOUVEAU jour (ou replay demandé — _filPlayed[num] remis à false par l'ouverture carte mobile) : (re)construit + (re)joue.
-  if (IV._fil && IV._fil.io) { try { IV._fil.io.disconnect(); } catch(e) {} }
-  if (IV._fil && IV._fil.onScroll) { try { (IV._fil.scrollEl || window).removeEventListener('scroll', IV._fil.onScroll); } catch(e) {} }
-  IV._fil = { day: num, pins, mkIdx, fractions, activeMk: 0, tracking: false, userScrolled: false, io: null, onScroll: null, scrollEl: null, animId: 0 };
+  if (IV._fil && IV._fil.leaveEl && IV._fil.onLeave) { try { IV._fil.leaveEl.removeEventListener('mouseleave', IV._fil.onLeave); } catch(e) {} }
+  IV._fil = { day: num, pins, mkIdx, fractions, activeMk: 0, tracking: false, animId: 0, onLeave: null, leaveEl: null };
   IV._filPlayed[num] = true;
-  if (_ivReducedMotion()) { _ivFilReveal(1); return; }  // reduced-motion : ruban complet, aucune anim, aucun scroll-link
-  _ivFilDrawIn();                                         // B1 — dessin doux one-shot
+  if (_ivReducedMotion()) _ivFilReveal(1);   // reduced-motion : ruban complet, PAS de dessin one-shot… (mais hover-trace reste possible, câblé plus bas)
+  else _ivFilDrawIn();                         // B1 — dessin doux one-shot (finit sur _ivFilReveal(1) = complet par défaut)
   const mobile = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
-  // B2 scroll-linked (desktop) — LE fix (diagnostic Nicolas) : la timeline défile dans SON PROPRE conteneur `.iv-stepscol`
-  // (600px, overflow-y:auto), PAS dans la fenêtre -> un listener sur `window` ne se déclenchait JAMAIS. On repère le vrai
-  // conteneur défilant et on s'y accroche (listener + root de l'IntersectionObserver). Repli fenêtre si la page défile globalement.
-  const scrollEl = _ivFilScrollEl();
-  const pageScrolls = (document.documentElement.scrollHeight > (window.innerHeight || 0) + 8);
-  if (!mobile && (scrollEl || pageScrolls)) _ivFilWireScroll(scrollEl); // B2 : desktop, dès qu'un défilement réel existe (conteneur OU fenêtre)
+  if (!mobile) _ivFilWireHover();             // SURVOL (desktop) — remplace le scroll-linking (imprécis). Le tracé au survol est fait par ivHl (augmenté) ; ici on ne pose que le retour au ruban complet quand la souris QUITTE la colonne.
 }
 function _ivFilDrawIn() {
   const fil = IV._fil; if (!fil) return;
@@ -5742,39 +5751,17 @@ function _ivFilDrawIn() {
     else if (fil._safety) { clearTimeout(fil._safety); fil._safety = null; } // dessin terminé proprement -> filet inutile
   })();
 }
-function _ivFilScrollEl() {
-  // Conteneur de défilement RÉEL de la timeline. Desktop : `.iv-stepscol` (600px, overflow-y:auto) -> c'est LUI qui défile, pas
-  // la fenêtre. Sinon : plus proche ancêtre défilant de `.iv-steps`. Sinon null (= la fenêtre). NB : mobile met `.iv-stepscol`
-  // en overflow:visible -> scrollHeight ≈ clientHeight -> renvoie null (le scroll-linked mobile est hors scope, one-shot only).
-  const col = document.querySelector('.iv-stepscol');
-  if (col && col.scrollHeight > col.clientHeight + 4) return col;
-  const steps = document.querySelector('.iv-steps');
-  for (let p = steps && steps.parentElement; p && p !== document.body; p = p.parentElement) {
-    const oy = getComputedStyle(p).overflowY;
-    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 4) return p;
-  }
-  return null;
-}
-function _ivFilWireScroll(scrollEl) {
+function _ivFilWireHover() {
+  // SURVOL (v290) : le TRACÉ jusqu'à l'étape survolée est fait par ivHl (le même handler que le highlight du pin, augmenté).
+  // Ici on ne pose QUE le retour au ruban COMPLET quand la souris QUITTE la colonne des étapes (mouseleave conteneur -> pas
+  // de flicker entre étapes, car un déplacement d'une étape à l'autre reste À L'INTÉRIEUR de la colonne). Precis par
+  // construction : plus de « ligne de lecture » à deviner, plus de ruban « en avance ».
   const fil = IV._fil; if (!fil) return;
-  fil.scrollEl = scrollEl || null;
-  const target = scrollEl || window;                       // on écoute LÀ où ça défile (conteneur .iv-stepscol, pas window)
-  fil.onScroll = function() { fil.userScrolled = true; };  // le scroll-linked ne prend la main qu'APRÈS un vrai défilement (le dessin one-shot joue d'abord en entier)
-  target.addEventListener('scroll', fil.onScroll, { passive: true });
-  const io = new IntersectionObserver(function(entries) {
-    if (!IV._fil || IV._fil !== fil || !fil.userScrolled) return;
-    entries.forEach(function(en) {
-      if (!en.isIntersecting) return;
-      const i = parseInt((en.target.id || '').replace('iv-step-', ''), 10); if (isNaN(i)) return;
-      fil.tracking = true;                                 // le scroll pilote désormais le ruban
-      let k = fil.mkIdx.indexOf(i); if (k < 0) { k = 0; for (let j = 0; j < fil.mkIdx.length; j++) if (fil.mkIdx[j] <= i) k = j; } // étape « temps libre » sans pin -> pin précédent
-      fil.activeMk = k;
-      _ivFilReveal(fil.fractions[k] != null ? fil.fractions[k] : 1);
-      _ivFilSetActive(fil.mkIdx[k]);
-    });
-  }, { root: scrollEl || null, rootMargin: '-45% 0px -55% 0px', threshold: 0 }); // ligne de lecture à ~45% du haut DU CONTENEUR (scrollytelling)
-  document.querySelectorAll('.iv-steps .iv-step').forEach(function(st) { io.observe(st); });
-  fil.io = io;
+  const el = document.querySelector('.iv-stepscol') || document.querySelector('.iv-steps');
+  if (!el) return;
+  fil.leaveEl = el;
+  fil.onLeave = function() { fil.tracking = false; _ivFilReveal(1); _ivFilSetActive(-1); }; // souris hors colonne -> ruban complet + aucun pin allumé
+  el.addEventListener('mouseleave', fil.onLeave);
 }
 
 async function ivMoveMarker(num, i, tid) {
