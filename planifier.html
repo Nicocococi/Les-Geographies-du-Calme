@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v274'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v275'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5539,16 +5539,28 @@ function ivFitDay() {
 function ivDrawRoute() {
   if (!IV.map) return;
   const coords = IV.dayMk.filter(m => m.marker).map(m => { const ll = m.marker.getLngLat(); return [ll.lng, ll.lat]; });
-  const data = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+  // GÉOMÉTRIE : on relie les pins DANS L'ORDRE, mais on SAUTE le segment entre deux pins très proches (< ~50 m). Dans une
+  // grappe (ex. Carcassonne 1·4·10 collés), ce connecteur ultra-court ne fait que du pâté — les numéros donnent déjà l'ordre.
+  // -> MultiLineString : on coupe la ligne aux segments courts (chaque « run » = une portion continue à tracer).
+  const _m = (a, b) => { const R = 6371000, dLat = (b[1]-a[1])*Math.PI/180, dLng = (b[0]-a[0])*Math.PI/180, la1 = a[1]*Math.PI/180, la2 = b[1]*Math.PI/180; const x = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+  const runs = []; let run = coords.length ? [coords[0]] : [];
+  for (let i = 1; i < coords.length; i++) {
+    if (_m(coords[i-1], coords[i]) >= 50) run.push(coords[i]);            // segment normal -> on continue la portion
+    else { if (run.length >= 2) runs.push(run); run = [coords[i]]; }      // segment < 50 m -> on COUPE (pas de connecteur)
+  }
+  if (run.length >= 2) runs.push(run);
+  const data = { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: runs } };
   if (IV.map.getSource('iv-route-src')) { IV.map.getSource('iv-route-src').setData(data); return; }
-  if (!coords.length) return;
-  // ROUTE au MÊME dégradé temporel que le fil (étape 4) : ligne épaisse, dégradée matin->soir (line-gradient exige
-  // lineMetrics:true sur la source + une expression sur ['line-progress']). Fini le pointillé fin.
-  IV.map.addSource('iv-route-src', { type: 'geojson', lineMetrics: true, data });
+  if (!runs.length) return;
+  // TRAIT HUMBLE (= « tissu conjonctif ») : FIN, UNE seule couleur discrète (brun doux, palette marque), POINTILLÉ rond
+  // (convention « sentier de marche » ; des pointillés qui se croisent ne font jamais de pâté). Le DÉGRADÉ du temps
+  // (matin->soir) reste porté UNIQUEMENT par les pins, plus par le trait. S'applique desktop ET mobile (même couche).
+  IV.map.addSource('iv-route-src', { type: 'geojson', data });
   IV.map.addLayer({ id: 'iv-route-line', type: 'line', source: 'iv-route-src',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-width': 5, 'line-opacity': 0.9,
-      'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, '#e6cba4', 0.28, '#dc9b5e', 0.6, '#b0552f', 1, '#6f4340'] } });
+    paint: { 'line-color': '#9a7b5a', 'line-opacity': 0.85,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1.5, 16, 2.5],
+      'line-dasharray': [0.1, 2] } });
 }
 
 async function ivMoveMarker(num, i, tid) {
