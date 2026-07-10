@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v286'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v287'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5691,17 +5691,22 @@ function _ivFilInit(num) {
   }
   // NOUVEAU jour (ou replay demandé — _filPlayed[num] remis à false par l'ouverture carte mobile) : (re)construit + (re)joue.
   if (IV._fil && IV._fil.io) { try { IV._fil.io.disconnect(); } catch(e) {} }
-  if (IV._fil && IV._fil.onScroll) { try { window.removeEventListener('scroll', IV._fil.onScroll); } catch(e) {} }
-  IV._fil = { day: num, pins, mkIdx, fractions, activeMk: 0, tracking: false, userScrolled: false, io: null, onScroll: null, animId: 0 };
+  if (IV._fil && IV._fil.onScroll) { try { (IV._fil.scrollEl || window).removeEventListener('scroll', IV._fil.onScroll); } catch(e) {} }
+  IV._fil = { day: num, pins, mkIdx, fractions, activeMk: 0, tracking: false, userScrolled: false, io: null, onScroll: null, scrollEl: null, animId: 0 };
   IV._filPlayed[num] = true;
   if (_ivReducedMotion()) { _ivFilReveal(1); return; }  // reduced-motion : ruban complet, aucune anim, aucun scroll-link
   _ivFilDrawIn();                                         // B1 — dessin doux one-shot
   const mobile = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
-  const scrolls = (document.documentElement.scrollHeight > (window.innerHeight || 0) + 8); // page réellement défilante ? (faux en embed non-défilant)
-  if (!mobile && scrolls) _ivFilWireScroll();            // B2 — scroll-linked : desktop + page défilante uniquement
+  // B2 scroll-linked (desktop) — LE fix (diagnostic Nicolas) : la timeline défile dans SON PROPRE conteneur `.iv-stepscol`
+  // (600px, overflow-y:auto), PAS dans la fenêtre -> un listener sur `window` ne se déclenchait JAMAIS. On repère le vrai
+  // conteneur défilant et on s'y accroche (listener + root de l'IntersectionObserver). Repli fenêtre si la page défile globalement.
+  const scrollEl = _ivFilScrollEl();
+  const pageScrolls = (document.documentElement.scrollHeight > (window.innerHeight || 0) + 8);
+  if (!mobile && (scrollEl || pageScrolls)) _ivFilWireScroll(scrollEl); // B2 : desktop, dès qu'un défilement réel existe (conteneur OU fenêtre)
 }
 function _ivFilDrawIn() {
   const fil = IV._fil; if (!fil) return;
+  try { console.log('[fil] dessin one-shot — départ (visibility=' + ((typeof document !== 'undefined' && document.visibilityState) || '?') + ', étapes=' + (fil.pins ? fil.pins.length : '?') + ')'); } catch(e) {} // trace demandée : confirme que la boucle se déclenche
   const id = (fil.animId = (fil.animId || 0) + 1);
   if (fil._safety) { clearTimeout(fil._safety); fil._safety = null; }
   // ROBUSTESSE (audit) : le ruban ne doit JAMAIS rester caché. Si l'onglet est en arrière-plan (rAF gelé -> le dessin ne
@@ -5721,10 +5726,25 @@ function _ivFilDrawIn() {
     else if (fil._safety) { clearTimeout(fil._safety); fil._safety = null; } // dessin terminé proprement -> filet inutile
   })();
 }
-function _ivFilWireScroll() {
+function _ivFilScrollEl() {
+  // Conteneur de défilement RÉEL de la timeline. Desktop : `.iv-stepscol` (600px, overflow-y:auto) -> c'est LUI qui défile, pas
+  // la fenêtre. Sinon : plus proche ancêtre défilant de `.iv-steps`. Sinon null (= la fenêtre). NB : mobile met `.iv-stepscol`
+  // en overflow:visible -> scrollHeight ≈ clientHeight -> renvoie null (le scroll-linked mobile est hors scope, one-shot only).
+  const col = document.querySelector('.iv-stepscol');
+  if (col && col.scrollHeight > col.clientHeight + 4) return col;
+  const steps = document.querySelector('.iv-steps');
+  for (let p = steps && steps.parentElement; p && p !== document.body; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 4) return p;
+  }
+  return null;
+}
+function _ivFilWireScroll(scrollEl) {
   const fil = IV._fil; if (!fil) return;
+  fil.scrollEl = scrollEl || null;
+  const target = scrollEl || window;                       // on écoute LÀ où ça défile (conteneur .iv-stepscol, pas window)
   fil.onScroll = function() { fil.userScrolled = true; };  // le scroll-linked ne prend la main qu'APRÈS un vrai défilement (le dessin one-shot joue d'abord en entier)
-  window.addEventListener('scroll', fil.onScroll, { passive: true });
+  target.addEventListener('scroll', fil.onScroll, { passive: true });
   const io = new IntersectionObserver(function(entries) {
     if (!IV._fil || IV._fil !== fil || !fil.userScrolled) return;
     entries.forEach(function(en) {
@@ -5736,7 +5756,7 @@ function _ivFilWireScroll() {
       _ivFilReveal(fil.fractions[k] != null ? fil.fractions[k] : 1);
       _ivFilSetActive(fil.mkIdx[k]);
     });
-  }, { root: null, rootMargin: '-45% 0px -55% 0px', threshold: 0 }); // ligne de lecture à ~45% du haut (scrollytelling)
+  }, { root: scrollEl || null, rootMargin: '-45% 0px -55% 0px', threshold: 0 }); // ligne de lecture à ~45% du haut DU CONTENEUR (scrollytelling)
   document.querySelectorAll('.iv-steps .iv-step').forEach(function(st) { io.observe(st); });
   fil.io = io;
 }
