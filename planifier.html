@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v273'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v274'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5136,11 +5136,16 @@ function ivMapSheetClose() {
 // On observe LE BANDEAU LUI-MÊME (pas .iv-mapcol, qui peut quitter l'écran à un autre instant) ; rootMargin -8px en haut ->
 // la pastille apparaît juste APRÈS la sortie complète du bandeau, pas pile au bord. Root = viewport (iframe plein-écran).
 function ivBindMapFab() {
+  IV._apercuHorsEcran = false; IV._sheetOuvert = false;   // INIT : en haut de page l'aperçu est visible (ou pas encore atteint) -> PAS « hors écran » ; sheet fermé
   const peek = document.getElementById('iv-map-peek'), fab = document.getElementById('iv-map-fab');
   if (peek && fab && ('IntersectionObserver' in window)) {
     if (IV._fabObs) { try { IV._fabObs.disconnect(); } catch(e) {} }
     IV._fabObs = new IntersectionObserver((ents) => { ents.forEach((e) => {
-      IV._apercuHorsEcran = !e.isIntersecting;   // le bandeau n'intersecte plus DU TOUT -> aperçu hors écran
+      // « hors écran » = le bandeau est passé AU-DESSUS du viewport (scrollé au-delà) — PAS quand il est encore EN DESSOUS (pas
+      // atteint : en haut de page sur un petit écran, l'aperçu est sous la ligne de flottaison -> sinon la pastille s'afficherait
+      // dès le haut). On distingue les deux par la position du rect du bandeau vs le haut du root.
+      const rb = e.rootBounds, top = rb ? rb.top : 0;
+      IV._apercuHorsEcran = !e.isIntersecting && (e.boundingClientRect.bottom <= top);
       majFab();                                   // source de vérité unique (aperçu hors écran ET sheet fermé)
     }); }, { threshold: 0, rootMargin: '-8px 0px 0px 0px' });
     IV._fabObs.observe(peek);
