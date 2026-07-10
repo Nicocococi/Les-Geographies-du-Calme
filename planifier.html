@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v280'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v281'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5545,45 +5545,29 @@ function ivFitDay() {
   }
 }
 
-// GÉOMÉTRIE DROITE (fallback) : relie les pins DANS L'ORDRE mais SAUTE le connecteur entre deux pins < ~50 m (dans une grappe,
-// ce segment ultra-court ne fait que du pâté — les numéros donnent déjà l'ordre) -> MultiLineString coupé aux segments courts.
+// GÉOMÉTRIE (fallback) DROITE en UNE SEULE LineString : requise pour le « fil du temps » (line-gradient exige une progression
+// 0→1 CONTINUE le long d'UNE ligne). On relie les pins DANS L'ORDRE. (Le vrai tracé, lui, vient de Directions = un LineString.)
 function _ivStraightRoute(coords) {
-  const _m = (a, b) => { const R = 6371000, dLat = (b[1]-a[1])*Math.PI/180, dLng = (b[0]-a[0])*Math.PI/180, la1 = a[1]*Math.PI/180, la2 = b[1]*Math.PI/180; const x = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
-  const runs = []; let run = coords.length ? [coords[0]] : [];
-  for (let i = 1; i < coords.length; i++) {
-    if (_m(coords[i-1], coords[i]) >= 50) run.push(coords[i]);
-    else { if (run.length >= 2) runs.push(run); run = [coords[i]]; }
-  }
-  if (run.length >= 2) runs.push(run);
-  return { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: runs } };
+  return { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
 }
-// Crée/actualise la source + la couche du trait. STYLE INCHANGÉ (fin, pointillé rond, brun espresso #6b4f38, une couleur ;
-// la couleur du temps reste sur les pins). Seule la GÉOMÉTRIE (la source) change entre droite et chemin-rues.
-// Petit chevron « ▶ » en image SDF (dessiné sur un canvas). SDF = teintable (icon-color) + halo (icon-halo). On NE dépend plus
-// d'un glyphe de police : `▸` (U+25B8) n'est PAS servi par le serveur de glyphes Mapbox pour Arial Unicode MS -> la couche
-// rendait 0 flèche (bug v279). Le triangle pointe vers la DROITE ; `icon-rotation-alignment:map` l'oriente le long du tracé.
-function _ivArrowImg() {
-  const s = 40, cv = document.createElement('canvas'); cv.width = s; cv.height = s;
-  const ctx = cv.getContext('2d'); ctx.fillStyle = '#000';   // couleur ignorée en SDF (c'est l'alpha qui compte, teinté par icon-color)
-  ctx.beginPath(); ctx.moveTo(s*0.30, s*0.16); ctx.lineTo(s*0.80, s*0.50); ctx.lineTo(s*0.30, s*0.84); ctx.closePath(); ctx.fill();
-  return ctx.getImageData(0, 0, s, s);
-}
+// Crée/actualise la source + la couche du parcours. Le SENS est porté par la COULEUR — « FIL DU TEMPS » : un ruban PLEIN dont
+// la teinte coule du MATIN (clair/doré) au SOIR (bleu nuit) le long de la ligne = l'ordre chronologique des étapes. On lit le
+// sens 1→2→3 d'un coup, sans flèche, quelle que soit la sinuosité (la couleur avance toujours dans le même sens). UNIVERSEL :
+// pur style sur la géométrie 0→1, AUCUN nom de lieu (identique Paris/Bangkok/Bali). Contraintes Mapbox : line-gradient exige
+// lineMetrics:true sur la source ET est INCOMPATIBLE avec line-dasharray -> ruban PLEIN (aligné avec « trait plus épais »).
+// Le TRACÉ (street-following, v278) n'est PAS touché : on repeint seulement par-dessus. (Plus de couche de flèches.)
 function _ivRouteSetData(data) {
   if (!IV.map) return;
   if (IV.map.getSource('iv-route-src')) { IV.map.getSource('iv-route-src').setData(data); return; }
-  IV.map.addSource('iv-route-src', { type: 'geojson', data });
+  IV.map.addSource('iv-route-src', { type: 'geojson', lineMetrics: true, data });   // lineMetrics -> line-progress 0→1 dispo
   IV.map.addLayer({ id: 'iv-route-line', type: 'line', source: 'iv-route-src',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#6b4f38', 'line-opacity': 1, 'line-width': 2.2, 'line-dasharray': [0, 1.8] } });
-  // CHEVRONS DIRECTIONNELS (brief carte_sens) : flèches SDF orientées DANS LE SENS DE LA MARCHE le long du tracé
-  // (symbol-placement:line + icon-rotation-alignment:map -> elles suivent la ligne et s'orientent selon l'ORDRE des coords).
-  // Le sens 1→2→3 se lit d'un coup d'œil ; un point de passage = « une flèche entre + une flèche sort » (plus de fausse
-  // fourche). Calme et discret (petites, espacées, brun) + halo clair -> se détachent des pointillés. Sous les pins (DOM).
-  if (!IV.map.hasImage('gc-arrow')) { try { IV.map.addImage('gc-arrow', _ivArrowImg(), { sdf: true }); } catch(e) {} }
-  IV.map.addLayer({ id: 'iv-route-arrows', type: 'symbol', source: 'iv-route-src',
-    layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'gc-arrow', 'icon-size': 0.5,
-      'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true },
-    paint: { 'icon-color': '#5a4230', 'icon-halo-color': '#f2ebdd', 'icon-halo-width': 1.4, 'icon-opacity': 0.95 } });
+    paint: {
+      'line-width': ['interpolate', ['linear'], ['zoom'], 11, 4, 15, 5, 17, 6],   // ruban confiant (~4-5), un poil + épais au zoom
+      'line-opacity': 1,
+      'line-gradient': ['interpolate', ['linear'], ['line-progress'],   // MATIN -> SOIR le long de la LONGUEUR (= ordre des étapes)
+        0, '#cdb583', 0.16, '#dca74d', 0.33, '#d0863a', 0.5, '#c0632f', 0.66, '#a64f66', 0.83, '#6f5476', 1, '#46588a']
+    } });
 }
 function ivDrawRoute() {
   if (!IV.map) return;
