@@ -1261,12 +1261,21 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
   letter-spacing: 0.03em; } /* prix €/€€/€€€/€€€€ propre à chaque alternative : TEXTE SIMPLE, même couleur que le nom (pas de pastille) */
 .iv-alt.active .iv-altprice { color: #fff; }
 .iv-prixnote { font-size: 0.72rem; color: var(--gris); font-style: italic; margin-top: 18px; }
+.iv-map-toggle { display: none; }   /* DESKTOP : pas de bouton — la carte reste affichée en 2 colonnes. Le bouton n'apparaît qu'en mobile (@media plus bas). */
 
 @media (max-width: 620px), (hover: none) and (pointer: coarse) {
   html, body { overflow-x: hidden; max-width: 100%; width: 100%; }
   .result-wrap { max-width: 100%; width: 100%; box-sizing: border-box; }
   .iv-layout { grid-template-columns: 1fr; max-width: 100%; }
-  .iv-mapcol { order: -1; max-width: 100%; min-width: 0; }
+  /* CARTE REPLIABLE (point 2, Option B) : sur mobile la timeline occupe tout l'écran par défaut, la carte est REPLIÉE ;
+     le bouton « Voir la carte » l'ouvre (classe .iv-map-open ajoutée par ivToggleMap). */
+  .iv-map-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px;
+    background: var(--carte); border: 1px solid var(--bordure); border-radius: 12px; padding: 13px 16px; margin: 0 0 14px;
+    font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; color: var(--noir); cursor: pointer; }
+  .iv-map-toggle .iv-mt-chev { width: 18px; height: 18px; transition: transform .2s ease; }
+  .iv-map-toggle[aria-expanded="true"] .iv-mt-chev { transform: rotate(180deg); }
+  .iv-mapcol { order: -1; max-width: 100%; min-width: 0; display: none; }   /* repliée par défaut */
+  .iv-layout.iv-map-open .iv-mapcol { display: block; }                     /* ouverte au tap */
   .iv-mapshell { height: 300px; width: 100%; max-width: 100%; margin: 0; border-radius: 16px;
     -webkit-mask-image: none; mask-image: none; } /* mobile (passe séparée) : pas de fondu, bande propre */
   .iv-stepscol { height: auto; overflow: visible; padding-right: 0; max-width: 100%; min-width: 0; }
@@ -4854,6 +4863,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
       `<div class="iv-ribwrap" id="iv-ribwrap"></div>`+   /* RUBAN « respiration de la journée » (étape 3) — rempli par ivRenderDay */
       ((typeof RACCOURCI_MSG!=='undefined'&&RACCOURCI_MSG)?`<p class="iv-raccourci">${RACCOURCI_MSG}</p>`:``)+
       `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · `+APP_VERSION+`</span></p>`+
+      `<button class="iv-map-toggle" id="iv-map-toggle" type="button" aria-expanded="false" onclick="ivToggleMap(this)"><span class="iv-mt-label">Voir la carte</span><svg class="iv-mt-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>`+  /* MOBILE seulement (masqué en desktop) : carte repliable, fermée par défaut (brief mobile point 2) */
       `<div class="iv-layout">`+
         `<div class="iv-mapcol"><div class="iv-mapshell">`+
           `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
@@ -5006,6 +5016,20 @@ function ivPostcard() {
   b.dataset.busy = '1'; const orig = b.innerHTML;
   b.innerHTML = '<span class="iv-pc-ico">✦</span> Bientôt : votre carte postale à partager';
   setTimeout(() => { b.innerHTML = orig; delete b.dataset.busy; }, 2200);
+}
+// CARTE REPLIABLE MOBILE (brief mobile point 2) : ouvre/ferme la colonne carte (repliée par défaut sur mobile). Le bouton
+// n'existe qu'en mobile (display:none en desktop). À l'OUVERTURE : la carte a été initialisée cachée (0px) -> il FAUT la
+// resize() sinon tuiles grises, puis re-caler le jour (ivSetMapDay). Desktop : jamais appelé (bouton masqué).
+function ivToggleMap(btn) {
+  const layout = document.querySelector('.iv-layout'); if (!layout) return;
+  const open = !layout.classList.contains('iv-map-open');
+  layout.classList.toggle('iv-map-open', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const lbl = btn.querySelector('.iv-mt-label'); if (lbl) lbl.textContent = open ? 'Masquer la carte' : 'Voir la carte';
+  if (open && IV && IV.map) {
+    setTimeout(() => { try { IV.map.resize(); } catch(e) {} }, 60);
+    setTimeout(() => { try { IV.map.resize(); ivSetMapDay(IV.active); } catch(e) {} }, 320); // 2e passe : le conteneur a sa taille finale -> tuiles nettes + recadrage du jour
+  }
 }
 function ivRenderDay(num) {
   const tranches = IV.tranches[num] || []; if (!tranches.length) return;
@@ -5206,16 +5230,16 @@ async function ivInitMap() {
   if (!IV.token) { const l = document.getElementById('iv-maploading'); if (l) l.textContent = 'Carte indisponible'; return; }
   try { await loadMapboxGL(); } catch(e) { const l = document.getElementById('iv-maploading'); if (l) l.textContent = 'Carte indisponible'; return; }
   mapboxgl.accessToken = IV.token;
-  IV.map = new mapboxgl.Map({ container: 'iv-map', style: MAPBOX_STYLE, center: [0, 20], zoom: 1.4, attributionControl: false });
+  // MOBILE (détection JS robuste — pas seulement la media query CSS, qui peut rater dans l'iframe Ghost si sa largeur interne
+  // est « desktop »). cooperativeGestures (point 1 brief mobile) : sur tactile, 1 DOIGT = SCROLL DE PAGE (la carte ne piège
+  // plus le scroll — LE bug), 2 DOIGTS = déplacer/zoomer la carte (Mapbox affiche l'aide « deux doigts » tout seul). Remplace
+  // l'ancien dragPan.disable() qui bloquait le pan tout court. Desktop (_mob=false) : comportement souris strictement inchangé.
+  const _mob = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
+  IV.map = new mapboxgl.Map({ container: 'iv-map', style: MAPBOX_STYLE, center: [0, 20], zoom: 1.4, attributionControl: false, cooperativeGestures: _mob });
   IV.map.addControl(new mapboxgl.AttributionControl({ compact: true }));
   IV.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-  // MOBILE (détection JS robuste — pas seulement la media query CSS, qui peut rater dans l'iframe Ghost si sa largeur interne
-  // est « desktop ») : (1) on DÉSACTIVE le pan au doigt pour ne PAS piéger le scroll de page (la carte reste une bande, on
-  // scrolle par-dessus ; zoom via les boutons +/−) ; (2) on FORCE une bande courte (~300px) en sécurité si le CSS n'a pas pris.
-  const _mob = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
   if (_mob) {
-    try { IV.map.dragPan.disable(); } catch(e) {}
-    const _sh = document.querySelector('.iv-mapshell'); if (_sh) { _sh.style.height = '300px'; }
+    const _sh = document.querySelector('.iv-mapshell'); if (_sh) { _sh.style.height = '300px'; }   // bande courte en sécurité si le CSS n'a pas pris
     setTimeout(() => { if (IV.map) IV.map.resize(); }, 60);
   }
   IV.map.on('load', () => {
