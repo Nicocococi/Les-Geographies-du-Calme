@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v271'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v272'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5124,17 +5124,19 @@ function ivMapSheetClose() {
     if (IV && IV.map) { try { IV.map.resize(); } catch(e) {} }
   }, 360);
 }
-// Pastille visible SEULEMENT quand l'aperçu-carte du haut (.iv-mapcol) est hors du viewport (pas de doublon), et jamais quand
-// le sheet est ouvert. + swipe-down sur la poignée pour fermer.
+// Pastille visible SEULEMENT quand le BANDEAU d'aperçu du haut (.iv-map-peek « Voir la carte ») est ENTIÈREMENT sorti de
+// l'écran (pas de doublon avec lui), et jamais quand le sheet est ouvert. + swipe-down sur la poignée pour fermer.
+// On observe LE BANDEAU LUI-MÊME (pas .iv-mapcol, qui peut quitter l'écran à un autre instant) ; rootMargin -8px en haut ->
+// la pastille apparaît juste APRÈS la sortie complète du bandeau, pas pile au bord. Root = viewport (iframe plein-écran).
 function ivBindMapFab() {
-  const strip = document.querySelector('.iv-mapcol'), fab = document.getElementById('iv-map-fab');
-  if (strip && fab && ('IntersectionObserver' in window)) {
+  const peek = document.getElementById('iv-map-peek'), fab = document.getElementById('iv-map-fab');
+  if (peek && fab && ('IntersectionObserver' in window)) {
     if (IV._fabObs) { try { IV._fabObs.disconnect(); } catch(e) {} }
     IV._fabObs = new IntersectionObserver((ents) => { ents.forEach((e) => {
       const sheetOpen = (document.getElementById('iv-map-sheet') || {}).classList && document.getElementById('iv-map-sheet').classList.contains('open');
-      fab.classList.toggle('show', !e.isIntersecting && !sheetOpen);
-    }); }, { threshold: 0 });
-    IV._fabObs.observe(strip);
+      fab.classList.toggle('show', !e.isIntersecting && !sheetOpen); // .show SEULEMENT quand le bandeau n'intersecte plus DU TOUT
+    }); }, { threshold: 0, rootMargin: '-8px 0px 0px 0px' });
+    IV._fabObs.observe(peek);
   }
   const grip = document.getElementById('iv-sheet-grip');
   if (grip && !grip._bound) { grip._bound = 1; let y0 = null;
