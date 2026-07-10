@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v287'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v288'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5674,6 +5674,22 @@ function _ivFilGeomUpdate() { // la géométrie a changé (droite -> rues) : rec
   if (IV._fil.tracking) _ivFilReveal(IV._fil.fractions[IV._fil.activeMk] != null ? IV._fil.fractions[IV._fil.activeMk] : 1);
 }
 function _ivFilInit(num) {
+  // ROBUSTE (fix RACE, diagnostic Nicolas) : ivDrawRoute pose la couche `iv-route-line` puis lance le tracé Directions en
+  // ASYNC ; selon le timing (style pas fini de charger, pins géocodés tard, re-render), la couche ou les pins peuvent ne pas
+  // être là au moment où on lance le dessin -> `_ivFilReveal` sortait sur son garde (couche absente) et RIEN ne s'animait, et
+  // `IV._fil` n'était jamais construit. FIX : on ATTEND que la couche ET ≥2 pins soient prêts (retry court ~2,4 s), keyé pour
+  // qu'un changement de jour annule l'attente en cours. Cas normal (couche déjà posée) : passe du 1er coup, zéro latence.
+  const token = (IV._filLaunchToken = (IV._filLaunchToken || 0) + 1);
+  let tries = 0;
+  (function attempt() {
+    if (IV._filLaunchToken !== token) return;                                     // un jour plus récent a pris la main
+    const layerOK = !!(IV.map && IV.map.getLayer && IV.map.getLayer('iv-route-line'));
+    const nMarkers = IV.dayMk ? IV.dayMk.filter(m => m && m.marker).length : 0;
+    if (!layerOK || nMarkers < 2) { if (tries++ < 40) setTimeout(attempt, 60); return; } // pas encore prêt -> on repasse dans 60 ms
+    _ivFilInitNow(num);
+  })();
+}
+function _ivFilInitNow(num) {
   if (!IV.map || !IV.map.getLayer || !IV.map.getLayer('iv-route-line')) return;
   const pins = [], mkIdx = []; IV.dayMk.forEach((m, i) => { if (m && m.marker) { const ll = m.marker.getLngLat(); pins.push([ll.lng, ll.lat]); mkIdx.push(i); } });
   if (pins.length < 2) return;
