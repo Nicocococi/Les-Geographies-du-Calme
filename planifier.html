@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v281'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v282'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4157,7 +4157,10 @@ function selectTheme(el) {
 }
 
 // ── MAPBOX ───────────────────────────────────────────────
-let mapboxToken = null;
+// Token PUBLIC Mapbox restreint par domaine (geocalme.com) — fait pour vivre dans le HTML client (ce n'est PAS un secret).
+// Source UNIQUE : getToken()/getMapboxToken() la renvoient telle quelle (le fetch au Worker /mapbox-token devient un repli) ->
+// alimente la carte ET les appels Directions (via mapboxgl.accessToken). Pour changer de token : cette seule ligne.
+let mapboxToken = 'pk.eyJ1Ijoibmljb2NvY29jb2NvIiwiYSI6ImNtcmYweWV0YjBzNTYyeXBkb29ib2kycHAifQ.l0o6rsjPsN4OTlbOU3sVjA';
 const dayMaps = {}; // jourKey → { map, markers: { trancheId: mapboxgl.Marker } }
 const MAPBOX_STYLE = 'mapbox://styles/mapbox/light-v11';
 // Couleur dynamique selon l'heure de début (indépendant du label texte)
