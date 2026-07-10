@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v277'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v278'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5545,31 +5545,58 @@ function ivFitDay() {
   }
 }
 
-function ivDrawRoute() {
-  if (!IV.map) return;
-  const coords = IV.dayMk.filter(m => m.marker).map(m => { const ll = m.marker.getLngLat(); return [ll.lng, ll.lat]; });
-  // GÉOMÉTRIE : on relie les pins DANS L'ORDRE, mais on SAUTE le segment entre deux pins très proches (< ~50 m). Dans une
-  // grappe (ex. Carcassonne 1·4·10 collés), ce connecteur ultra-court ne fait que du pâté — les numéros donnent déjà l'ordre.
-  // -> MultiLineString : on coupe la ligne aux segments courts (chaque « run » = une portion continue à tracer).
+// GÉOMÉTRIE DROITE (fallback) : relie les pins DANS L'ORDRE mais SAUTE le connecteur entre deux pins < ~50 m (dans une grappe,
+// ce segment ultra-court ne fait que du pâté — les numéros donnent déjà l'ordre) -> MultiLineString coupé aux segments courts.
+function _ivStraightRoute(coords) {
   const _m = (a, b) => { const R = 6371000, dLat = (b[1]-a[1])*Math.PI/180, dLng = (b[0]-a[0])*Math.PI/180, la1 = a[1]*Math.PI/180, la2 = b[1]*Math.PI/180; const x = Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
   const runs = []; let run = coords.length ? [coords[0]] : [];
   for (let i = 1; i < coords.length; i++) {
-    if (_m(coords[i-1], coords[i]) >= 50) run.push(coords[i]);            // segment normal -> on continue la portion
-    else { if (run.length >= 2) runs.push(run); run = [coords[i]]; }      // segment < 50 m -> on COUPE (pas de connecteur)
+    if (_m(coords[i-1], coords[i]) >= 50) run.push(coords[i]);
+    else { if (run.length >= 2) runs.push(run); run = [coords[i]]; }
   }
   if (run.length >= 2) runs.push(run);
-  const data = { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: runs } };
+  return { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: runs } };
+}
+// Crée/actualise la source + la couche du trait. STYLE INCHANGÉ (fin, pointillé rond, brun espresso #6b4f38, une couleur ;
+// la couleur du temps reste sur les pins). Seule la GÉOMÉTRIE (la source) change entre droite et chemin-rues.
+function _ivRouteSetData(data) {
+  if (!IV.map) return;
   if (IV.map.getSource('iv-route-src')) { IV.map.getSource('iv-route-src').setData(data); return; }
-  if (!runs.length) return;
-  // TRAIT HUMBLE (= « tissu conjonctif ») : FIN, UNE seule couleur discrète (brun doux, palette marque), POINTILLÉ rond
-  // (convention « sentier de marche » ; des pointillés qui se croisent ne font jamais de pâté). Le DÉGRADÉ du temps
-  // (matin->soir) reste porté UNIQUEMENT par les pins, plus par le trait. S'applique desktop ET mobile (même couche).
   IV.map.addSource('iv-route-src', { type: 'geojson', data });
   IV.map.addLayer({ id: 'iv-route-line', type: 'line', source: 'iv-route-src',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#6b4f38', 'line-opacity': 1,          // brun espresso (palette marque) : lisible sur le beige, surtout en petit (mobile 300px)
-      'line-width': 2.2,
-      'line-dasharray': [0, 1.8] } });                            // pointillé rond resserré (line-cap round -> vrais points)
+    paint: { 'line-color': '#6b4f38', 'line-opacity': 1, 'line-width': 2.2, 'line-dasharray': [0, 1.8] } });
+}
+function ivDrawRoute() {
+  if (!IV.map) return;
+  const coords = IV.dayMk.filter(m => m.marker).map(m => { const ll = m.marker.getLngLat(); return [ll.lng, ll.lat]; });
+  if (coords.length < 2) return;
+  const key = coords.map(c => c[0].toFixed(5) + ',' + c[1].toFixed(5)).join(';');   // clé de cache = suite ORDONNÉE des coords
+  IV._routeKey = key; IV._routeCache = IV._routeCache || {}; IV._routePending = IV._routePending || {};
+  if (IV._routeCache[key]) { _ivRouteSetData(IV._routeCache[key]); return; }         // jour DÉJÀ tracé (rues ou droite) -> aucun ré-appel
+  _ivRouteSetData(_ivStraightRoute(coords));                                         // 1) TRAIT DROIT tout de suite -> jamais de carte vide/bloquée
+  if (!IV._routePending[key]) { IV._routePending[key] = true; _ivWalkingRoute(coords, key); }  // 2) chemin RUES (async, 1 seul appel en vol / jour)
+}
+// CHEMIN RUES (Mapbox Directions, profil MARCHE) : remplace la géométrie droite par le vrai itinéraire piéton (longe les rues,
+// emprunte les ponts). 1 appel par jour, MIS EN CACHE (clé = coords). Fallback ROBUSTE : au moindre pépin (réseau, timeout,
+// quota, Directions non activé sur le token, > 25 waypoints, pas de route) on CACHE la droite -> pas de rafale de ré-appels,
+// carte jamais cassée. Le token est celui de Mapbox GL (pas de 2e token en dur) ; il doit avoir Directions activé.
+async function _ivWalkingRoute(coords, key) {
+  let data = null;
+  try {
+    const token = (typeof mapboxgl !== 'undefined' && mapboxgl.accessToken) || IV.token;
+    if (token && coords.length >= 2 && coords.length <= 25) {
+      const cs = coords.map(c => c[0] + ',' + c[1]).join(';');
+      const url = 'https://api.mapbox.com/directions/v5/mapbox/walking/' + cs + '?geometries=geojson&overview=full&access_token=' + token;
+      const r = await fetchT(url, {}, 8000);
+      const j = await r.json();
+      const geom = j && j.routes && j.routes[0] && j.routes[0].geometry;
+      if (geom && geom.coordinates && geom.coordinates.length >= 2) data = { type: 'Feature', geometry: geom };
+    }
+  } catch (e) { /* fallback silencieux */ }
+  if (!data) data = _ivStraightRoute(coords);      // échec/hors-limite -> on garde (et on CACHE) la droite
+  IV._routeCache[key] = data; delete IV._routePending[key];
+  if (IV._routeKey === key) _ivRouteSetData(data); // toujours le même jour à l'écran -> on remplace le trait
 }
 
 async function ivMoveMarker(num, i, tid) {
