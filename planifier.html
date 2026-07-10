@@ -1124,7 +1124,7 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 
 /* Two columns */
 .iv-layout { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); gap: 28px; align-items: start; }
-.iv-mapcol { order: 1; align-self: start; }
+.iv-mapcol { order: 1; align-self: start; position: sticky; top: 14px; }   /* DESKTOP : carte COLLANTE -> reste visible pendant qu'on lit/défile les étapes = compagnon narratif du « fil du temps » (partie B). Inerte en embed non-défilant (iframe dimensionnée au contenu) -> aucun effet néfaste. */
 /* CARTE — FONDU PROFONDEUR v2 (masque PUR, sans débord ni fond concurrent) : la carte se DISSOUT dans le fond UNIFORME déjà
    présent (page bord-à-bord) sur ses bords GAUCHE + BAS. Différence CLÉ avec l'ancien fondu (v248, retiré en v263) : AUCUN
    débord (pas de marge négative ni width>100% -> la carte reste contenue dans sa colonne, gauche/droite alignés) et AUCUN
@@ -1285,7 +1285,7 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
      carte » ▾. Tap -> déplie la carte pleine 300px INTERACTIVE (cooperativeGestures gère 1 doigt=scroll / 2 doigts=carte).
      Re-tap (petit bouton « Masquer » en haut-gauche, coin libre) -> revient à l'aperçu. UNE seule affordance, on MONTRE la
      carte au lieu de la décrire. */
-  .iv-mapcol { order: -1; max-width: 100%; min-width: 0; display: block; margin-bottom: 14px; }
+  .iv-mapcol { order: -1; max-width: 100%; min-width: 0; display: block; margin-bottom: 14px; position: static; top: auto; }   /* MOBILE : aperçu en tête, PAS collant (le scroll-linked est desktop-only ; mobile garde juste le dessin one-shot à l'ouverture). */
   #iv-map { pointer-events: none; }                                          /* aperçu : non interactif */
   .iv-layout.iv-map-open #iv-map { pointer-events: auto; }                   /* déplié : interactif */
   .iv-map-peek { display: flex; position: absolute; inset: 0; z-index: 4; align-items: center; justify-content: center; gap: 8px;
@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v282'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v283'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5397,13 +5397,23 @@ async function ivInitMap() {
 
 function ivEditorialStyle() {
   let layers; try { layers = IV.map.getStyle().layers; } catch(e) { return; }
-  // PALETTE MARQUE (étape 4, voie code sur light-v11) : eau #5b8aa6, sol #efe7d7, parcs #c7d2a3, bâti #e8dece, labels rue #8a7256.
+  // PALETTE MARQUE (étape 4, voie code sur light-v11) : eau #5b8aa6, sol #efe7d7, parcs #c7cfa6, bâti #e3d7c2, labels rue #241810.
+  // MATIÈRE (carte_relief_dynamique, partie A) : sur light-v11 les VERTS ne sont PAS des couches séparées (wood/park/grass…) —
+  // c'est UNE seule couche `landuse` (+ `national-park`) dont le TYPE est un attribut `class`. L'ancien regex par ID d'ID ne
+  // matchait donc RIEN -> tous les parcs tombaient dans le `else` beige. Fix : data-driven sur `['get','class']`.
+  const GREEN_CLASSES = ['park','grass','wood','scrub','cemetery','pitch','garden','golf_course','recreation_ground','forest','meadow','nature_reserve','national_park','agriculture','allotments','village_green','greenspace','dog_park','playground'];
+  const greenFill = ['match', ['get', 'class'], GREEN_CLASSES, '#c7cfa6', '#efe7d7']; // vert doux sage / sinon sol crème
   layers.forEach(l => { const id = l.id; try {
     if (l.type === 'background') { IV.map.setPaintProperty(id, 'background-color', '#efe7d7'); }
     else if (l.type === 'fill') {
       if (/water/.test(id)) IV.map.setPaintProperty(id, 'fill-color', '#5b8aa6');
-      else if (/building/.test(id)) IV.map.setPaintProperty(id, 'fill-color', '#e8dece');
-      else if (/(wood|forest|park|grass|cemetery|pitch|golf|garden|recreation)/.test(id)) IV.map.setPaintProperty(id, 'fill-color', '#c7d2a3');
+      else if (id === 'building') { // A1 : relief des îlots — teinte chaude un cran plus foncée/saturée que le fond + liseré léger
+        IV.map.setPaintProperty(id, 'fill-color', '#dfceb0');
+        IV.map.setPaintProperty(id, 'fill-outline-color', '#c6b085');
+      }
+      else if (id === 'landuse' || id === 'national-park' || /(wood|forest|park|grass|cemetery|pitch|golf|garden|recreation)/.test(id)) {
+        IV.map.setPaintProperty(id, 'fill-color', greenFill); // A2 : parcs/jardins/squares en vert doux (data-driven class, pas par ID)
+      }
       else IV.map.setPaintProperty(id, 'fill-color', '#efe7d7');
     }
     else if (l.type === 'line') {
@@ -5531,6 +5541,7 @@ function ivDecluster() {
     m.marker.setLngLat(dOff > 1.5 ? [m.trueLL.lng, m.trueLL.lat] : [ll.lng, ll.lat]);
   });
   ivDrawRoute();
+  try { _ivFilInit(num); } catch(e) {}   // FIL DU TEMPS (partie B) : dessin one-shot + (desktop défilant) suivi au scroll
 }
 
 // Recadre la carte sur l'ensemble des pins actuellement affichés (toutes étapes/variantes).
@@ -5561,6 +5572,7 @@ function _ivStraightRoute(coords) {
 // Le TRACÉ (street-following, v278) n'est PAS touché : on repeint seulement par-dessus. (Plus de couche de flèches.)
 function _ivRouteSetData(data) {
   if (!IV.map) return;
+  IV._routeData = data;   // mémorise la géométrie courante (fil du temps partie B : mapping étape -> fraction le long de la ligne)
   if (IV.map.getSource('iv-route-src')) { IV.map.getSource('iv-route-src').setData(data); return; }
   IV.map.addSource('iv-route-src', { type: 'geojson', lineMetrics: true, data });   // lineMetrics -> line-progress 0→1 dispo
   IV.map.addLayer({ id: 'iv-route-line', type: 'line', source: 'iv-route-src',
@@ -5601,7 +5613,102 @@ async function _ivWalkingRoute(coords, key) {
   } catch (e) { /* fallback silencieux */ }
   if (!data) data = _ivStraightRoute(coords);      // échec/hors-limite -> on garde (et on CACHE) la droite
   IV._routeCache[key] = data; delete IV._routePending[key];
-  if (IV._routeKey === key) _ivRouteSetData(data); // toujours le même jour à l'écran -> on remplace le trait
+  if (IV._routeKey === key) { _ivRouteSetData(data); try { _ivFilGeomUpdate(); } catch(e) {} } // même jour -> remplace le trait + recale les fractions du fil sur la nouvelle géométrie (rues)
+}
+
+// ── FIL DU TEMPS DYNAMIQUE (carte_relief_dynamique, partie B) ────────────────────────────────────────────────────────────
+// Le ruban ne s'affiche plus d'un bloc : il se DESSINE doucement (one-shot à l'ouverture, B1) puis, sur desktop où la PAGE
+// défile, il SUIT LA LECTURE (révélé jusqu'à l'étape en vue, pin actif allumé, B2). Mécanisme = `line-trim-offset` (Mapbox GL
+// ≥ 2.9) qui masque une portion de la ligne ; on anime la portion visible de « rien » à « tout ». Compatible avec le
+// line-gradient (la source a déjà lineMetrics:true) : la portion révélée garde ses couleurs. UNIVERSEL (pur style sur la
+// géométrie 0→1, aucun nom de lieu). GARDE-FOUS : prefers-reduced-motion -> ruban complet, aucune anim ; le scroll-linked
+// n'est câblé QUE si la page défile vraiment (en embed Ghost l'iframe est dimensionnée au contenu -> pas de scroll interne ->
+// on ne câble pas, le ruban reste COMPLET, jamais à moitié dessiné) ; mobile -> au moins le dessin one-shot à l'ouverture
+// (ivMapSheetOpen/ivToggleMap rappellent ivSetMapDay -> _ivFilInit -> B1). L'export « carte postale » = l'état final (ruban
+// complet), l'anim ne s'exporte pas.
+function _ivReducedMotion() { try { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch(e) { return false; } }
+function _ivDistM(a, b) { const R = 6371000, rad = Math.PI/180, x = (b[0]-a[0])*rad*Math.cos((a[1]+b[1])/2*rad), y = (b[1]-a[1])*rad; return Math.sqrt(x*x + y*y)*R; }
+// Fraction 0→1 le long de la ligne pour CHAQUE pin (point le plus proche projeté sur la polyline) -> mappe étape -> position sur le ruban.
+function _ivLineFractions(line, pins) {
+  if (!line || line.length < 2) return pins.map((_, i) => pins.length > 1 ? i/(pins.length-1) : 0);
+  const cum = [0]; for (let i = 1; i < line.length; i++) cum[i] = cum[i-1] + _ivDistM(line[i-1], line[i]);
+  const total = cum[line.length-1] || 1;
+  const fr = pins.map(p => {
+    let best = Infinity, bestCum = 0;
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i-1], b = line[i], dx = b[0]-a[0], dy = b[1]-a[1], len2 = dx*dx + dy*dy;
+      let t = len2 ? ((p[0]-a[0])*dx + (p[1]-a[1])*dy)/len2 : 0; t = Math.max(0, Math.min(1, t));
+      const cx = a[0]+t*dx, cy = a[1]+t*dy, d = _ivDistM(p, [cx, cy]);
+      if (d < best) { best = d; bestCum = cum[i-1] + _ivDistM(a, [cx, cy]); }
+    }
+    return Math.max(0, Math.min(1, bestCum/total));
+  });
+  for (let i = 1; i < fr.length; i++) if (fr[i] < fr[i-1]) fr[i] = fr[i-1]; // ordre chronologique -> fractions non-décroissantes
+  if (fr.length) { fr[0] = 0; fr[fr.length-1] = 1; }                        // extrémités franches (matin = départ, soir = fin)
+  return fr;
+}
+function _ivFilReveal(p) { // trim [q,1] cache la fin, montre le début 0..q ; q=1 -> ruban COMPLET (état final / export)
+  if (!IV.map || !IV.map.getLayer || !IV.map.getLayer('iv-route-line')) return;
+  const q = Math.max(0, Math.min(1, p));
+  try { IV.map.setPaintProperty('iv-route-line', 'line-trim-offset', [q, 1]); } catch(e) {} // si non supporté -> ruban complet (safe)
+}
+function _ivFilSetActive(mkIdx) { // allume le pin de l'étape courante (réutilise .active), éteint les autres
+  IV.dayMk.forEach((m, i) => { if (m && m.inner) m.inner.classList.toggle('active', i === mkIdx); });
+}
+function _ivFilGeomUpdate() { // la géométrie a changé (droite -> rues) : recalcule les fractions, garde l'état de révélation courant
+  if (!IV._fil || !IV._routeData) return;
+  const line = (IV._routeData.geometry && IV._routeData.geometry.coordinates) || [];
+  IV._fil.fractions = _ivLineFractions(line, IV._fil.pins);
+  if (IV._fil.tracking) _ivFilReveal(IV._fil.fractions[IV._fil.activeMk] != null ? IV._fil.fractions[IV._fil.activeMk] : 1);
+}
+function _ivFilInit(num) {
+  if (!IV.map || !IV.map.getLayer || !IV.map.getLayer('iv-route-line')) return;
+  const pins = [], mkIdx = []; IV.dayMk.forEach((m, i) => { if (m && m.marker) { const ll = m.marker.getLngLat(); pins.push([ll.lng, ll.lat]); mkIdx.push(i); } });
+  if (pins.length < 2) return;
+  const line = (IV._routeData && IV._routeData.geometry && IV._routeData.geometry.coordinates) || [];
+  const fractions = _ivLineFractions(line, pins);
+  const nowT = Date.now(), rapid = IV._fil && IV._fil.day === num && (nowT - (IV._fil.playAt || 0) < 1500); // ivSetMapDay est rappelé par les passes de resize (~320ms) -> ne PAS ré-animer
+  if (IV._fil && IV._fil.io) { try { IV._fil.io.disconnect(); } catch(e) {} }
+  if (IV._fil && IV._fil.onScroll) { try { window.removeEventListener('scroll', IV._fil.onScroll); } catch(e) {} }
+  IV._fil = { day: num, pins, mkIdx, fractions, activeMk: 0, tracking: false, userScrolled: false, playAt: (rapid ? IV._fil.playAt : nowT), io: null, onScroll: null, animId: 0 };
+  if (_ivReducedMotion()) { _ivFilReveal(1); return; }  // reduced-motion : ruban complet, aucune anim, aucun scroll-link
+  if (rapid) { _ivFilReveal(1); return; }                // re-entrée resize : garde le ruban complet, pas de re-anim
+  _ivFilDrawIn();                                         // B1 — dessin doux one-shot
+  const mobile = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
+  const scrolls = (document.documentElement.scrollHeight > (window.innerHeight || 0) + 8); // page réellement défilante ? (faux en embed non-défilant)
+  if (!mobile && scrolls) _ivFilWireScroll();            // B2 — scroll-linked : desktop + page défilante uniquement
+}
+function _ivFilDrawIn() {
+  const fil = IV._fil; if (!fil) return;
+  const t0 = Date.now(), DUR = 2000;                     // ~2 s, easing doux -> lent et fluide (la lenteur EST la marque)
+  _ivFilReveal(0);
+  const id = (fil.animId = (fil.animId || 0) + 1);
+  (function frame() {
+    if (!IV._fil || IV._fil !== fil || fil.animId !== id) return; // jour changé / re-anim -> stop
+    if (fil.tracking) return;                            // le scroll a pris la main
+    const r = Math.min(1, (Date.now()-t0)/DUR), e = r < 0.5 ? 4*r*r*r : 1 - Math.pow(-2*r+2, 3)/2; // easeInOutCubic
+    _ivFilReveal(e);
+    if (r < 1) requestAnimationFrame(frame);
+  })();
+}
+function _ivFilWireScroll() {
+  const fil = IV._fil; if (!fil) return;
+  fil.onScroll = function() { fil.userScrolled = true; };  // le scroll-linked ne prend la main qu'APRÈS un vrai défilement (le dessin one-shot joue d'abord en entier)
+  window.addEventListener('scroll', fil.onScroll, { passive: true });
+  const io = new IntersectionObserver(function(entries) {
+    if (!IV._fil || IV._fil !== fil || !fil.userScrolled) return;
+    entries.forEach(function(en) {
+      if (!en.isIntersecting) return;
+      const i = parseInt((en.target.id || '').replace('iv-step-', ''), 10); if (isNaN(i)) return;
+      fil.tracking = true;                                 // le scroll pilote désormais le ruban
+      let k = fil.mkIdx.indexOf(i); if (k < 0) { k = 0; for (let j = 0; j < fil.mkIdx.length; j++) if (fil.mkIdx[j] <= i) k = j; } // étape « temps libre » sans pin -> pin précédent
+      fil.activeMk = k;
+      _ivFilReveal(fil.fractions[k] != null ? fil.fractions[k] : 1);
+      _ivFilSetActive(fil.mkIdx[k]);
+    });
+  }, { root: null, rootMargin: '-45% 0px -55% 0px', threshold: 0 }); // ligne de lecture à ~45% du haut (scrollytelling)
+  document.querySelectorAll('.iv-steps .iv-step').forEach(function(st) { io.observe(st); });
+  fil.io = io;
 }
 
 async function ivMoveMarker(num, i, tid) {
