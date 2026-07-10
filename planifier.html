@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v288'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v289'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5553,7 +5553,7 @@ function ivDecluster() {
     m.marker.setLngLat(dOff > 1.5 ? [m.trueLL.lng, m.trueLL.lat] : [ll.lng, ll.lat]);
   });
   ivDrawRoute();
-  try { _ivFilInit(num); } catch(e) {}   // FIL DU TEMPS (partie B) : dessin one-shot + (desktop défilant) suivi au scroll
+  try { _ivFilInit(IV.active); } catch(e) {}   // FIL DU TEMPS (partie B) : dessin one-shot + (desktop défilant) suivi au scroll. BUG HISTORIQUE (v283→v288) : ici on est dans ivDecluster() qui N'A PAS de param `num` -> `_ivFilInit(num)` levait ReferenceError avalé par le catch -> le fil n'était JAMAIS lancé. On utilise IV.active (le jour affiché = celui que ivDecluster vient de dessiner).
 }
 
 // Recadre la carte sur l'ensemble des pins actuellement affichés (toutes étapes/variantes).
