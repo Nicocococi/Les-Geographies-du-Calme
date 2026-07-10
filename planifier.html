@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v275'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v276'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5558,9 +5558,9 @@ function ivDrawRoute() {
   IV.map.addSource('iv-route-src', { type: 'geojson', data });
   IV.map.addLayer({ id: 'iv-route-line', type: 'line', source: 'iv-route-src',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#9a7b5a', 'line-opacity': 0.85,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1.5, 16, 2.5],
-      'line-dasharray': [0.1, 2] } });
+    paint: { 'line-color': '#6b4f38', 'line-opacity': 1,          // brun espresso (palette marque) : lisible sur le beige, surtout en petit (mobile 300px)
+      'line-width': 2.2,
+      'line-dasharray': [0, 1.8] } });                            // pointillé rond resserré (line-cap round -> vrais points)
 }
 
 async function ivMoveMarker(num, i, tid) {
