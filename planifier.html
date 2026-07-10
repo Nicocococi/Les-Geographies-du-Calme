@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v283'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v285'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5095,6 +5095,7 @@ function ivToggleMap() {
   const layout = document.querySelector('.iv-layout'); if (!layout) return;
   const open = !layout.classList.contains('iv-map-open');
   layout.classList.toggle('iv-map-open', open);
+  if (open && IV._filPlayed) IV._filPlayed[IV.active] = false; // MOBILE : rejouer le dessin one-shot du fil à l'ouverture de la carte (brief B)
   const peek = document.getElementById('iv-map-peek');
   if (peek) { peek.setAttribute('aria-expanded', open ? 'true' : 'false');
     const lbl = peek.querySelector('.iv-mp-label'); if (lbl) lbl.textContent = open ? 'Masquer la carte' : 'Voir la carte'; }
@@ -5116,6 +5117,7 @@ function ivMapSheetOpen() {
   const sheet = document.getElementById('iv-map-sheet'), body = document.getElementById('iv-sheet-body'),
         shell = document.querySelector('.iv-mapshell'), bd = document.getElementById('iv-map-backdrop');
   if (!sheet || !body || !shell) return;
+  if (IV._filPlayed) IV._filPlayed[IV.active] = false;    // MOBILE : rejouer le dessin one-shot du fil à l'ouverture du bottom-sheet (brief B)
   if (!IV._shellHome) IV._shellHome = shell.parentNode;   // mémorise l'emplacement d'origine (.iv-mapcol)
   if (IV._shellHome) IV._shellHome.style.minHeight = IV._shellHome.offsetHeight + 'px'; // réserve la hauteur -> pas de reflow / pas de saut de la position de lecture
   body.appendChild(shell);                                 // déplace la MÊME carte dans le panneau
@@ -5438,11 +5440,21 @@ function ivEditorialStyle() {
         // de zoom AU NIVEAU RACINE — c'est autorisé ; l'erreur « zoom expression may only be used at top level » ne survient
         // QUE si on MULTIPLIE une expression de zoom existante, ce qu'on ne fait pas ici.
         if (/road/.test(id) && !/(shield|number|junction|exit)/.test(id)) {
-          const mz = (typeof l.minzoom === 'number') ? l.minzoom : 0;
-          if (mz > 10) { IV.map.setLayerZoomRange(id, 10, (typeof l.maxzoom === 'number') ? l.maxzoom : 24); }
-          // Taille des noms de rues RELEVÉE (brief : « trop petits ») — ~×1.3 vs l'essai précédent. Compromis assumé :
-          // un label de rue n'est posé que si la rue est assez LONGUE à l'écran pour contenir son nom, donc plus GROS = un peu
-          // MOINS de rues au dézoom, mais bien plus LISIBLES (le choix de Nicolas). text-size = layout (pas paint).
+          // P1 (carte_rues_ruban) — VUE D'ENSEMBLE : ne nommer QUE les GRANDS AXES (motorway/trunk/primary/secondary) jusqu'à
+          // z~14 (contexte d'orientation, sans encombrer) ; AU-DELÀ (l'utilisateur zoome), les rues plus fines (tertiary/street)
+          // apparaissent PROGRESSIVEMENT. Filtre zoom-dépendant (`step`) sur la couche unique `road-label-simple` -> pas de
+          // double-couche (donc pas de double étiquetage vs l'index de collision global de Mapbox). minzoom abaissé à 11 pour
+          // que les axes majeurs remontent au zoom d'ensemble. UNIVERSEL (par la classe OSM, aucun nom de ville) : à Bangkok
+          // les grands axes reçoivent leur nom (latin ou thaï) selon ce que fournit le style. Anti-collision Mapbox = surplus géré.
+          const MAJ = ['motorway','trunk','primary','secondary'];
+          const ALL = ['motorway','trunk','primary','secondary','tertiary','street','street_limited'];
+          try { IV.map.setFilter(id, ['all', ['has','name'], ['step', ['zoom'],
+            ['match', ['get','class'], MAJ, true, false], 14,
+            ['match', ['get','class'], ALL, true, false]]]); } catch(e) {}
+          const mz = (typeof l.minzoom === 'number') ? l.minzoom : 12;
+          if (mz > 11) { try { IV.map.setLayerZoomRange(id, 11, (typeof l.maxzoom === 'number') ? l.maxzoom : 24); } catch(e) {} }
+          // Taille lisible (choix de Nicolas : « trop petits »). Un label de LIGNE n'est posé que si la rue est assez LONGUE à
+          // l'écran -> plus GROS = un peu MOINS de rues au dézoom, mais bien plus lisibles. text-size = layout (pas paint).
           IV.map.setLayoutProperty(id, 'text-size', ['interpolate', ['linear'], ['zoom'], 11, 12.5, 13, 13, 15, 14.5, 17, 16]);
         }
       }
@@ -5667,12 +5679,22 @@ function _ivFilInit(num) {
   if (pins.length < 2) return;
   const line = (IV._routeData && IV._routeData.geometry && IV._routeData.geometry.coordinates) || [];
   const fractions = _ivLineFractions(line, pins);
-  const nowT = Date.now(), rapid = IV._fil && IV._fil.day === num && (nowT - (IV._fil.playAt || 0) < 1500); // ivSetMapDay est rappelé par les passes de resize (~320ms) -> ne PAS ré-animer
+  IV._filPlayed = IV._filPlayed || {};
+  // RÉ-ENTRÉE pour le MÊME jour DÉJÀ lancé (P2, LE fix : ivSetMapDay est rappelé par le 'load' de la carte, les re-render, les
+  // passes de resize à ~320ms). BUG v283 : le 2e appel recréait IV._fil (la boucle d'anim, qui compare IV._fil, s'arrêtait) ET
+  // forçait le ruban COMPLET -> « rien ne s'animait » (le dessin était tué avant d'être visible). FIX : sur ré-entrée, on met
+  // à jour fractions/pins EN PLACE, sans recréer l'objet, SANS retoucher le trim -> le dessin en cours va jusqu'au bout.
+  if (IV._fil && IV._fil.day === num && IV._filPlayed[num]) {
+    IV._fil.pins = pins; IV._fil.mkIdx = mkIdx; IV._fil.fractions = fractions;
+    if (IV._fil.tracking) _ivFilReveal(fractions[IV._fil.activeMk] != null ? fractions[IV._fil.activeMk] : 1);
+    return;
+  }
+  // NOUVEAU jour (ou replay demandé — _filPlayed[num] remis à false par l'ouverture carte mobile) : (re)construit + (re)joue.
   if (IV._fil && IV._fil.io) { try { IV._fil.io.disconnect(); } catch(e) {} }
   if (IV._fil && IV._fil.onScroll) { try { window.removeEventListener('scroll', IV._fil.onScroll); } catch(e) {} }
-  IV._fil = { day: num, pins, mkIdx, fractions, activeMk: 0, tracking: false, userScrolled: false, playAt: (rapid ? IV._fil.playAt : nowT), io: null, onScroll: null, animId: 0 };
+  IV._fil = { day: num, pins, mkIdx, fractions, activeMk: 0, tracking: false, userScrolled: false, io: null, onScroll: null, animId: 0 };
+  IV._filPlayed[num] = true;
   if (_ivReducedMotion()) { _ivFilReveal(1); return; }  // reduced-motion : ruban complet, aucune anim, aucun scroll-link
-  if (rapid) { _ivFilReveal(1); return; }                // re-entrée resize : garde le ruban complet, pas de re-anim
   _ivFilDrawIn();                                         // B1 — dessin doux one-shot
   const mobile = !!(window.matchMedia && (matchMedia('(pointer: coarse)').matches || matchMedia('(max-width: 620px)').matches));
   const scrolls = (document.documentElement.scrollHeight > (window.innerHeight || 0) + 8); // page réellement défilante ? (faux en embed non-défilant)
