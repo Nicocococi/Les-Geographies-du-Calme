@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v272'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v273'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5103,6 +5103,12 @@ function ivToggleMap() {
 // v3-#3 : ACCÈS CARTE PERSISTANT au scroll. La pastille flottante ouvre un BOTTOM-SHEET qui RÉUTILISE la même carte : on
 // DÉPLACE .iv-mapshell dans le panneau (aucune nouvelle instance Mapbox), on resize + re-cale le jour ; à la fermeture on la
 // remet en tête (aperçu). AUCUN scroll-to-top -> la position de lecture est préservée (le point clé du brief).
+// SOURCE DE VÉRITÉ UNIQUE de la visibilité de la pastille : (aperçu hors écran) ET (sheet fermé). Appelée à CHAQUE changement
+// (observer, ouverture, fermeture) -> à la fermeture, si on est toujours sous l'aperçu, la pastille revient SANS re-scroll.
+function majFab() {
+  const fab = document.getElementById('iv-map-fab'); if (!fab) return;
+  fab.classList.toggle('show', !!IV._apercuHorsEcran && !IV._sheetOuvert);
+}
 function ivMapSheetOpen() {
   const sheet = document.getElementById('iv-map-sheet'), body = document.getElementById('iv-sheet-body'),
         shell = document.querySelector('.iv-mapshell'), bd = document.getElementById('iv-map-backdrop');
@@ -5111,13 +5117,14 @@ function ivMapSheetOpen() {
   if (IV._shellHome) IV._shellHome.style.minHeight = IV._shellHome.offsetHeight + 'px'; // réserve la hauteur -> pas de reflow / pas de saut de la position de lecture
   body.appendChild(shell);                                 // déplace la MÊME carte dans le panneau
   if (bd) bd.classList.add('open'); sheet.classList.add('open');
-  const fab = document.getElementById('iv-map-fab'); if (fab) fab.classList.remove('show');
+  IV._sheetOuvert = true; majFab();   // sheet ouvert -> pastille masquée
   if (IV && IV.map) { setTimeout(() => { try { IV.map.resize(); } catch(e) {} }, 60);
     setTimeout(() => { try { IV.map.resize(); ivSetMapDay(IV.active); } catch(e) {} }, 360); }
 }
 function ivMapSheetClose() {
   const sheet = document.getElementById('iv-map-sheet'), shell = document.querySelector('.iv-mapshell'), bd = document.getElementById('iv-map-backdrop');
   if (sheet) sheet.classList.remove('open'); if (bd) bd.classList.remove('open');
+  IV._sheetOuvert = false; majFab();   // POINT CLÉ : ré-évalue TOUT DE SUITE -> si on est toujours sous l'aperçu, la pastille revient sans re-scroll
   setTimeout(() => {   // après l'anim de descente : on remet la carte en tête (aperçu) + resize + libère la hauteur réservée
     if (IV._shellHome && shell && shell.parentNode !== IV._shellHome) IV._shellHome.appendChild(shell);
     if (IV._shellHome) IV._shellHome.style.minHeight = '';
@@ -5133,8 +5140,8 @@ function ivBindMapFab() {
   if (peek && fab && ('IntersectionObserver' in window)) {
     if (IV._fabObs) { try { IV._fabObs.disconnect(); } catch(e) {} }
     IV._fabObs = new IntersectionObserver((ents) => { ents.forEach((e) => {
-      const sheetOpen = (document.getElementById('iv-map-sheet') || {}).classList && document.getElementById('iv-map-sheet').classList.contains('open');
-      fab.classList.toggle('show', !e.isIntersecting && !sheetOpen); // .show SEULEMENT quand le bandeau n'intersecte plus DU TOUT
+      IV._apercuHorsEcran = !e.isIntersecting;   // le bandeau n'intersecte plus DU TOUT -> aperçu hors écran
+      majFab();                                   // source de vérité unique (aperçu hors écran ET sheet fermé)
     }); }, { threshold: 0, rootMargin: '-8px 0px 0px 0px' });
     IV._fabObs.observe(peek);
   }
