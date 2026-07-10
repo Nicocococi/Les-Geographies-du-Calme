@@ -1634,7 +1634,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v279'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v280'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -5559,6 +5559,15 @@ function _ivStraightRoute(coords) {
 }
 // Crée/actualise la source + la couche du trait. STYLE INCHANGÉ (fin, pointillé rond, brun espresso #6b4f38, une couleur ;
 // la couleur du temps reste sur les pins). Seule la GÉOMÉTRIE (la source) change entre droite et chemin-rues.
+// Petit chevron « ▶ » en image SDF (dessiné sur un canvas). SDF = teintable (icon-color) + halo (icon-halo). On NE dépend plus
+// d'un glyphe de police : `▸` (U+25B8) n'est PAS servi par le serveur de glyphes Mapbox pour Arial Unicode MS -> la couche
+// rendait 0 flèche (bug v279). Le triangle pointe vers la DROITE ; `icon-rotation-alignment:map` l'oriente le long du tracé.
+function _ivArrowImg() {
+  const s = 40, cv = document.createElement('canvas'); cv.width = s; cv.height = s;
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#000';   // couleur ignorée en SDF (c'est l'alpha qui compte, teinté par icon-color)
+  ctx.beginPath(); ctx.moveTo(s*0.30, s*0.16); ctx.lineTo(s*0.80, s*0.50); ctx.lineTo(s*0.30, s*0.84); ctx.closePath(); ctx.fill();
+  return ctx.getImageData(0, 0, s, s);
+}
 function _ivRouteSetData(data) {
   if (!IV.map) return;
   if (IV.map.getSource('iv-route-src')) { IV.map.getSource('iv-route-src').setData(data); return; }
@@ -5566,15 +5575,15 @@ function _ivRouteSetData(data) {
   IV.map.addLayer({ id: 'iv-route-line', type: 'line', source: 'iv-route-src',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': '#6b4f38', 'line-opacity': 1, 'line-width': 2.2, 'line-dasharray': [0, 1.8] } });
-  // CHEVRONS DIRECTIONNELS (brief carte_sens) : petites flèches ▸ orientées DANS LE SENS DE LA MARCHE le long du tracé
-  // (symbol-placement:line -> elles suivent la ligne + s'orientent selon l'ORDRE des coords). Le sens 1→2→3 se lit d'un coup
-  // d'œil ; un point de passage = « une flèche entre + une flèche sort » (plus de fausse fourche). Calme et discret (petites,
-  // espacées, brun du trait). Au-dessus du trait, SOUS les pins (= marqueurs DOM, forcément au-dessus du canvas).
+  // CHEVRONS DIRECTIONNELS (brief carte_sens) : flèches SDF orientées DANS LE SENS DE LA MARCHE le long du tracé
+  // (symbol-placement:line + icon-rotation-alignment:map -> elles suivent la ligne et s'orientent selon l'ORDRE des coords).
+  // Le sens 1→2→3 se lit d'un coup d'œil ; un point de passage = « une flèche entre + une flèche sort » (plus de fausse
+  // fourche). Calme et discret (petites, espacées, brun) + halo clair -> se détachent des pointillés. Sous les pins (DOM).
+  if (!IV.map.hasImage('gc-arrow')) { try { IV.map.addImage('gc-arrow', _ivArrowImg(), { sdf: true }); } catch(e) {} }
   IV.map.addLayer({ id: 'iv-route-arrows', type: 'symbol', source: 'iv-route-src',
-    layout: { 'symbol-placement': 'line', 'symbol-spacing': 65, 'text-field': '▸', 'text-size': 15,
-      'text-font': ['Arial Unicode MS Regular'], 'text-rotation-alignment': 'map', 'text-pitch-alignment': 'map',
-      'text-keep-upright': false, 'text-allow-overlap': true, 'text-ignore-placement': true },   // forcées : les flèches doivent TOUTES apparaître le long du tracé (sinon collision -> quasi aucune)
-    paint: { 'text-color': '#5a4230', 'text-halo-color': '#f2ebdd', 'text-halo-width': 2, 'text-opacity': 1 } }); // brun un poil + foncé que le trait + HALO clair épais -> chaque chevron dans une petite bulle claire, se détache des pointillés
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'gc-arrow', 'icon-size': 0.5,
+      'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true },
+    paint: { 'icon-color': '#5a4230', 'icon-halo-color': '#f2ebdd', 'icon-halo-width': 1.4, 'icon-opacity': 0.95 } });
 }
 function ivDrawRoute() {
   if (!IV.map) return;
