@@ -1261,23 +1261,36 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
   letter-spacing: 0.03em; } /* prix €/€€/€€€/€€€€ propre à chaque alternative : TEXTE SIMPLE, même couleur que le nom (pas de pastille) */
 .iv-alt.active .iv-altprice { color: #fff; }
 .iv-prixnote { font-size: 0.72rem; color: var(--gris); font-style: italic; margin-top: 18px; }
-.iv-map-toggle { display: none; }   /* DESKTOP : pas de bouton — la carte reste affichée en 2 colonnes. Le bouton n'apparaît qu'en mobile (@media plus bas). */
+.iv-map-peek { display: none; }   /* DESKTOP : pas d'aperçu-carte — la carte reste affichée en 2 colonnes. N'apparaît qu'en mobile (@media plus bas). */
 
 @media (max-width: 620px), (hover: none) and (pointer: coarse) {
   html, body { overflow-x: hidden; max-width: 100%; width: 100%; }
   .result-wrap { max-width: 100%; width: 100%; box-sizing: border-box; }
   .iv-layout { grid-template-columns: 1fr; max-width: 100%; }
-  /* CARTE REPLIABLE (point 2, Option B) : sur mobile la timeline occupe tout l'écran par défaut, la carte est REPLIÉE ;
-     le bouton « Voir la carte » l'ouvre (classe .iv-map-open ajoutée par ivToggleMap). */
-  .iv-map-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px;
-    background: var(--carte); border: 1px solid var(--bordure); border-radius: 12px; padding: 13px 16px; margin: 0 0 14px;
-    font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; color: var(--noir); cursor: pointer; }
-  .iv-map-toggle .iv-mt-chev { width: 18px; height: 18px; transition: transform .2s ease; }
-  .iv-map-toggle[aria-expanded="true"] .iv-mt-chev { transform: rotate(180deg); }
-  .iv-mapcol { order: -1; max-width: 100%; min-width: 0; display: none; }   /* repliée par défaut */
-  .iv-layout.iv-map-open .iv-mapcol { display: block; }                     /* ouverte au tap */
-  .iv-mapshell { height: 300px; width: 100%; max-width: 100%; margin: 0; border-radius: 16px;
-    -webkit-mask-image: none; mask-image: none; } /* mobile (passe séparée) : pas de fondu, bande propre */
+  /* A2 — FULL-BLEED : le dégradé du body reste seul, bord à bord. Les 40px de padding desktop du .iv-wrap créaient de grosses
+     gouttières qui lisaient comme des bandes -> on passe à 14px (quasi bord à bord), aucun conteneur n'a de fond concurrent. */
+  .iv-wrap { padding-left: 14px; padding-right: 14px; padding-bottom: 36px; }
+  /* A1 — la page démarrait trop bas (padding hero calibré desktop) : on démarre ~sous le header. */
+  .iv-hero { padding: 14px 2px 10px; }
+  .iv-hero:before { display: none; }   /* halo décoratif : inutile (et coûteux) sur petit écran */
+  /* B2 — APERÇU-CARTE (piste préférée). La carte est visible en BANDE de 90px NON interactive, avec un overlay « Voir la
+     carte » ▾. Tap -> déplie la carte pleine 300px INTERACTIVE (cooperativeGestures gère 1 doigt=scroll / 2 doigts=carte).
+     Re-tap (petit bouton « Masquer » en haut-gauche, coin libre) -> revient à l'aperçu. UNE seule affordance, on MONTRE la
+     carte au lieu de la décrire. */
+  .iv-mapcol { order: -1; max-width: 100%; min-width: 0; display: block; margin-bottom: 14px; }
+  #iv-map { pointer-events: none; }                                          /* aperçu : non interactif */
+  .iv-layout.iv-map-open #iv-map { pointer-events: auto; }                   /* déplié : interactif */
+  .iv-map-peek { display: flex; position: absolute; inset: 0; z-index: 4; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; border: 0; cursor: pointer; font-family: var(--font-sans); font-size: 0.98rem; font-weight: 600; color: #fff;
+    background: linear-gradient(to bottom, rgba(58,46,34,0.05), rgba(58,46,34,0.44)); text-shadow: 0 1px 3px rgba(0,0,0,0.55); }
+  .iv-map-peek .iv-mp-chev { width: 18px; height: 18px; transition: transform .2s ease; }
+  .iv-layout.iv-map-open .iv-map-peek { inset: 8px auto auto 8px; width: auto; height: auto; padding: 8px 13px; border-radius: 20px;
+    background: rgba(58,46,34,0.82); font-size: 0.84rem; text-shadow: none; z-index: 5; }   /* déplié : petit bouton « Masquer » */
+  .iv-layout.iv-map-open .iv-map-peek .iv-mp-chev { transform: rotate(180deg); }
+  .iv-mapshell { height: 90px; width: 100%; max-width: 100%; margin: 0; border-radius: 14px;
+    transition: height .28s cubic-bezier(.4,0,.2,1);
+    -webkit-mask-image: none; mask-image: none; }   /* mobile : pas de fondu (bande propre) ; 90px = aperçu */
+  .iv-layout.iv-map-open .iv-mapshell { height: 300px; }
   .iv-stepscol { height: auto; overflow: visible; padding-right: 0; max-width: 100%; min-width: 0; }
   .iv-steps, .iv-step, .iv-card, .iv-head, .iv-titles, .iv-detail-inner, .iv-alts, .iv-alts-grid { max-width: 100%; min-width: 0; }
   /* Empêche un mot/adresse/URL non sécable de forcer une largeur > écran (cause du décalage iOS) */
@@ -1287,11 +1300,25 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
   .iv-quartier { font-size: 1.6rem; }
   .iv-dayhead { flex-wrap: wrap; }
   .iv-summary { white-space: normal; }
-  /* (correctif 4) FIL sur mobile : la vignette passe en BANDE pleine largeur AU-DESSUS du texte (elle ne tiendrait pas à droite) */
-  .iv-head { flex-direction: column; gap: 10px; }
-  .iv-thumb { order: 0; width: 100%; height: 160px; }
-  .iv-titles { order: 1; width: 100%; }
-  .iv-chev { display: none; }   /* tap n'importe où sur l'étape pour déplier */
+  /* B — MODÈLE D'ÉTAPE MOBILE. Repliée = COMPACTE (heure·thème·nom·durée·CHEVRON, PAS de photo -> timeline scannable) ;
+     dépliée = pleine largeur avec photo réduite (dans .iv-detail). */
+  .iv-head { flex-direction: row; align-items: flex-start; gap: 10px; padding: 8px 0 12px 0; }
+  .iv-thumb { display: none; }                                          /* B1 : pas de photo sur l'étape REPLIÉE */
+  .iv-titles { order: 0; flex: 1 1 auto; width: auto; min-width: 0; }
+  .iv-chev { display: block; order: 1; align-self: center; opacity: .55; }  /* A4 : chevron VISIBLE + pivote (.iv-step.open déjà géré) */
+  .iv-photo { max-height: 175px; }                                      /* B1 : photo RÉDUITE, seulement à l'ouverture */
+  /* B3 — détail déplié quasi pleine largeur : indent du rail réduit (58 -> 40px). Le rail (::before, left:15) + le pin
+     (left:3) sont FIXES et restent alignés — on ne bouge que le padding du contenu. */
+  .iv-step { padding-left: 40px; }
+  .iv-leg { padding-left: 40px; }
+  .iv-postcard { margin-left: 40px; }
+  /* A3 — ALTERNATIVES empilées en lignes pleine largeur (fini les 3 colonnes illisibles « Musée Cog… ») : pastille + nom
+     COMPLET (pas de troncature) + prix à droite. Le grid 3-col reste desktop. */
+  .iv-alts-grid { grid-template-columns: 1fr; gap: 8px; }
+  .iv-alt { display: flex; flex-direction: row; align-items: center; gap: 11px; min-height: 46px; padding: 11px 13px; }
+  .iv-altkey { margin-bottom: 0; flex: none; width: 22px; height: 22px; font-size: 0.72rem; }
+  .iv-altname { -webkit-line-clamp: unset; display: block; overflow: visible; white-space: normal; flex: 1 1 auto; font-size: 0.9rem; }
+  .iv-altprice { margin-top: 0; margin-left: auto; flex: none; }
   .iv-hero-title { font-size: 34px; }
   .iv-facts { gap: 22px; }
 }
@@ -1576,7 +1603,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v267'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v269'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4863,7 +4890,6 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
       `<div class="iv-ribwrap" id="iv-ribwrap"></div>`+   /* RUBAN « respiration de la journée » (étape 3) — rempli par ivRenderDay */
       ((typeof RACCOURCI_MSG!=='undefined'&&RACCOURCI_MSG)?`<p class="iv-raccourci">${RACCOURCI_MSG}</p>`:``)+
       `<p class="iv-hint">Cliquez une étape pour la <b>déplier</b> · survolez-la pour la <b>repérer sur la carte</b> · changez de variante <b>A / B / C</b> pour déplacer le point.<span style="opacity:.32;font-size:.85em"> · `+APP_VERSION+`</span></p>`+
-      `<button class="iv-map-toggle" id="iv-map-toggle" type="button" aria-expanded="false" onclick="ivToggleMap(this)"><span class="iv-mt-label">Voir la carte</span><svg class="iv-mt-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>`+  /* MOBILE seulement (masqué en desktop) : carte repliable, fermée par défaut (brief mobile point 2) */
       `<div class="iv-layout">`+
         `<div class="iv-mapcol"><div class="iv-mapshell">`+
           `<div class="iv-map-overlay" id="iv-overlay">Jour 1</div>`+
@@ -4873,6 +4899,7 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
           `</div>`+
           `<div class="iv-map-loading" id="iv-maploading">Chargement de la carte…</div>`+
           `<div id="iv-map"></div>`+
+          `<button class="iv-map-peek" id="iv-map-peek" type="button" aria-expanded="false" onclick="ivToggleMap()"><span class="iv-mp-label">Voir la carte</span><svg class="iv-mp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>`+  /* MOBILE (masqué desktop) : APERÇU-CARTE tappable = 90px non interactif -> tap déplie la carte pleine 300px. UNE seule affordance (brief mobile v2 B2). */
         `</div></div>`+
         `<div class="iv-stepscol">`+
           `<div class="iv-steps" id="iv-steps"><div class="iv-loading-day" id="iv-dayloading">On compose la journée…</div></div>`+
@@ -5017,18 +5044,19 @@ function ivPostcard() {
   b.innerHTML = '<span class="iv-pc-ico">✦</span> Bientôt : votre carte postale à partager';
   setTimeout(() => { b.innerHTML = orig; delete b.dataset.busy; }, 2200);
 }
-// CARTE REPLIABLE MOBILE (brief mobile point 2) : ouvre/ferme la colonne carte (repliée par défaut sur mobile). Le bouton
-// n'existe qu'en mobile (display:none en desktop). À l'OUVERTURE : la carte a été initialisée cachée (0px) -> il FAUT la
-// resize() sinon tuiles grises, puis re-caler le jour (ivSetMapDay). Desktop : jamais appelé (bouton masqué).
-function ivToggleMap(btn) {
+// APERÇU-CARTE MOBILE (brief mobile v2 B2) : la carte est visible en bande de 90px NON interactive (aperçu) ; tap sur
+// l'overlay « Voir la carte » -> déplie la carte pleine 300px interactive. Re-tap (« Masquer ») -> revient à l'aperçu.
+// À l'ouverture : le conteneur change de taille -> resize() (sinon tuiles grises) + re-cale le jour. Desktop : peek masqué.
+function ivToggleMap() {
   const layout = document.querySelector('.iv-layout'); if (!layout) return;
   const open = !layout.classList.contains('iv-map-open');
   layout.classList.toggle('iv-map-open', open);
-  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  const lbl = btn.querySelector('.iv-mt-label'); if (lbl) lbl.textContent = open ? 'Masquer la carte' : 'Voir la carte';
-  if (open && IV && IV.map) {
+  const peek = document.getElementById('iv-map-peek');
+  if (peek) { peek.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const lbl = peek.querySelector('.iv-mp-label'); if (lbl) lbl.textContent = open ? 'Masquer la carte' : 'Voir la carte'; }
+  if (IV && IV.map) {
     setTimeout(() => { try { IV.map.resize(); } catch(e) {} }, 60);
-    setTimeout(() => { try { IV.map.resize(); ivSetMapDay(IV.active); } catch(e) {} }, 320); // 2e passe : le conteneur a sa taille finale -> tuiles nettes + recadrage du jour
+    setTimeout(() => { try { IV.map.resize(); if (open) ivSetMapDay(IV.active); } catch(e) {} }, 320); // 2e passe : taille finale -> tuiles nettes + recadrage du jour à l'ouverture
   }
 }
 function ivRenderDay(num) {
@@ -5239,7 +5267,7 @@ async function ivInitMap() {
   IV.map.addControl(new mapboxgl.AttributionControl({ compact: true }));
   IV.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
   if (_mob) {
-    const _sh = document.querySelector('.iv-mapshell'); if (_sh) { _sh.style.height = '300px'; }   // bande courte en sécurité si le CSS n'a pas pris
+    // la hauteur est gérée par le CSS (90px = aperçu / 300px = déplié via .iv-map-open) — pas de height inline qui l'écraserait
     setTimeout(() => { if (IV.map) IV.map.resize(); }, 60);
   }
   IV.map.on('load', () => {
@@ -5458,8 +5486,11 @@ function sendHeight() {
   let mapY = null, hasResult = false;
   try {
     hasResult = document.getElementById('result-wrap').classList.contains('visible');
+    // MOBILE (brief v2 B2) : l'aperçu-carte est déjà en tête d'itinéraire -> on N'envoie PAS de mapY, pour que la page Ghost
+    // NE montre PAS sa pastille flottante « ↑ Carte » (une seule affordance). Desktop : mapY comme avant (pas de pastille).
+    const _mobile = window.matchMedia && matchMedia('(max-width: 620px)').matches;
     const shell = document.querySelector('.iv-mapshell');
-    if (shell) mapY = Math.round(shell.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0));
+    if (shell && !_mobile) mapY = Math.round(shell.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0));
   } catch(e) {}
   if (window.parent && window.parent !== window) {
     window.parent.postMessage({ type: 'resize', height: h, mapY: mapY, hasResult: hasResult }, '*');
