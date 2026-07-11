@@ -36,7 +36,7 @@ body.gate-mode { background: transparent; }
 
 /* Scène montgolfière — le FIL VISUEL de la marque, présent sur chaque écran (motif récurrent au-dessus de la question) */
 .wiz-scene { width: 100%; max-width: 560px; margin: 1.9em auto 0; display: flex; justify-content: center; }
-.wiz-balloon { width: 118px; height: auto; display: block; animation: wizFloat 6.5s ease-in-out infinite; transform-origin: 50% 62%; }
+.wiz-balloon { width: 84px; height: auto; display: block; animation: wizFloat 6.5s ease-in-out infinite; transform-origin: 50% 62%; }
 @keyframes wizFloat { 0%,100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-7px) rotate(1.2deg); } }
 @media (prefers-reduced-motion: reduce) { .wiz-balloon { animation: none; } }
 
@@ -484,20 +484,18 @@ body.gate-mode { background: transparent; }
 /* ── LOADING ─────────────────────────────────────────────── */
 .loading-state { display: none; text-align: center; padding: 3.5em 2em 4.5em; background: linear-gradient(180deg, #faf7f1 0%, #f2ebdf 100%); }
 .loading-state.visible { display: block; }
-/* Scène de génération : montgolfière qui dérive + chemin qui s'anime */
-.gen-scene { width: 100%; max-width: 320px; margin: 0 auto 1.4em; }
-.gen-svg { width: 100%; height: auto; display: block; }
-.gen-balloon { animation: genDrift 7.5s ease-in-out infinite; }
-@keyframes genDrift { 0% { transform: translate(24px, 58px); } 50% { transform: translate(272px, 46px); } 100% { transform: translate(24px, 58px); } }
-.gen-path { animation: genFlow 1.1s linear infinite; }
-@keyframes genFlow { to { stroke-dashoffset: -7.5; } }
+/* Scène de génération : LE ballon (sans hublot) traverse gauche→droite, piloté en JS (sens unique, fluide, fondu aux bords) */
+.gen-scene { width: 100%; max-width: 340px; height: 76px; margin: 0 auto 1.4em; }
+.gen-track { position: relative; width: 100%; height: 100%; }
+.gen-balloon { position: absolute; left: 0; top: 8px; width: 44px; will-change: transform, opacity; }
+.gen-balloon svg { width: 100%; height: auto; display: block; }
 .gen-title { font-family: var(--font-serif); font-size: clamp(1.3em, 3.6vw, 1.7em); color: #2a2018; margin-bottom: 1.1em; }
 .gen-stats { display: flex; flex-direction: column; gap: 0.55em; align-items: center; margin-bottom: 1.6em; min-height: 1em; }
-.gen-stat { font-family: var(--font-serif); font-size: 1.06em; color: #5a4a37; opacity: 0; animation: genStatIn 0.5s ease forwards; }
+.gen-stat { font-family: var(--font-serif); font-size: 1.06em; color: #5a4a37; opacity: 1; animation: genStatIn 0.45s ease; }
 .gen-stat .gen-num { font-weight: 600; font-size: 1.15em; color: #b0552f; }
-@keyframes genStatIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes genStatIn { from { transform: translateY(7px); } to { transform: translateY(0); } } /* entrée = léger glissé ; l'opacité reste à 1 -> jamais invisible si l'anim est en pause (onglet en fond) */
 .loading-text { font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: #a8926e; }
-@media (prefers-reduced-motion: reduce) { .gen-balloon, .gen-path { animation: none; } .gen-balloon { transform: translate(150px, 50px); } .gen-stat { opacity: 1; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .gen-stat { opacity: 1; animation: none; } }
 
 /* ── ERROR ───────────────────────────────────────────────── */
 .error-state { display: none; max-width: 560px; margin: 0 auto 1em; background: #fff5f5; border: 1px solid #fcc; border-radius: 3px; padding: 1em 1.2em; font-size: 0.82em; color: #c00; }
@@ -940,7 +938,7 @@ body.gate-mode { background: transparent; }
 .btn-reset:hover { border-color: var(--or); color: var(--or); }
 
 @media (max-width: 480px) {
-  .wiz-balloon { width: 100px; }
+  .wiz-balloon { width: 72px; }
   .wiz-cards.c2 { grid-template-columns: 1fr 1fr; }
   .wiz-cards.c3 { grid-template-columns: 1fr; }              /* budget en pile sur petit écran (grandes cibles) */
   .wiz-themes { grid-template-columns: 1fr 1fr; }
@@ -1252,32 +1250,18 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 
   <!-- Scène montgolfière — fil visuel de la marque, sur chaque écran -->
   <div class="wiz-scene">
-    <!-- Médaillon = reprise fidèle du FAVICON du site (anneau brun, disque crème, montgolfière terracotta, collines dorées, chemin sinueux) -->
-    <svg class="wiz-balloon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <clipPath id="wizDisc"><circle cx="60" cy="60" r="52.5"/></clipPath>
-        <clipPath id="wizEnv"><path d="M60 20 C73 20 82 31 82 44 C82 57 71 63 60 67 C49 63 38 57 38 44 C38 31 47 20 60 20 Z"/></clipPath>
-      </defs>
-      <circle cx="60" cy="60" r="55.5" fill="#f4ecdf"/>
-      <g clip-path="url(#wizDisc)">
-        <!-- collines -->
-        <path d="M0 90 Q30 76 58 84 T120 80 V120 H0 Z" fill="#dcc79c"/>
-        <path d="M0 101 Q36 87 70 96 T120 91 V120 H0 Z" fill="#cba25c"/>
-        <!-- chemin sinueux crème -->
-        <path d="M50 119 C 61 108 44 100 55 92 C 63 86 57 82 59 80" fill="none" stroke="#f4ecdf" stroke-width="5" stroke-linecap="round"/>
-        <!-- enveloppe (gores) -->
-        <g clip-path="url(#wizEnv)">
-          <rect x="34" y="16" width="52" height="56" fill="#cf5a34"/>
-          <rect x="45" y="16" width="6" height="56" fill="#e0855a"/>
-          <rect x="57" y="16" width="6" height="56" fill="#efdcc4"/>
-          <rect x="69" y="16" width="6" height="56" fill="#e0855a"/>
-        </g>
-        <path d="M60 20 C73 20 82 31 82 44 C82 57 71 63 60 67 C49 63 38 57 38 44 C38 31 47 20 60 20 Z" fill="none" stroke="#a8482a" stroke-width="1.3"/>
-        <!-- suspentes + nacelle -->
-        <path d="M50 61 L55.5 69 M70 61 L64.5 69" stroke="#a8482a" stroke-width="1"/>
-        <path d="M55 69 H65 L63.5 77 H56.5 Z" fill="#8a5a34"/>
+    <!-- Le beau ballon du favicon, SANS le hublot : fond transparent, se fond dans la page. MÊME ballon sur l'écran de génération. -->
+    <svg class="wiz-balloon" viewBox="0 0 60 66" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs><clipPath id="balEnvW"><path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z"/></clipPath></defs>
+      <g clip-path="url(#balEnvW)">
+        <rect x="7" y="1" width="46" height="52" fill="#cf5a34"/>
+        <rect x="17" y="1" width="3.6" height="52" fill="#e0855a"/>
+        <rect x="28.2" y="1" width="3.6" height="52" fill="#efdcc4"/>
+        <rect x="39.4" y="1" width="3.6" height="52" fill="#e0855a"/>
       </g>
-      <circle cx="60" cy="60" r="55" fill="none" stroke="#8a6d4c" stroke-width="5.5"/>
+      <path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z" fill="none" stroke="#a8482a" stroke-width="1.1"/>
+      <path d="M22 47 L26 55 M38 47 L34 55" stroke="#a8482a" stroke-width="0.9"/>
+      <path d="M25 55 H35 L33.5 63 H26.5 Z" fill="#8a5a34"/>
     </svg>
   </div>
 
@@ -1417,26 +1401,23 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 
 <!-- ── LOADING ────────────────────────────────────────────── -->
 <div class="loading-state" id="loading-state">
-  <!-- Scène de génération : la montgolfière dérive au-dessus d'un chemin qui s'anime -->
-  <div class="gen-scene">
-    <svg viewBox="0 0 300 132" class="gen-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M0 96 Q60 82 132 90 T300 86 V132 H0 Z" fill="#e0d3b4"/>
-      <path d="M0 108 Q70 94 152 102 T300 98 V132 H0 Z" fill="#cba25c"/>
-      <path class="gen-path" d="M14 106 Q90 74 160 92 T292 82" fill="none" stroke="#b0956a" stroke-width="2" stroke-dasharray="0.5 7" stroke-linecap="round"/>
-      <g class="gen-balloon">
-        <clipPath id="genEnv"><ellipse cx="0" cy="-7" rx="11.5" ry="13.5"/></clipPath>
-        <g clip-path="url(#genEnv)">
-          <rect x="-13" y="-22" width="26" height="30" fill="#cf5a34"/>
-          <rect x="-9" y="-22" width="2.6" height="30" fill="#e0855a"/>
-          <rect x="-1.3" y="-22" width="2.6" height="30" fill="#efdcc4"/>
-          <rect x="6.4" y="-22" width="2.6" height="30" fill="#e0855a"/>
+  <!-- Scène de génération : LE MÊME ballon (sans hublot), qui traverse la page gauche→droite (animé en JS, sens unique) -->
+  <div class="gen-scene"><div class="gen-track">
+    <div class="gen-balloon" id="gen-balloon">
+      <svg viewBox="0 0 60 66" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs><clipPath id="balEnvG"><path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z"/></clipPath></defs>
+        <g clip-path="url(#balEnvG)">
+          <rect x="7" y="1" width="46" height="52" fill="#cf5a34"/>
+          <rect x="17" y="1" width="3.6" height="52" fill="#e0855a"/>
+          <rect x="28.2" y="1" width="3.6" height="52" fill="#efdcc4"/>
+          <rect x="39.4" y="1" width="3.6" height="52" fill="#e0855a"/>
         </g>
-        <ellipse cx="0" cy="-7" rx="11.5" ry="13.5" fill="none" stroke="#a8482a" stroke-width="0.9"/>
-        <path d="M-4.5 4.5 L-3 -5 M4.5 4.5 L3 -5" stroke="#a8482a" stroke-width="0.7"/>
-        <path d="M-4 4.5 H4 L3 10 H-3 Z" fill="#8a5a34"/>
-      </g>
-    </svg>
-  </div>
+        <path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z" fill="none" stroke="#a8482a" stroke-width="1.1"/>
+        <path d="M22 47 L26 55 M38 47 L34 55" stroke="#a8482a" stroke-width="0.9"/>
+        <path d="M25 55 H35 L33.5 63 H26.5 Z" fill="#8a5a34"/>
+      </svg>
+    </div>
+  </div></div>
   <div class="gen-title" id="gen-title">On compose votre voyage…</div>
   <div class="gen-stats" id="gen-stats" aria-live="polite"></div>
   <div class="loading-text" id="loading-text">On consulte nos carnets de voyage…</div>
@@ -1493,6 +1474,34 @@ async function _ivGenStats(dest, themeKeys, pick){
   if (!lines.length) return;
   box.innerHTML = lines.map(l => '<div class="gen-stat"><span class="gen-num" data-n="' + l.n + '">0</span> ' + _wizEsc(l.label) + '</div>').join('');
   box.querySelectorAll('.gen-num').forEach((el, i) => setTimeout(() => _countUp(el, parseInt(el.dataset.n, 10) || 0, 1400), 250 + i * 280));
+}
+
+// Ballon de l'écran de génération : traversée gauche→droite EN SENS UNIQUE, fluide (rAF + fondu aux bords -> le retour à gauche
+// est INVISIBLE, jamais de saut brusque en arrière). Léger flottement vertical. reduced-motion -> ballon statique centré.
+let _genAnimRAF = 0, _genAnimT0 = 0, _genAnimOn = false;
+function _ivGenAnimStart(){
+  const b = document.getElementById('gen-balloon'); if (!b) return;
+  b.style.opacity = '1';
+  if (typeof _ivReducedMotion === 'function' && _ivReducedMotion()){ const t = b.parentElement, W = (t ? t.clientWidth : 300); b.style.transform = 'translate(' + Math.round((W - 44) / 2) + 'px,4px)'; return; }
+  _genAnimOn = true;
+  const SPEED = 34; // px/s
+  { const t0 = b.parentElement, W0 = (t0 ? t0.clientWidth : 300), span0 = Math.max(60, W0 - 44), total0 = span0 / SPEED * 1000; _genAnimT0 = Date.now() - total0 * 0.3; } // démarre à ~30% du parcours -> ballon DÉJÀ visible (jamais un départ à opacité 0 si rAF ne tourne pas)
+  const step = () => {
+    if (!_genAnimOn) return;
+    const t = b.parentElement, W = (t ? t.clientWidth : 300), span = Math.max(60, W - 44);
+    const el = Date.now() - _genAnimT0, total = span / SPEED * 1000, cyc = (el % total) / total; // cyc 0..1 TOUJOURS croissant
+    const x = cyc * span, bob = Math.sin(el / 900) * 4;
+    let op = 1; if (cyc < 0.06) op = cyc / 0.06; else if (cyc > 0.94) op = (1 - cyc) / 0.06; // fondu aux extrémités
+    b.style.transform = 'translate(' + x.toFixed(2) + 'px,' + (4 + bob).toFixed(2) + 'px)';
+    b.style.opacity = op.toFixed(3);
+    _genAnimRAF = requestAnimationFrame(step);
+  };
+  step();
+}
+function _ivGenAnimStop(){
+  _genAnimOn = false;
+  if (_genAnimRAF){ cancelAnimationFrame(_genAnimRAF); _genAnimRAF = 0; }
+  const b = document.getElementById('gen-balloon'); if (b){ b.style.transition = 'opacity .5s ease'; b.style.opacity = '0'; } // fin propre = fondu
 }
 
 /* ============================================================
@@ -1593,7 +1602,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v292'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v293'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4121,7 +4130,7 @@ function selectTheme(el) {
   const isSel = el.classList.contains('selected');
   if (!isSel) {
     if (document.querySelectorAll('.wiz-theme.selected').length >= 2) {
-      if (hint) { hint.textContent = '2 envies maximum — désélectionnez-en une pour changer.'; setTimeout(() => { if (hint.textContent.indexOf('maximum') >= 0) hint.textContent = ''; }, 2200); }
+      if (hint) { hint.textContent = '2 envies maximum'; setTimeout(() => { if (hint.textContent.indexOf('maximum') >= 0) hint.textContent = ''; }, 2200); }
       return;
     }
     el.classList.add('selected'); if (cb) cb.checked = true;
@@ -4134,17 +4143,33 @@ function selectTheme(el) {
 }
 
 // Écran 6 — récap qui se relit, à partir des sélections fermées
+// Récap = UNE phrase chaleureuse tirée au hasard parmi 5 patrons (anti-gabarit). Les critères restent les vrais (dont le budget, qui pilote les lieux).
+const RECAP_PATTERNS = [
+  'Votre échappée : {Njours} à {ville}, {qui}, au fil de {themes}, {budget}.',
+  '{Njours} à {ville} {qui} — {themes}, {budget}.',
+  'Cap sur {ville} : {Njours} {qui}, entre {themes}, {budget}.',
+  '{Njours} pour savourer {ville}, {qui}, {themes}, {budget}.',
+  '{ville}, {Njours} {qui}, {themes} — {budget}.'
+];
 function buildRecap() {
-  const dest = (document.getElementById('destination').value || '').trim() || 'Votre destination';
-  const duree = parseInt(document.getElementById('duree').value) || 3;
+  const dest = (document.getElementById('destination').value || '').trim() || 'votre destination';
+  const N = parseInt(document.getElementById('duree').value) || 3;
   const voyage = (document.querySelector('input[name="voyage-cat"]:checked') || {}).value || 'duo';
   const budget = (document.querySelector('input[name="budget-cat"]:checked') || {}).value || 'confortable';
-  const VOY = { solo: 'en solo', duo: 'en duo', 'entre amis': 'entre amis', famille: 'en famille' };
+  const QUI = { solo: 'en solo', duo: 'à deux', 'entre amis': 'entre amis', famille: 'en famille' };
+  const BUD = { 'économique': 'à prix doux', 'confortable': 'en mode confort', 'premium': 'en mode luxe' };
   const themeLabels = Array.from(document.querySelectorAll('.wiz-theme.selected')).map(t => t.textContent.trim());
+  const themes = themeLabels.length >= 2 ? (themeLabels[0] + ' et ' + themeLabels[1]) : (themeLabels[0] || 'vos envies');
+  const nj = N + ' ' + (N > 1 ? 'jours' : 'jour');
+  const pat = RECAP_PATTERNS[Math.floor(Math.random() * RECAP_PATTERNS.length)];
+  const sentence = pat
+    .replace('{Njours}', nj)
+    .replace('{ville}', '<b>' + _wizEsc(dest) + '</b>')
+    .replace('{qui}', _wizEsc(QUI[voyage] || voyage))
+    .replace('{themes}', '<b>' + _wizEsc(themes) + '</b>')
+    .replace('{budget}', _wizEsc(BUD[budget] || budget));
   const el = document.getElementById('wiz-recap');
-  if (el) el.innerHTML = '<b>' + _wizEsc(dest) + '</b> · ' + duree + ' ' + (duree > 1 ? 'jours' : 'jour') +
-    ' · <b>' + _wizEsc(VOY[voyage] || voyage) + '</b> · ' + _wizEsc(budget) +
-    (themeLabels.length ? ' · <b>' + _wizEsc(themeLabels.join(' + ')) + '</b>' : '');
+  if (el) el.innerHTML = sentence;
 }
 
 // ── MAPBOX ───────────────────────────────────────────────
@@ -4617,6 +4642,7 @@ async function generer() {
   // Écran de génération : titre personnalisé + chiffres RÉELS de la ville (en parallèle, ne bloque pas la génération).
   const _gt = document.getElementById('gen-title'); if (_gt) _gt.textContent = 'On compose votre voyage à ' + (destination || 'votre destination') + '…';
   try { _ivGenStats(destination, themeKeys, (typeof ivDestPick !== 'undefined' ? ivDestPick : null)); } catch(e) {}
+  try { _ivGenAnimStart(); } catch(e) {}   // ballon qui traverse (sens unique, fluide)
 
   let loadingIdx = 0;
   const loadingInterval = setInterval(() => {
@@ -4654,6 +4680,7 @@ async function generer() {
     joursData = {};
     (typeof DAYS !== 'undefined' ? DAYS : []).forEach(function(d){ adaptDayToJours(d); });
     clearInterval(loadingInterval);
+    try { _ivGenAnimStop(); } catch(e) {}
     loadingState.classList.remove('visible');
     await initJoursTabs(realDuree, destination, budgetCat, periode, styleLabel);
     document.getElementById('result-wrap').classList.add('visible');
@@ -4661,6 +4688,7 @@ async function generer() {
     setTimeout(sendHeight, 100);
   } catch(err) {
     clearInterval(loadingInterval);
+    try { _ivGenAnimStop(); } catch(e) {}
     loadingState.classList.remove('visible');
     document.getElementById('form-card').style.display = '';
     const errEl = document.getElementById('error-state');
