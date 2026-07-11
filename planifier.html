@@ -482,20 +482,26 @@ body.gate-mode { background: transparent; }
 .gate-wait-msg.err { color: #C0392B; }
 
 /* ── LOADING ─────────────────────────────────────────────── */
-.loading-state { display: none; text-align: center; padding: 3.5em 2em 4.5em; background: linear-gradient(180deg, #faf7f1 0%, #f2ebdf 100%); }
+.loading-state { display: none; text-align: center; padding: 0 0 4em; background: linear-gradient(180deg, #faf7f1 0%, #f2ebdf 100%); }
 .loading-state.visible { display: block; }
-/* Scène de génération : LE ballon (sans hublot) traverse gauche→droite, piloté en JS (sens unique, fluide, fondu aux bords) */
-.gen-scene { width: 100%; max-width: 340px; height: 76px; margin: 0 auto 1.4em; }
-.gen-track { position: relative; width: 100%; height: 100%; }
-.gen-balloon { position: absolute; left: 0; top: 8px; width: 44px; will-change: transform, opacity; }
-.gen-balloon svg { width: 100%; height: auto; display: block; }
-.gen-title { font-family: var(--font-serif); font-size: clamp(1.3em, 3.6vw, 1.7em); color: #2a2018; margin-bottom: 1.1em; }
-.gen-stats { display: flex; flex-direction: column; gap: 0.55em; align-items: center; margin-bottom: 1.6em; min-height: 1em; }
-.gen-stat { font-family: var(--font-serif); font-size: 1.06em; color: #5a4a37; opacity: 1; animation: genStatIn 0.45s ease; }
-.gen-stat .gen-num { font-weight: 600; font-size: 1.15em; color: #b0552f; }
-@keyframes genStatIn { from { transform: translateY(7px); } to { transform: translateY(0); } } /* entrée = léger glissé ; l'opacité reste à 1 -> jamais invisible si l'anim est en pause (onglet en fond) */
+/* FRESQUE-VOYAGE (écran de génération) : décor modulaire (parallaxe) + ballon flottant + chiffres réels en nuages */
+.fresco { position: relative; width: 100%; height: 234px; overflow: hidden; }
+.fresco-far, .fresco-near { position: absolute; left: 0; bottom: 0; height: 76%; will-change: transform; }
+.fresco-clouds { position: absolute; left: 0; top: 0; height: 100%; will-change: transform; }
+.fresco-far { opacity: 0.4; }
+.fresco-far svg, .fresco-near svg { display: block; height: 100%; }
+.fresco-shadow { position: absolute; left: 50%; bottom: 28px; width: 60px; height: 10px; margin-left: -30px; border-radius: 50%; background: #8a6d4c; opacity: 0.16; filter: blur(2px); will-change: transform, opacity; }
+.fresco-balloon { position: absolute; left: 50%; bottom: 106px; width: 74px; margin-left: -37px; z-index: 3; will-change: transform; }
+.fresco-balloon svg { width: 100%; height: auto; display: block; }
+.fresco-bubbles { position: absolute; inset: 0; pointer-events: none; }
+.fr-bubble { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  border-radius: 50%; background: rgba(255,253,249,0.94); box-shadow: 0 5px 16px rgba(120,90,50,0.14); will-change: transform; }
+.fr-bubble .fr-num { font-family: var(--font-serif); font-weight: 600; color: #b0552f; line-height: 1; }
+.fr-bubble .fr-lab { font-family: var(--font-serif); color: #8a6a4a; line-height: 1.05; margin-top: 2px; }
+.fr-bubble.small { opacity: 0.9; }
+.fr-bubble.small .fr-num { color: #bd7a4a; }
+.gen-title { font-family: var(--font-serif); font-size: clamp(1.3em, 3.6vw, 1.7em); color: #2a2018; margin: 1.2em 0 0.7em; }
 .loading-text { font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: #a8926e; }
-@media (prefers-reduced-motion: reduce) { .gen-stat { opacity: 1; animation: none; } }
 
 /* ── ERROR ───────────────────────────────────────────────── */
 .error-state { display: none; max-width: 560px; margin: 0 auto 1em; background: #fff5f5; border: 1px solid #fcc; border-radius: 3px; padding: 1em 1.2em; font-size: 0.82em; color: #c00; }
@@ -1251,17 +1257,24 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
   <!-- Scène montgolfière — fil visuel de la marque, sur chaque écran -->
   <div class="wiz-scene">
     <!-- Le beau ballon du favicon, SANS le hublot : fond transparent, se fond dans la page. MÊME ballon sur l'écran de génération. -->
-    <svg class="wiz-balloon" viewBox="0 0 60 66" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs><clipPath id="balEnvW"><path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z"/></clipPath></defs>
-      <g clip-path="url(#balEnvW)">
-        <rect x="7" y="1" width="46" height="52" fill="#cf5a34"/>
-        <rect x="17" y="1" width="3.6" height="52" fill="#e0855a"/>
-        <rect x="28.2" y="1" width="3.6" height="52" fill="#efdcc4"/>
-        <rect x="39.4" y="1" width="3.6" height="52" fill="#e0855a"/>
+    <svg class="wiz-balloon" viewBox="0 0 72 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="balGradW" x1="0.2" y1="0" x2="0.8" y2="1">
+          <stop offset="0" stop-color="#e58054"/><stop offset="0.55" stop-color="#cf5a34"/><stop offset="1" stop-color="#ad462a"/>
+        </linearGradient>
+        <radialGradient id="balShineW" cx="0.36" cy="0.28" r="0.62">
+          <stop offset="0" stop-color="#f2a67f" stop-opacity="0.85"/><stop offset="1" stop-color="#f2a67f" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="url(#balGradW)"/>
+      <g stroke="#9c4326" stroke-width="0.7" opacity="0.45" fill="none">
+        <path d="M36 4 C36 22 36 47 36 63"/><path d="M23.5 5.5 C17 24 21.5 50 30.5 61"/><path d="M48.5 5.5 C55 24 50.5 50 41.5 61"/>
       </g>
-      <path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z" fill="none" stroke="#a8482a" stroke-width="1.1"/>
-      <path d="M22 47 L26 55 M38 47 L34 55" stroke="#a8482a" stroke-width="0.9"/>
-      <path d="M25 55 H35 L33.5 63 H26.5 Z" fill="#8a5a34"/>
+      <ellipse cx="27" cy="24" rx="10.5" ry="14.5" fill="url(#balShineW)"/>
+      <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="none" stroke="#9c4326" stroke-width="1.1" opacity="0.65"/>
+      <path d="M27 58 L31 73 M45 58 L41 73" stroke="#8a5a34" stroke-width="0.9"/>
+      <path d="M30.5 73 H41.5 L39.5 83 H32.5 Z" fill="#8a5a34"/>
+      <path d="M30.5 73 H41.5" stroke="#6e4526" stroke-width="1.1"/>
     </svg>
   </div>
 
@@ -1345,7 +1358,7 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
         <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.3"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg></span><span class="lab">Solo</span></div>
         <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><circle cx="15" cy="8" r="2.8"/><path d="M4 20c0-2.6 2.2-4.6 5-4.6M11 20c0-2.6 2.2-4.6 5-4.6"/></svg></span><span class="lab">En duo</span></div>
         <div class="wiz-card" onclick="selectVoyage('entre amis', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.3"/><circle cx="12" cy="7" r="2.5"/><circle cx="17" cy="8" r="2.3"/><path d="M3.5 19c0-3 3.8-4.5 8.5-4.5S20.5 16 20.5 19"/></svg></span><span class="lab">Entre amis</span></div>
-        <div class="wiz-card" onclick="selectVoyage('famille', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="7.5" r="2.7"/><circle cx="16" cy="8" r="2.5"/><circle cx="12" cy="12.5" r="1.8"/><path d="M4 20c0-2.4 1.8-4.4 4-4.4M12 20c0-2.4 1.8-4.4 4-4.4"/><path d="M9.6 20.5c0-1.5 1.1-2.7 2.4-2.7s2.4 1.2 2.4 2.7"/></svg></span><span class="lab">En famille</span></div>
+        <div class="wiz-card" onclick="selectVoyage('famille', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6.2" r="2.5"/><path d="M2.4 20c0-3 1.6-5.2 3.6-5.2s3.6 2.2 3.6 5.2"/><circle cx="18" cy="6.2" r="2.5"/><path d="M14.4 20c0-3 1.6-5.2 3.6-5.2s3.6 2.2 3.6 5.2"/><circle cx="12" cy="10.6" r="1.9"/><path d="M9.2 20c0-2.2 1.2-3.9 2.8-3.9s2.8 1.7 2.8 3.9"/></svg></span><span class="lab">En famille</span></div>
       </div>
     </div>
 
@@ -1401,25 +1414,29 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 
 <!-- ── LOADING ────────────────────────────────────────────── -->
 <div class="loading-state" id="loading-state">
-  <!-- Scène de génération : LE MÊME ballon (sans hublot), qui traverse la page gauche→droite (animé en JS, sens unique) -->
-  <div class="gen-scene"><div class="gen-track">
-    <div class="gen-balloon" id="gen-balloon">
-      <svg viewBox="0 0 60 66" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs><clipPath id="balEnvG"><path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z"/></clipPath></defs>
-        <g clip-path="url(#balEnvG)">
-          <rect x="7" y="1" width="46" height="52" fill="#cf5a34"/>
-          <rect x="17" y="1" width="3.6" height="52" fill="#e0855a"/>
-          <rect x="28.2" y="1" width="3.6" height="52" fill="#efdcc4"/>
-          <rect x="39.4" y="1" width="3.6" height="52" fill="#e0855a"/>
-        </g>
-        <path d="M30 3 C43 3 51 13 51 25 C51 39 40 46 30 51 C20 46 9 39 9 25 C9 13 17 3 30 3 Z" fill="none" stroke="#a8482a" stroke-width="1.1"/>
-        <path d="M22 47 L26 55 M38 47 L34 55" stroke="#a8482a" stroke-width="0.9"/>
-        <path d="M25 55 H35 L33.5 63 H26.5 Z" fill="#8a5a34"/>
+  <!-- FRESQUE-VOYAGE : décor modulaire tiré au hasard (parallaxe) + ballon qui flotte + chiffres réels dans des nuages -->
+  <div class="fresco" id="fresco" aria-hidden="true">
+    <div class="fresco-far" id="fr-far"></div>
+    <div class="fresco-clouds" id="fr-clouds"></div>
+    <div class="fresco-near" id="fr-near"></div>
+    <div class="fresco-shadow" id="gen-shadow"></div>
+    <div class="fresco-balloon" id="gen-balloon">
+      <svg viewBox="0 0 72 90" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="balGradG" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#e58054"/><stop offset="0.55" stop-color="#cf5a34"/><stop offset="1" stop-color="#ad462a"/></linearGradient>
+          <radialGradient id="balShineG" cx="0.36" cy="0.28" r="0.62"><stop offset="0" stop-color="#f2a67f" stop-opacity="0.85"/><stop offset="1" stop-color="#f2a67f" stop-opacity="0"/></radialGradient>
+        </defs>
+        <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="url(#balGradG)"/>
+        <g stroke="#9c4326" stroke-width="0.7" opacity="0.45" fill="none"><path d="M36 4 C36 22 36 47 36 63"/><path d="M23.5 5.5 C17 24 21.5 50 30.5 61"/><path d="M48.5 5.5 C55 24 50.5 50 41.5 61"/></g>
+        <ellipse cx="27" cy="24" rx="10.5" ry="14.5" fill="url(#balShineG)"/>
+        <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="none" stroke="#9c4326" stroke-width="1.1" opacity="0.65"/>
+        <path d="M27 58 L31 73 M45 58 L41 73" stroke="#8a5a34" stroke-width="0.9"/>
+        <path d="M30.5 73 H41.5 L39.5 83 H32.5 Z" fill="#8a5a34"/><path d="M30.5 73 H41.5" stroke="#6e4526" stroke-width="1.1"/>
       </svg>
     </div>
-  </div></div>
+    <div class="fresco-bubbles" id="gen-bubbles"></div>
+  </div>
   <div class="gen-title" id="gen-title">On compose votre voyage…</div>
-  <div class="gen-stats" id="gen-stats" aria-live="polite"></div>
   <div class="loading-text" id="loading-text">On consulte nos carnets de voyage…</div>
 </div>
 
@@ -1442,15 +1459,49 @@ const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresse
 
 // ── ÉCRAN DE GÉNÉRATION : chiffres RÉELS (requête /places), personnalisés selon les thèmes. JAMAIS inventés (honnêteté marque). ──
 const GEN_STAT_LABEL = { gastronomie:'restaurants et bonnes tables', nature:'espaces de nature', culture:'lieux de culture', sport:'spots pour bouger', urbain:'adresses de la ville', festif:'sorties et soirées', bienetre:'haltes bien-être' };
+const GEN_BUBBLE_LABEL = { gastronomie:'tables', nature:'nature', culture:'culture', sport:'sport', urbain:'ville', festif:'sorties', bienetre:'bien-être', notable:'repères' };
+
+// ===== FRESQUE-VOYAGE : briques SVG modulaires (monument + props), même ligne de sol (y=126) -> s'emboîtent sans couture. =====
+// Mono-ton terracotta, silhouettes épurées. À chaque génération on en pioche 4 au hasard, ordre aléatoire -> chaque run est unique.
+const _FR_H = 150, _FR_BW = 182, _FR_G = 126;
+const FRESCO_BRICKS = [
+  /* Gizeh */      '<path d="M12 126 L52 52 L92 126 Z" fill="#bd5f2d"/><path d="M76 126 L106 72 L136 126 Z" fill="#a4491f"/><path d="M120 126 q6 -20 28 -16 q10 -8 22 2 l3 14 Z" fill="#b45528"/>',
+  /* Paris */      '<path d="M92 22 Q94 60 106 126 L97 126 Q92 84 92 60 Q92 84 87 126 L78 126 Q90 60 92 22 Z" fill="#c0632f"/><rect x="84" y="84" width="16" height="4" fill="#c0632f"/><rect x="91" y="12" width="2" height="10" fill="#c0632f"/><path d="M18 126 V86 H56 V126 Z" fill="#a4491f"/><path d="M16 86 L37 74 L58 86 Z" fill="#a4491f"/><rect x="150" y="104" width="4" height="22" fill="#8a4a24"/><circle cx="152" cy="102" r="13" fill="#b45528"/>',
+  /* Fuji+torii */ '<path d="M4 126 L58 46 L112 126 Z" fill="#bd5f2d"/><path d="M44 62 L58 46 L72 62 L64 66 L58 60 L52 66 Z" fill="#f2e6d2"/><path d="M120 126 V80 M158 126 V80" stroke="#a4491f" stroke-width="5"/><path d="M114 80 H164 M117 88 H161" stroke="#a4491f" stroke-width="5"/><path d="M139 80 V72" stroke="#a4491f" stroke-width="4"/>',
+  /* New York */   '<rect x="14" y="66" width="18" height="60" fill="#a4491f"/><rect x="36" y="50" width="22" height="76" fill="#c0632f"/><rect x="62" y="80" width="16" height="46" fill="#b45528"/><rect x="118" y="72" width="7" height="54" fill="#c0632f"/><circle cx="121.5" cy="66" r="7" fill="#c0632f"/><path d="M121.5 59 l3 -11 l3 5 z" fill="#c0632f"/><path d="M114 63 l-6 -3 M129 63 l6 -3" stroke="#c0632f" stroke-width="2"/>',
+  /* Rome */       '<path d="M34 126 V78 Q34 60 80 60 Q126 60 126 78 V126 Z" fill="#c0632f"/><rect x="34" y="74" width="92" height="4" fill="#faf3ea" opacity="0.55"/><rect x="34" y="92" width="92" height="4" fill="#faf3ea" opacity="0.45"/><rect x="150" y="98" width="4" height="28" fill="#8a4a24"/><path d="M152 100 q-16 0 -20 -8 q11 4 20 0 q9 4 20 0 q-4 8 -20 8 Z" fill="#b45528"/>',
+  /* Agra (Taj) */ '<path d="M72 126 V82 Q72 60 92 58 Q112 60 112 82 V126 Z" fill="#c0632f"/><path d="M92 38 Q108 58 92 68 Q76 58 92 38 Z" fill="#c0632f"/><rect x="90" y="30" width="4" height="8" fill="#c0632f"/><rect x="54" y="68" width="6" height="58" fill="#b45528"/><rect x="124" y="68" width="6" height="58" fill="#b45528"/>',
+  /* Far West */   '<path d="M18 126 V78 H60 V70 H96 V126 Z" fill="#bd5f2d"/><path d="M144 126 V86 M144 100 q-11 0 -11 -11 M144 108 q11 0 11 -11" stroke="#a4491f" stroke-width="8" fill="none" stroke-linecap="round"/>',
+  /* Sydney */     '<path d="M26 126 Q30 90 52 92 Q49 108 66 108 Q62 94 82 96 Q78 112 98 112 L98 126 Z" fill="#c0632f"/><path d="M118 126 L118 84 L146 126 Z" fill="#b45528"/><path d="M118 84 L118 126" stroke="#8a4a24" stroke-width="2"/>'
+];
+const _FRESCO_FAR = '<path d="M0 126 Q120 98 240 112 T480 108 T720 116 V150 H0 Z" fill="#cba873"/>';
+const _FRESCO_CLOUD = '<g fill="#ffffff" opacity="0.9"><ellipse cx="60" cy="34" rx="26" ry="12"/><ellipse cx="42" cy="40" rx="16" ry="10"/><ellipse cx="80" cy="40" rx="18" ry="10"/></g>';
+
+function _frRand(n){ return Math.floor(Math.random() * n); }
+function _frSvg(w, inner){ return '<svg viewBox="0 0 ' + w + ' ' + _FR_H + '" preserveAspectRatio="xMinYMax meet" xmlns="http://www.w3.org/2000/svg" style="height:100%">' + inner + '</svg>'; }
+function _ivFrescoBuild(){
+  // NEAR : 4 briques uniques tirées au hasard, ordre aléatoire, DUPLIQUÉES bout-à-bout -> boucle sans couture
+  const idx = []; while (idx.length < 4 && idx.length < FRESCO_BRICKS.length){ const r = _frRand(FRESCO_BRICKS.length); if (idx.indexOf(r) < 0) idx.push(r); }
+  let seq = ''; idx.forEach((r, i) => { seq += '<g transform="translate(' + (i * _FR_BW) + ',0)">' + FRESCO_BRICKS[r] + '</g>'; });
+  const patW = idx.length * _FR_BW;
+  const near = document.getElementById('fr-near'); if (near) near.innerHTML = _frSvg(patW * 2, seq + '<g transform="translate(' + patW + ',0)">' + seq + '</g>');
+  const far = document.getElementById('fr-far'); if (far) far.innerHTML = _frSvg(1440, '<g>' + _FRESCO_FAR + '</g><g transform="translate(720,0)">' + _FRESCO_FAR + '</g>');
+  let cl = ''; for (let i = 0; i < 8; i++) cl += '<g transform="translate(' + (i * 150 + (i % 2) * 40) + ',' + (10 + (i % 3) * 22) + ')">' + _FRESCO_CLOUD + '</g>';
+  const clouds = document.getElementById('fr-clouds'); if (clouds) clouds.innerHTML = _frSvg(1440, cl);
+}
+
 function _countUp(el, target, dur){
   if (!el) return;
   if (typeof _ivReducedMotion === 'function' && _ivReducedMotion()){ el.textContent = target; return; }
   const t0 = Date.now();
   (function tick(){ const r = Math.min(1, (Date.now()-t0)/dur), e = 1-Math.pow(1-r,3); el.textContent = Math.round(e*target); if (r<1) requestAnimationFrame(tick); })();
 }
-// Lit la VRAIE base (/places) pour la ville + thèmes choisis et anime le comptage. Tourne EN PARALLÈLE de la génération (lecture gratuite), n'allonge rien. Silencieux si indispo.
+// Chiffres RÉELS (/places ville+thèmes) présentés en NUAGES : GROS = catégories des thèmes CHOISIS (mis en avant), PETITS =
+// autres catégories (contexte). Personnalisé -> changer les thèmes change QUELS nuages sont gros. Parallèle à la génération.
+const _FR_SLOTS_BIG = [ {x:19,y:14}, {x:74,y:12} ];
+const _FR_SLOTS_SMALL = [ {x:6,y:48}, {x:88,y:44}, {x:28,y:6}, {x:72,y:58}, {x:46,y:60} ];
 async function _ivGenStats(dest, themeKeys, pick){
-  const box = document.getElementById('gen-stats'); if (!box) return;
+  const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
   let lat = null, lng = null;
   try { if (pick && pick.center){ lng = pick.center[0]; lat = pick.center[1]; } } catch(e){}
@@ -1458,50 +1509,66 @@ async function _ivGenStats(dest, themeKeys, pick){
   if (lat == null) return;
   let places = [];
   try {
-    const themesCsv = Array.from(new Set([...(themeKeys||[]), 'gastronomie'])).join(',');
-    const r = await fetchT(API + '/places?lat=' + lat + '&lng=' + lng + '&km=25&themes=' + encodeURIComponent(themesCsv) + '&limit=1200', {}, 12000);
+    const r = await fetchT(API + '/places?lat=' + lat + '&lng=' + lng + '&km=25&themes=gastronomie,nature,culture,sport,urbain,festif,bienetre&limit=1500', {}, 12000);
     const j = await r.json(); places = j.places || [];
   } catch(e){ return; }
   if (!places.length) return;
-  // « incontournables » = TOP tier réel (notable ET forte notoriété importance≥0.6) -> une poignée en petite ville, quelques dizaines en métropole (jamais « plus d'incontournables que de lieux »).
+  const chosen = (themeKeys || []).slice(0, 2);
+  const ALL = ['gastronomie','nature','culture','sport','urbain','festif','bienetre'];
+  const count = th => places.filter(p => p && (p.primary_theme || '') === th).length;
   const notable = places.filter(p => p && p.notable && p.tags && (p.tags.importance || 0) >= 0.6).length;
-  const lines = [];
-  (themeKeys || []).slice(0, 2).forEach(th => {
-    const n = places.filter(p => p && (p.primary_theme || '') === th).length;
-    if (n > 0) lines.push({ label: GEN_STAT_LABEL[th] || 'lieux', n });
-  });
-  if (notable > 1) lines.push({ label: 'lieux incontournables', n: notable });
-  if (!lines.length) return;
-  box.innerHTML = lines.map(l => '<div class="gen-stat"><span class="gen-num" data-n="' + l.n + '">0</span> ' + _wizEsc(l.label) + '</div>').join('');
-  box.querySelectorAll('.gen-num').forEach((el, i) => setTimeout(() => _countUp(el, parseInt(el.dataset.n, 10) || 0, 1400), 250 + i * 280));
+  const bigs = [], smalls = [];
+  chosen.forEach(th => { const n = count(th); if (n > 0) bigs.push({ n, label: GEN_BUBBLE_LABEL[th] || th }); });        // MIS EN AVANT
+  ALL.forEach(th => { if (chosen.indexOf(th) >= 0) return; const n = count(th); if (n > 0) smalls.push({ n, label: GEN_BUBBLE_LABEL[th] }); }); // CONTEXTE
+  if (notable > 1) smalls.push({ n: notable, label: GEN_BUBBLE_LABEL.notable });
+  const mk = (b, big, slot) => {
+    const d = big ? 84 : 58;
+    const el = document.createElement('div');
+    el.className = 'fr-bubble ' + (big ? 'big' : 'small');
+    el.style.cssText = 'width:' + d + 'px;height:' + d + 'px;left:' + slot.x + '%;top:' + slot.y + '%;';
+    el.dataset.ph = (Math.random() * 6.28).toFixed(2);
+    el.innerHTML = '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + (big ? 1.5 : 1.05) + 'em">0</span><span class="fr-lab" style="font-size:' + (big ? 0.72 : 0.6) + 'em">' + _wizEsc(b.label) + '</span>';
+    box.appendChild(el);
+  };
+  bigs.slice(0, 2).forEach((b, i) => mk(b, true, _FR_SLOTS_BIG[i] || _FR_SLOTS_BIG[0]));
+  smalls.slice(0, _FR_SLOTS_SMALL.length).forEach((b, i) => mk(b, false, _FR_SLOTS_SMALL[i]));
+  box.querySelectorAll('.fr-num').forEach((el, i) => setTimeout(() => _countUp(el, parseInt(el.dataset.n, 10) || 0, 1500), 300 + i * 220));
 }
 
-// Ballon de l'écran de génération : traversée gauche→droite EN SENS UNIQUE, fluide (rAF + fondu aux bords -> le retour à gauche
-// est INVISIBLE, jamais de saut brusque en arrière). Léger flottement vertical. reduced-motion -> ballon statique centré.
-let _genAnimRAF = 0, _genAnimT0 = 0, _genAnimOn = false;
-function _ivGenAnimStart(){
-  const b = document.getElementById('gen-balloon'); if (!b) return;
-  b.style.opacity = '1';
-  if (typeof _ivReducedMotion === 'function' && _ivReducedMotion()){ const t = b.parentElement, W = (t ? t.clientWidth : 300); b.style.transform = 'translate(' + Math.round((W - 44) / 2) + 'px,4px)'; return; }
-  _genAnimOn = true;
-  const SPEED = 34; // px/s
-  { const t0 = b.parentElement, W0 = (t0 ? t0.clientWidth : 300), span0 = Math.max(60, W0 - 44), total0 = span0 / SPEED * 1000; _genAnimT0 = Date.now() - total0 * 0.3; } // démarre à ~30% du parcours -> ballon DÉJÀ visible (jamais un départ à opacité 0 si rAF ne tourne pas)
-  const step = () => {
-    if (!_genAnimOn) return;
-    const t = b.parentElement, W = (t ? t.clientWidth : 300), span = Math.max(60, W - 44);
-    const el = Date.now() - _genAnimT0, total = span / SPEED * 1000, cyc = (el % total) / total; // cyc 0..1 TOUJOURS croissant
-    const x = cyc * span, bob = Math.sin(el / 900) * 4;
-    let op = 1; if (cyc < 0.06) op = cyc / 0.06; else if (cyc > 0.94) op = (1 - cyc) / 0.06; // fondu aux extrémités
-    b.style.transform = 'translate(' + x.toFixed(2) + 'px,' + (4 + bob).toFixed(2) + 'px)';
-    b.style.opacity = op.toFixed(3);
-    _genAnimRAF = requestAnimationFrame(step);
+// ANIMATION de la fresque : parallaxe (lointain lent/pâle · proche rapide) + nuages · ballon qui FLOTTE (bob + roulis + ombre
+// douce qui suit) · bulles qui dérivent doucement. rAF sub-pixel, sens du décor droite→gauche, boucle sans couture (bandes
+// dupliquées). reduced-motion -> tout statique (décor + ballon + chiffres, sans mouvement).
+let _frRAF = 0, _frOn = false, _frT0 = 0, _frW = {};
+function _ivFrescoStart(){
+  _ivFrescoBuild();
+  const f = document.getElementById('fresco'); if (f){ f.style.transition = 'none'; f.style.opacity = '1'; }
+  const bl = document.getElementById('gen-balloon'); if (bl) bl.style.opacity = '1';
+  if (typeof _ivReducedMotion === 'function' && _ivReducedMotion()) return; // statique
+  _frOn = true; _frT0 = Date.now();
+  const near = document.getElementById('fr-near'), far = document.getElementById('fr-far'), clouds = document.getElementById('fr-clouds');
+  const bubbles = document.getElementById('gen-bubbles'), sh = document.getElementById('gen-shadow');
+  setTimeout(() => { // largeur rendue des bandes (moitié = un motif) -> bouclage
+    _frW.near = (near && near.querySelector('svg')) ? near.querySelector('svg').getBoundingClientRect().width / 2 : 720;
+    _frW.far = 720; _frW.clouds = 720;
+  }, 30);
+  const tick = () => {
+    if (!_frOn) return;
+    const t = Date.now() - _frT0;
+    const wrap = (speed, w) => (-((t * speed) % (w || 1))).toFixed(1);
+    if (far) far.style.transform = 'translateX(' + wrap(0.012, _frW.far) + 'px)';
+    if (clouds) clouds.style.transform = 'translateX(' + wrap(0.018, _frW.clouds) + 'px)';
+    if (near) near.style.transform = 'translateX(' + wrap(0.034, _frW.near) + 'px)';
+    if (bl){ const bob = Math.sin(t / 1600) * 6, roll = Math.sin(t / 2300) * 2; bl.style.transform = 'translateY(' + bob.toFixed(2) + 'px) rotate(' + roll.toFixed(2) + 'deg)';
+      if (sh){ const up = (bob + 6) / 12; sh.style.transform = 'scale(' + (0.82 + up * 0.28).toFixed(3) + ')'; sh.style.opacity = (0.10 + up * 0.10).toFixed(3); } }
+    if (bubbles){ for (let i = 0; i < bubbles.children.length; i++){ const c = bubbles.children[i], ph = parseFloat(c.dataset.ph) || 0; c.style.transform = 'translateY(' + (Math.sin(t / 1500 + ph) * 5).toFixed(2) + 'px)'; } }
+    _frRAF = requestAnimationFrame(tick);
   };
-  step();
+  tick();
 }
-function _ivGenAnimStop(){
-  _genAnimOn = false;
-  if (_genAnimRAF){ cancelAnimationFrame(_genAnimRAF); _genAnimRAF = 0; }
-  const b = document.getElementById('gen-balloon'); if (b){ b.style.transition = 'opacity .5s ease'; b.style.opacity = '0'; } // fin propre = fondu
+function _ivFrescoStop(){
+  _frOn = false;
+  if (_frRAF){ cancelAnimationFrame(_frRAF); _frRAF = 0; }
+  const f = document.getElementById('fresco'); if (f){ f.style.transition = 'opacity .45s ease'; f.style.opacity = '0'; } // fin propre = fondu
 }
 
 /* ============================================================
@@ -1602,7 +1669,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v293'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v294'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4642,7 +4709,7 @@ async function generer() {
   // Écran de génération : titre personnalisé + chiffres RÉELS de la ville (en parallèle, ne bloque pas la génération).
   const _gt = document.getElementById('gen-title'); if (_gt) _gt.textContent = 'On compose votre voyage à ' + (destination || 'votre destination') + '…';
   try { _ivGenStats(destination, themeKeys, (typeof ivDestPick !== 'undefined' ? ivDestPick : null)); } catch(e) {}
-  try { _ivGenAnimStart(); } catch(e) {}   // ballon qui traverse (sens unique, fluide)
+  try { _ivFrescoStart(); } catch(e) {}   // fresque-voyage : décor modulaire aléatoire + ballon flottant
 
   let loadingIdx = 0;
   const loadingInterval = setInterval(() => {
@@ -4680,7 +4747,7 @@ async function generer() {
     joursData = {};
     (typeof DAYS !== 'undefined' ? DAYS : []).forEach(function(d){ adaptDayToJours(d); });
     clearInterval(loadingInterval);
-    try { _ivGenAnimStop(); } catch(e) {}
+    try { _ivFrescoStop(); } catch(e) {}
     loadingState.classList.remove('visible');
     await initJoursTabs(realDuree, destination, budgetCat, periode, styleLabel);
     document.getElementById('result-wrap').classList.add('visible');
@@ -4688,7 +4755,7 @@ async function generer() {
     setTimeout(sendHeight, 100);
   } catch(err) {
     clearInterval(loadingInterval);
-    try { _ivGenAnimStop(); } catch(e) {}
+    try { _ivFrescoStop(); } catch(e) {}
     loadingState.classList.remove('visible');
     document.getElementById('form-card').style.display = '';
     const errEl = document.getElementById('error-state');
