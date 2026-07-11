@@ -68,6 +68,7 @@ body.gate-mode { background: transparent; }
   font-size: clamp(1.55em, 4.4vw, 2.05em); color: #2a2018; line-height: 1.28;
   margin: 0.2em 0 0.35em; text-align: center;
 }
+.step-q .q-em { font-style: italic; color: #b0552f; }   /* « votre » — signale le sur-mesure */
 .step-sub { font-family: var(--font-serif); font-style: italic; font-size: 0.98em; color: #9c8763; text-align: center; margin-bottom: 1.7em; }
 
 /* Input destination */
@@ -481,14 +482,22 @@ body.gate-mode { background: transparent; }
 .gate-wait-msg.err { color: #C0392B; }
 
 /* ── LOADING ─────────────────────────────────────────────── */
-.loading-state { display: none; text-align: center; padding: 4em 2em; }
+.loading-state { display: none; text-align: center; padding: 3.5em 2em 4.5em; background: linear-gradient(180deg, #faf7f1 0%, #f2ebdf 100%); }
 .loading-state.visible { display: block; }
-.loading-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 1em; }
-.loading-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--or); animation: ldot 1.2s ease-in-out infinite; }
-.loading-dot:nth-child(2) { animation-delay: 0.2s; }
-.loading-dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes ldot { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
-.loading-text { font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: var(--gris); }
+/* Scène de génération : montgolfière qui dérive + chemin qui s'anime */
+.gen-scene { width: 100%; max-width: 320px; margin: 0 auto 1.4em; }
+.gen-svg { width: 100%; height: auto; display: block; }
+.gen-balloon { animation: genDrift 7.5s ease-in-out infinite; }
+@keyframes genDrift { 0% { transform: translate(24px, 58px); } 50% { transform: translate(272px, 46px); } 100% { transform: translate(24px, 58px); } }
+.gen-path { animation: genFlow 1.1s linear infinite; }
+@keyframes genFlow { to { stroke-dashoffset: -7.5; } }
+.gen-title { font-family: var(--font-serif); font-size: clamp(1.3em, 3.6vw, 1.7em); color: #2a2018; margin-bottom: 1.1em; }
+.gen-stats { display: flex; flex-direction: column; gap: 0.55em; align-items: center; margin-bottom: 1.6em; min-height: 1em; }
+.gen-stat { font-family: var(--font-serif); font-size: 1.06em; color: #5a4a37; opacity: 0; animation: genStatIn 0.5s ease forwards; }
+.gen-stat .gen-num { font-weight: 600; font-size: 1.15em; color: #b0552f; }
+@keyframes genStatIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.loading-text { font-family: var(--font-serif); font-style: italic; font-size: 0.9em; color: #a8926e; }
+@media (prefers-reduced-motion: reduce) { .gen-balloon, .gen-path { animation: none; } .gen-balloon { transform: translate(150px, 50px); } .gen-stat { opacity: 1; animation: none; } }
 
 /* ── ERROR ───────────────────────────────────────────────── */
 .error-state { display: none; max-width: 560px; margin: 0 auto 1em; background: #fff5f5; border: 1px solid #fcc; border-radius: 3px; padding: 1em 1.2em; font-size: 0.82em; color: #c00; }
@@ -1243,23 +1252,32 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 
   <!-- Scène montgolfière — fil visuel de la marque, sur chaque écran -->
   <div class="wiz-scene">
-    <svg class="wiz-balloon" viewBox="0 0 120 132" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs><clipPath id="wizEnv"><path d="M60 12 C84 12 98 31 98 52 C98 75 79 86 60 92 C41 86 22 75 22 52 C22 31 36 12 60 12 Z"/></clipPath></defs>
-      <!-- collines + chemin pointillé -->
-      <path d="M0 121 Q30 107 62 116 T120 113 V132 H0 Z" fill="#ddd0b6"/>
-      <path d="M0 127 Q40 117 74 125 T120 122 V132 H0 Z" fill="#c7cfa6"/>
-      <path d="M16 129 Q40 119 60 123 T104 116" stroke="#b0956a" stroke-width="1.6" stroke-dasharray="0.5 5" stroke-linecap="round" fill="none"/>
-      <!-- enveloppe (gores) -->
-      <g clip-path="url(#wizEnv)">
-        <rect x="18" y="8" width="84" height="88" fill="#c0632f"/>
-        <rect x="33" y="8" width="10" height="88" fill="#d99a54"/>
-        <rect x="55" y="8" width="9"  height="88" fill="#f0e4cf"/>
-        <rect x="77" y="8" width="10" height="88" fill="#d99a54"/>
+    <!-- Médaillon = reprise fidèle du FAVICON du site (anneau brun, disque crème, montgolfière terracotta, collines dorées, chemin sinueux) -->
+    <svg class="wiz-balloon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <clipPath id="wizDisc"><circle cx="60" cy="60" r="52.5"/></clipPath>
+        <clipPath id="wizEnv"><path d="M60 20 C73 20 82 31 82 44 C82 57 71 63 60 67 C49 63 38 57 38 44 C38 31 47 20 60 20 Z"/></clipPath>
+      </defs>
+      <circle cx="60" cy="60" r="55.5" fill="#f4ecdf"/>
+      <g clip-path="url(#wizDisc)">
+        <!-- collines -->
+        <path d="M0 90 Q30 76 58 84 T120 80 V120 H0 Z" fill="#dcc79c"/>
+        <path d="M0 101 Q36 87 70 96 T120 91 V120 H0 Z" fill="#cba25c"/>
+        <!-- chemin sinueux crème -->
+        <path d="M50 119 C 61 108 44 100 55 92 C 63 86 57 82 59 80" fill="none" stroke="#f4ecdf" stroke-width="5" stroke-linecap="round"/>
+        <!-- enveloppe (gores) -->
+        <g clip-path="url(#wizEnv)">
+          <rect x="34" y="16" width="52" height="56" fill="#cf5a34"/>
+          <rect x="45" y="16" width="6" height="56" fill="#e0855a"/>
+          <rect x="57" y="16" width="6" height="56" fill="#efdcc4"/>
+          <rect x="69" y="16" width="6" height="56" fill="#e0855a"/>
+        </g>
+        <path d="M60 20 C73 20 82 31 82 44 C82 57 71 63 60 67 C49 63 38 57 38 44 C38 31 47 20 60 20 Z" fill="none" stroke="#a8482a" stroke-width="1.3"/>
+        <!-- suspentes + nacelle -->
+        <path d="M50 61 L55.5 69 M70 61 L64.5 69" stroke="#a8482a" stroke-width="1"/>
+        <path d="M55 69 H65 L63.5 77 H56.5 Z" fill="#8a5a34"/>
       </g>
-      <path d="M60 12 C84 12 98 31 98 52 C98 75 79 86 60 92 C41 86 22 75 22 52 C22 31 36 12 60 12 Z" fill="none" stroke="#9c4c28" stroke-width="1.4"/>
-      <!-- suspentes + nacelle -->
-      <path d="M45 84 L54 95 M75 84 L66 95" stroke="#9c4c28" stroke-width="1"/>
-      <path d="M53.5 95 H66.5 L64.5 105 H55.5 Z" fill="#8a5a34"/>
+      <circle cx="60" cy="60" r="55" fill="none" stroke="#8a6d4c" stroke-width="5.5"/>
     </svg>
   </div>
 
@@ -1312,7 +1330,7 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
     <!-- ÉTAPE 1 — Destination -->
     <div class="wizard-step active" id="wstep-1">
       <button class="wiz-back" type="button" hidden aria-label="Retour">←</button>
-      <h2 class="step-q">Où vous emmène l'envie&nbsp;?</h2>
+      <h2 class="step-q">Choisissez la ville. On dessine <span class="q-em">votre</span> géographie.</h2>
       <p class="step-sub">Une ville, un nom qui vous fait rêver.</p>
       <div class="dest-field">
         <input type="text" id="destination" class="dest-input" placeholder="Lisbonne, Tokyo, Carcassonne…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false">
@@ -1338,7 +1356,7 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
     <div class="wizard-step" id="wstep-3">
       <button class="wiz-back" type="button" onclick="wizBack(3)" aria-label="Retour">←</button>
       <h2 class="step-q">Avec qui voyagez-vous&nbsp;?</h2>
-      <p class="step-sub">Le ton s'ajuste à votre tribu.</p>
+      <p class="step-sub">On adapte les lieux et le rythme.</p>
       <div class="wiz-cards c2">
         <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.3"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg></span><span class="lab">Solo</span></div>
         <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><circle cx="15" cy="8" r="2.8"/><path d="M4 20c0-2.6 2.2-4.6 5-4.6M11 20c0-2.6 2.2-4.6 5-4.6"/></svg></span><span class="lab">En duo</span></div>
@@ -1351,7 +1369,7 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
     <div class="wizard-step" id="wstep-4">
       <button class="wiz-back" type="button" onclick="wizBack(4)" aria-label="Retour">←</button>
       <h2 class="step-q">Quel budget&nbsp;?</h2>
-      <p class="step-sub">De l'essentiel au sans-compter.</p>
+      <p class="step-sub">Trois façons de voyager.</p>
       <div class="wiz-cards c3">
         <div class="wiz-card" onclick="selectBudget('économique', this)"><span class="euro">€</span><span class="lab">Essentiel</span><span class="sub">Petits budgets, vrais voyages</span></div>
         <div class="wiz-card" onclick="selectBudget('confortable', this)"><span class="euro">€€</span><span class="lab">Confort</span><span class="sub">Le meilleur équilibre</span></div>
@@ -1398,11 +1416,30 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 <div class="gate-wrap" id="gate-wrap"></div>
 
 <!-- ── LOADING ────────────────────────────────────────────── -->
-<div class="loading-state" id="loading-state" style="padding: 5em 2em;">
-  <div class="loading-dots">
-    <div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>
+<div class="loading-state" id="loading-state">
+  <!-- Scène de génération : la montgolfière dérive au-dessus d'un chemin qui s'anime -->
+  <div class="gen-scene">
+    <svg viewBox="0 0 300 132" class="gen-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M0 96 Q60 82 132 90 T300 86 V132 H0 Z" fill="#e0d3b4"/>
+      <path d="M0 108 Q70 94 152 102 T300 98 V132 H0 Z" fill="#cba25c"/>
+      <path class="gen-path" d="M14 106 Q90 74 160 92 T292 82" fill="none" stroke="#b0956a" stroke-width="2" stroke-dasharray="0.5 7" stroke-linecap="round"/>
+      <g class="gen-balloon">
+        <clipPath id="genEnv"><ellipse cx="0" cy="-7" rx="11.5" ry="13.5"/></clipPath>
+        <g clip-path="url(#genEnv)">
+          <rect x="-13" y="-22" width="26" height="30" fill="#cf5a34"/>
+          <rect x="-9" y="-22" width="2.6" height="30" fill="#e0855a"/>
+          <rect x="-1.3" y="-22" width="2.6" height="30" fill="#efdcc4"/>
+          <rect x="6.4" y="-22" width="2.6" height="30" fill="#e0855a"/>
+        </g>
+        <ellipse cx="0" cy="-7" rx="11.5" ry="13.5" fill="none" stroke="#a8482a" stroke-width="0.9"/>
+        <path d="M-4.5 4.5 L-3 -5 M4.5 4.5 L3 -5" stroke="#a8482a" stroke-width="0.7"/>
+        <path d="M-4 4.5 H4 L3 10 H-3 Z" fill="#8a5a34"/>
+      </g>
+    </svg>
   </div>
-  <div class="loading-text" id="loading-text">Composition de votre itinéraire…</div>
+  <div class="gen-title" id="gen-title">On compose votre voyage…</div>
+  <div class="gen-stats" id="gen-stats" aria-live="polite"></div>
+  <div class="loading-text" id="loading-text">On consulte nos carnets de voyage…</div>
 </div>
 
 <!-- ── RÉSULTAT ───────────────────────────────────────────── -->
@@ -1421,6 +1458,42 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 const API_URL = 'https://geocalme-api-proxy.nicolas-chevreau.workers.dev';
 const MODEL = 'claude-haiku-4-5-20251001';
 const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresses se mettent en place…','On trace le rythme de la journée…','Derniers ajustements avant le départ…','On choisit les tables qui valent le détour…','L\'itinéraire prend forme…'];
+
+// ── ÉCRAN DE GÉNÉRATION : chiffres RÉELS (requête /places), personnalisés selon les thèmes. JAMAIS inventés (honnêteté marque). ──
+const GEN_STAT_LABEL = { gastronomie:'restaurants et bonnes tables', nature:'espaces de nature', culture:'lieux de culture', sport:'spots pour bouger', urbain:'adresses de la ville', festif:'sorties et soirées', bienetre:'haltes bien-être' };
+function _countUp(el, target, dur){
+  if (!el) return;
+  if (typeof _ivReducedMotion === 'function' && _ivReducedMotion()){ el.textContent = target; return; }
+  const t0 = Date.now();
+  (function tick(){ const r = Math.min(1, (Date.now()-t0)/dur), e = 1-Math.pow(1-r,3); el.textContent = Math.round(e*target); if (r<1) requestAnimationFrame(tick); })();
+}
+// Lit la VRAIE base (/places) pour la ville + thèmes choisis et anime le comptage. Tourne EN PARALLÈLE de la génération (lecture gratuite), n'allonge rien. Silencieux si indispo.
+async function _ivGenStats(dest, themeKeys, pick){
+  const box = document.getElementById('gen-stats'); if (!box) return;
+  box.innerHTML = '';
+  let lat = null, lng = null;
+  try { if (pick && pick.center){ lng = pick.center[0]; lat = pick.center[1]; } } catch(e){}
+  if (lat == null){ try { await getToken(); const g = await geocode(dest, null, null, 'place,locality,district,region'); if (g){ lat = g.lat; lng = g.lng; } } catch(e){} }
+  if (lat == null) return;
+  let places = [];
+  try {
+    const themesCsv = Array.from(new Set([...(themeKeys||[]), 'gastronomie'])).join(',');
+    const r = await fetchT(API + '/places?lat=' + lat + '&lng=' + lng + '&km=25&themes=' + encodeURIComponent(themesCsv) + '&limit=1200', {}, 12000);
+    const j = await r.json(); places = j.places || [];
+  } catch(e){ return; }
+  if (!places.length) return;
+  // « incontournables » = TOP tier réel (notable ET forte notoriété importance≥0.6) -> une poignée en petite ville, quelques dizaines en métropole (jamais « plus d'incontournables que de lieux »).
+  const notable = places.filter(p => p && p.notable && p.tags && (p.tags.importance || 0) >= 0.6).length;
+  const lines = [];
+  (themeKeys || []).slice(0, 2).forEach(th => {
+    const n = places.filter(p => p && (p.primary_theme || '') === th).length;
+    if (n > 0) lines.push({ label: GEN_STAT_LABEL[th] || 'lieux', n });
+  });
+  if (notable > 1) lines.push({ label: 'lieux incontournables', n: notable });
+  if (!lines.length) return;
+  box.innerHTML = lines.map(l => '<div class="gen-stat"><span class="gen-num" data-n="' + l.n + '">0</span> ' + _wizEsc(l.label) + '</div>').join('');
+  box.querySelectorAll('.gen-num').forEach((el, i) => setTimeout(() => _countUp(el, parseInt(el.dataset.n, 10) || 0, 1400), 250 + i * 280));
+}
 
 /* ============================================================
    ==== MOTEUR À VRAIS LIEUX — greffé depuis archive/planifier_archi_test.html (v163) ====
@@ -1520,7 +1593,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v291'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v292'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4056,9 +4129,8 @@ function selectTheme(el) {
     el.classList.remove('selected'); if (cb) cb.checked = false;
   }
   const n = document.querySelectorAll('.wiz-theme.selected').length;
-  const btn = document.getElementById('theme-continue'); if (btn) btn.disabled = (n < 1);   // « Continuer » actif dès 1 choix (exception multi-sélection)
+  const btn = document.getElementById('theme-continue'); if (btn) btn.disabled = (n < 1);   // « Continuer » actif dès 1 choix — PAS d'auto-avance ici (multi-sélection = temps de réflexion, brief §4)
   if (hint) hint.textContent = '';
-  if (n >= 2) wizAdvance(5);   // 2e choix (= max) -> avance auto
 }
 
 // Écran 6 — récap qui se relit, à partir des sélections fermées
@@ -4542,6 +4614,9 @@ async function generer() {
   document.getElementById('error-state').classList.remove('visible');
   const loadingState = document.getElementById('loading-state');
   loadingState.classList.add('visible');
+  // Écran de génération : titre personnalisé + chiffres RÉELS de la ville (en parallèle, ne bloque pas la génération).
+  const _gt = document.getElementById('gen-title'); if (_gt) _gt.textContent = 'On compose votre voyage à ' + (destination || 'votre destination') + '…';
+  try { _ivGenStats(destination, themeKeys, (typeof ivDestPick !== 'undefined' ? ivDestPick : null)); } catch(e) {}
 
   let loadingIdx = 0;
   const loadingInterval = setInterval(() => {
