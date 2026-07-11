@@ -26,103 +26,62 @@ body { font-family: var(--font-sans); background: var(--fond); color: var(--text
 body.gate-mode { background: transparent; }
 
 /* ── WIZARD ─────────────────────────────────────────────── */
+/* ══════════ WIZARD « ÉLEVÉ » (refonte inputs) ══════════ */
 .wizard-wrap {
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 0 1.2em 4em;
-  background: var(--beige);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 0 1.2em 4.5em;
+  background: linear-gradient(180deg, #faf7f1 0%, #f2ebdf 100%);
 }
 
-/* Barre de progression */
-.wizard-progress {
-  width: 100%;
-  max-width: 560px;
-  height: 2px;
-  background: var(--bordure);
-  margin: 2.8em auto 0;
-  border-radius: 2px;
-  overflow: hidden;
-}
-.wizard-progress-fill {
-  height: 100%;
-  background: var(--or);
-  border-radius: 2px;
-  transition: width 0.4s ease;
-}
+/* Scène montgolfière — le FIL VISUEL de la marque, présent sur chaque écran (motif récurrent au-dessus de la question) */
+.wiz-scene { width: 100%; max-width: 560px; margin: 1.9em auto 0; display: flex; justify-content: center; }
+.wiz-balloon { width: 118px; height: auto; display: block; animation: wizFloat 6.5s ease-in-out infinite; transform-origin: 50% 62%; }
+@keyframes wizFloat { 0%,100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-7px) rotate(1.2deg); } }
+@media (prefers-reduced-motion: reduce) { .wiz-balloon { animation: none; } }
+
+/* Progression RASSURANTE : points qui se remplissent + décompte du RESTANT + fine barre */
+.wiz-progress2 { width: 100%; max-width: 560px; margin: 1.2em auto 0.4em; text-align: center; }
+.wiz-dots { display: flex; gap: 9px; justify-content: center; margin-bottom: 0.6em; }
+.wiz-dot { width: 8px; height: 8px; border-radius: 50%; background: #e3dac9; transition: background .3s ease, transform .3s ease; }
+.wiz-dot.done { background: var(--or); }
+.wiz-dot.current { background: #b0552f; transform: scale(1.4); }
+.wiz-count { font-family: var(--font-serif); font-style: italic; font-size: 0.92em; color: #a8875a; }
+.wiz-bar { width: 180px; height: 2px; background: #e8dfcf; border-radius: 2px; margin: 0.6em auto 0; overflow: hidden; }
+.wiz-bar-fill { height: 100%; background: linear-gradient(90deg, var(--or), #b0552f); border-radius: 2px; transition: width .5s ease; width: 20%; }
 
 /* Conteneur step */
-.wizard-steps {
-  width: 100%;
-  max-width: 560px;
-  margin: 0 auto;
-  position: relative;
-  min-height: 420px;
-}
-
-.wizard-step {
-  display: none;
-  padding: 3em 0 2em;
-  animation: stepIn 0.35s ease forwards;
-}
+.wizard-steps { width: 100%; max-width: 560px; margin: 0 auto; position: relative; min-height: 280px; }
+.wizard-step { display: none; padding: 1.6em 0 1em; animation: stepIn 0.42s ease forwards; }
 .wizard-step.active { display: block; }
+@keyframes stepIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-@keyframes stepIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* Flèche RETOUR discrète (coin haut-gauche de l'étape) */
+.wiz-back { position: absolute; top: 1.5em; left: 0; background: none; border: none; cursor: pointer;
+  color: #bdae97; font-size: 1.15em; line-height: 1; padding: 0.3em 0.5em 0.3em 0; transition: color .15s, transform .15s; }
+.wiz-back:hover { color: #8f7a55; transform: translateX(-2px); }
+.wiz-back[hidden] { display: none; }
 
-/* Numéro d'étape */
-.step-num {
-  font-size: 0.6em;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--or);
-  margin-bottom: 1em;
-}
-
-/* Question */
+/* Question éditoriale (Lora) + sous-titre doux */
 .step-q {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: clamp(1.5em, 4vw, 2em);
-  color: var(--noir);
-  line-height: 1.3;
-  margin-bottom: 0.3em;
+  font-family: var(--font-serif); font-weight: 500; font-style: normal;
+  font-size: clamp(1.55em, 4.4vw, 2.05em); color: #2a2018; line-height: 1.28;
+  margin: 0.2em 0 0.35em; text-align: center;
 }
-
-.step-hint {
-  font-size: 0.75em;
-  color: var(--gris);
-  margin-bottom: 2em;
-}
+.step-sub { font-family: var(--font-serif); font-style: italic; font-size: 0.98em; color: #9c8763; text-align: center; margin-bottom: 1.7em; }
 
 /* Input destination */
+.dest-field { position: relative; max-width: 420px; margin: 0.4em auto 0; }
 .dest-input {
-  width: 100%;
-  padding: 1em 0;
-  border: none;
-  border-bottom: 2px solid var(--bordure);
-  background: transparent;
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 1.3em;
-  color: var(--noir);
-  outline: none;
-  transition: border-color 0.2s;
+  width: 100%; padding: 0.7em 0; border: none; border-bottom: 2px solid #ddd2bd; background: transparent;
+  font-family: var(--font-serif); font-style: italic; font-size: 1.35em; color: #2a2018; text-align: center;
+  outline: none; transition: border-color 0.2s;
 }
-.dest-input:focus { border-bottom-color: var(--or); }
-.dest-input::placeholder { color: var(--bordure); }
-
-/* Suggestions destination (typeahead) */
-.dest-field { position: relative; }
+.dest-input:focus { border-bottom-color: #b0552f; }
+.dest-input::placeholder { color: #cdbfa6; }
 .dest-suggest { position: absolute; left: 0; right: 0; top: 100%; margin-top: 6px; z-index: 40;
   background: #fff; border: 1px solid var(--bordure); border-radius: 14px; overflow: hidden;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.12); display: none; }
+  box-shadow: 0 12px 30px rgba(0,0,0,0.12); display: none; text-align: left; }
 .dest-suggest.open { display: block; }
 .dest-suggest li { list-style: none; padding: 0.72em 1em; cursor: pointer; display: flex; align-items: baseline; gap: 0.5em;
   font-family: 'Inter', sans-serif; border-bottom: 1px solid #F0EBE0; }
@@ -131,149 +90,68 @@ body.gate-mode { background: transparent; }
 .dest-suggest .ds-name { font-weight: 600; color: var(--noir); font-size: 0.98rem; }
 .dest-suggest .ds-ctx { color: var(--gris); font-size: 0.82rem; }
 
-/* Grille options jours */
-.days-grid {
-  display: flex;
-  gap: 0.5em;
-  flex-wrap: wrap;
-}
-.day-btn {
-  width: 52px;
-  height: 52px;
-  border: 1.5px solid var(--bordure);
-  border-radius: 4px;
-  background: var(--blanc);
-  font-family: var(--font-sans);
-  font-size: 0.9em;
-  font-weight: 600;
-  color: var(--gris);
-  cursor: pointer;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.day-btn:hover { border-color: var(--or); color: var(--texte); }
-.day-btn.selected { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
+/* Jours 1→5 (chips) */
+.wiz-days { display: flex; gap: 0.6em; flex-wrap: wrap; justify-content: center; }
+.wiz-day { width: 66px; height: 72px; border: 1.5px solid #e0d5c1; border-radius: 14px; background: #fffdf9;
+  cursor: pointer; transition: all .15s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.wiz-day:hover { border-color: var(--or); transform: translateY(-2px); }
+.wiz-day .n { font-family: var(--font-serif); font-size: 1.55em; color: #4a3d2e; line-height: 1; }
+.wiz-day .u { font-size: 0.62em; letter-spacing: 0.06em; text-transform: uppercase; color: #b0a184; }
+.wiz-day.selected { background: #b0552f; border-color: #b0552f; }
+.wiz-day.selected .n, .wiz-day.selected .u { color: #fff; }
 
-/* Grille options voyageurs / budget */
-.opts-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7em;
-}
-.opts-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+/* Cartes options (avec qui / budget) : icône + libellé, grandes cibles tappables */
+.wiz-cards { display: grid; gap: 0.7em; }
+.wiz-cards.c2 { grid-template-columns: 1fr 1fr; }
+.wiz-cards.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.wiz-card { border: 1.5px solid #e2d7c3; border-radius: 15px; padding: 1.15em 0.9em; background: #fffdf9;
+  cursor: pointer; transition: all .15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.55em; }
+.wiz-card:hover { border-color: var(--or); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(120,90,50,0.08); }
+.wiz-card .ico { width: 30px; height: 30px; color: #b0552f; }
+.wiz-card .ico svg { width: 100%; height: 100%; display: block; }
+.wiz-card .lab { font-weight: 600; font-size: 0.95em; color: #3a2f22; }
+.wiz-card .sub { font-size: 0.72em; color: #a2937a; line-height: 1.3; }
+.wiz-card.selected { border-color: #b0552f; background: #b0552f; box-shadow: 0 6px 18px rgba(176,85,47,0.28); }
+.wiz-card.selected .ico { color: #fff; }
+.wiz-card.selected .lab { color: #fff; }
+.wiz-card.selected .sub { color: rgba(255,255,255,0.72); }
+.wiz-card .euro { font-family: var(--font-serif); font-weight: 600; font-size: 1.5em; letter-spacing: 1px; color: #b0552f; line-height: 1; }
+.wiz-card.selected .euro { color: #fff; }
 
-.opt-card {
-  border: 1.5px solid var(--bordure);
-  border-radius: 6px;
-  padding: 1.1em 1.2em;
-  background: var(--blanc);
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: left;
-}
-.opt-card:hover { border-color: var(--or); }
-.opt-card.selected { border-color: var(--noir); background: var(--noir); }
-.opt-card-label {
-  font-size: 0.88em;
-  font-weight: 600;
-  color: var(--texte);
-  display: block;
-  transition: color 0.15s;
-}
-.opt-card.selected .opt-card-label { color: var(--blanc); }
-.opt-card-sub {
-  font-size: 0.7em;
-  color: var(--gris);
-  margin-top: 0.25em;
-  display: block;
-  transition: color 0.15s;
-}
-.opt-card.selected .opt-card-sub { color: rgba(255,255,255,0.55); }
+/* Thèmes : cartes aux COULEURS de marque (2 max) */
+.wiz-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6em; }
+.wiz-theme { --tc: #b0552f; border: 1.5px solid color-mix(in srgb, var(--tc) 40%, #e6ddce);
+  border-radius: 100px; padding: 0.72em 1em; background: color-mix(in srgb, var(--tc) 9%, #fffdf9);
+  font-weight: 600; font-size: 0.86em; color: color-mix(in srgb, var(--tc) 82%, #2a2018);
+  cursor: pointer; transition: all .15s; text-align: center; user-select: none; }
+.wiz-theme:hover { transform: translateY(-1px); border-color: var(--tc); }
+.wiz-theme.selected { background: var(--tc); border-color: var(--tc); color: #fff; box-shadow: 0 5px 14px color-mix(in srgb, var(--tc) 35%, transparent); }
+.theme-hint { font-size: 0.82em; font-family: var(--font-serif); font-style: italic; color: #b0552f; margin-top: 1em; min-height: 1.2em; text-align: center; }
 
-/* Grille thèmes */
-.themes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 0.6em;
-}
-.theme-pill {
-  border: 1.5px solid var(--bordure);
-  border-radius: 100px;
-  padding: 0.6em 1em;
-  background: var(--blanc);
-  font-size: 0.78em;
-  font-weight: 600;
-  color: var(--gris);
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: center;
-  user-select: none;
-}
-.theme-pill:hover { border-color: var(--or); color: var(--texte); }
-.theme-pill.selected { background: var(--noir); color: var(--blanc); border-color: var(--noir); }
-.theme-hint { font-size: 0.7em; color: var(--or); margin-top: 0.8em; min-height: 1.2em; }
+/* Bouton continuer / CTA */
+.wiz-continue { display: block; margin: 1.8em auto 0; background: #b0552f; color: #fff; border: none; border-radius: 100px;
+  padding: 0.85em 2.4em; font-family: var(--font-sans); font-size: 0.82em; font-weight: 600; letter-spacing: 0.08em;
+  cursor: pointer; transition: all .18s; }
+.wiz-continue:hover { background: #97441f; transform: translateY(-1px); }
+.wiz-continue:disabled { background: #e6ddce; color: #b3a488; cursor: not-allowed; transform: none; box-shadow: none; }
 
-/* Navigation */
-.step-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 2.5em;
-  padding-top: 1.5em;
-  border-top: 1px solid var(--bordure);
-}
-.btn-back {
-  background: none;
-  border: none;
-  font-size: 0.75em;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gris);
-  cursor: pointer;
-  padding: 0.5em 0;
-  transition: color 0.15s;
-}
-.btn-back:hover { color: var(--texte); }
-.btn-back:disabled { opacity: 0; pointer-events: none; }
+/* Écran 6 — récap qui se relit + champ libre + CTA */
+.wiz-recap { max-width: 460px; margin: 0.4em auto 1.4em; background: #fffdf9; border: 1px solid #ece3d3;
+  border-radius: 16px; padding: 1.2em 1.4em; font-family: var(--font-serif); font-size: 1.08em; color: #4a3d2e;
+  line-height: 1.6; text-align: center; }
+.wiz-recap b { color: #b0552f; font-weight: 600; font-style: italic; }
+.wiz-free-wrap { max-width: 460px; margin: 0 auto; }
+.wiz-free-label { font-size: 0.82em; color: #9c8763; margin-bottom: 0.5em; text-align: center; }
+.wiz-free { width: 100%; min-height: 76px; border: 1.5px solid #e2d7c3; border-radius: 14px; background: #fffdf9;
+  padding: 0.8em 1em; font-family: var(--font-sans); font-size: 0.95em; color: #3a2f22; resize: vertical; outline: none; transition: border-color .15s; }
+.wiz-free:focus { border-color: var(--or); }
+.wiz-free::placeholder { color: #c0b298; }
+.wiz-cta { display: block; margin: 1.6em auto 0; background: linear-gradient(180deg, #c8a96e, #B5976A); color: #fff; border: none;
+  border-radius: 100px; padding: 1em 2.6em; font-family: var(--font-sans); font-size: 0.9em; font-weight: 600; letter-spacing: 0.06em;
+  cursor: pointer; box-shadow: 0 8px 20px rgba(181,151,106,0.32); transition: all .18s; }
+.wiz-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(181,151,106,0.4); }
 
-.btn-next {
-  background: var(--noir);
-  color: var(--blanc);
-  border: none;
-  border-radius: 3px;
-  padding: 0.85em 2em;
-  font-family: var(--font-sans);
-  font-size: 0.75em;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.btn-next:hover { background: #333; }
-.btn-next:disabled { background: var(--bordure); color: var(--gris); cursor: not-allowed; }
-
-.btn-generate-wizard {
-  background: var(--or);
-  color: var(--blanc);
-  border: none;
-  border-radius: 3px;
-  padding: 0.9em 2.2em;
-  font-family: var(--font-sans);
-  font-size: 0.75em;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.btn-generate-wizard:hover { background: var(--or-light); }
-.btn-generate-wizard:disabled { background: var(--bordure); color: var(--gris); cursor: not-allowed; }
-
-/* Champs masqués (compatibilité JS) */
+/* Champs masqués (compatibilité JS / moteur inchangé) */
 .hidden-fields { display: none; }
 
 /* ── GATE (monitoring) ───────────────────────────────────── */
@@ -1053,11 +931,14 @@ body.gate-mode { background: transparent; }
 .btn-reset:hover { border-color: var(--or); color: var(--or); }
 
 @media (max-width: 480px) {
-  .opts-grid { grid-template-columns: 1fr 1fr; }
-  .opts-grid.three { grid-template-columns: 1fr 1fr 1fr; }
-  .themes-grid { grid-template-columns: 1fr 1fr; }
-  .days-grid { gap: 0.4em; }
-  .day-btn { width: 44px; height: 44px; font-size: 0.85em; }
+  .wiz-balloon { width: 100px; }
+  .wiz-cards.c2 { grid-template-columns: 1fr 1fr; }
+  .wiz-cards.c3 { grid-template-columns: 1fr; }              /* budget en pile sur petit écran (grandes cibles) */
+  .wiz-themes { grid-template-columns: 1fr 1fr; }
+  .wiz-days { gap: 0.45em; }
+  .wiz-day { width: 56px; height: 64px; }
+  .wiz-day .n { font-size: 1.3em; }
+  .step-q { font-size: 1.5em; }
 }
 
 /* ════════════════════════════════════════════════════════
@@ -1360,8 +1241,35 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 <!-- ── WIZARD FORMULAIRE ─────────────────────────────────── -->
 <div class="wizard-wrap" id="form-card">
 
-  <div class="wizard-progress" style="margin-top:2.8em;">
-    <div class="wizard-progress-fill" id="wiz-progress" style="width:20%"></div>
+  <!-- Scène montgolfière — fil visuel de la marque, sur chaque écran -->
+  <div class="wiz-scene">
+    <svg class="wiz-balloon" viewBox="0 0 120 132" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs><clipPath id="wizEnv"><path d="M60 12 C84 12 98 31 98 52 C98 75 79 86 60 92 C41 86 22 75 22 52 C22 31 36 12 60 12 Z"/></clipPath></defs>
+      <!-- collines + chemin pointillé -->
+      <path d="M0 121 Q30 107 62 116 T120 113 V132 H0 Z" fill="#ddd0b6"/>
+      <path d="M0 127 Q40 117 74 125 T120 122 V132 H0 Z" fill="#c7cfa6"/>
+      <path d="M16 129 Q40 119 60 123 T104 116" stroke="#b0956a" stroke-width="1.6" stroke-dasharray="0.5 5" stroke-linecap="round" fill="none"/>
+      <!-- enveloppe (gores) -->
+      <g clip-path="url(#wizEnv)">
+        <rect x="18" y="8" width="84" height="88" fill="#c0632f"/>
+        <rect x="33" y="8" width="10" height="88" fill="#d99a54"/>
+        <rect x="55" y="8" width="9"  height="88" fill="#f0e4cf"/>
+        <rect x="77" y="8" width="10" height="88" fill="#d99a54"/>
+      </g>
+      <path d="M60 12 C84 12 98 31 98 52 C98 75 79 86 60 92 C41 86 22 75 22 52 C22 31 36 12 60 12 Z" fill="none" stroke="#9c4c28" stroke-width="1.4"/>
+      <!-- suspentes + nacelle -->
+      <path d="M45 84 L54 95 M75 84 L66 95" stroke="#9c4c28" stroke-width="1"/>
+      <path d="M53.5 95 H66.5 L64.5 105 H55.5 Z" fill="#8a5a34"/>
+    </svg>
+  </div>
+
+  <!-- Progression RASSURANTE : points + décompte du restant + fine barre -->
+  <div class="wiz-progress2">
+    <div class="wiz-dots" id="wiz-dots">
+      <span class="wiz-dot"></span><span class="wiz-dot"></span><span class="wiz-dot"></span><span class="wiz-dot"></span><span class="wiz-dot"></span>
+    </div>
+    <div class="wiz-count" id="wiz-count">5 étapes pour composer votre voyage</div>
+    <div class="wiz-bar"><div class="wiz-bar-fill" id="wiz-progress"></div></div>
   </div>
 
   <div class="wizard-steps">
@@ -1403,106 +1311,84 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 
     <!-- ÉTAPE 1 — Destination -->
     <div class="wizard-step active" id="wstep-1">
-      <div class="step-num">01 / 05</div>
-      <h2 class="step-q">Quelle destination vous inspire aujourd'hui ?</h2>
+      <button class="wiz-back" type="button" hidden aria-label="Retour">←</button>
+      <h2 class="step-q">Où vous emmène l'envie&nbsp;?</h2>
+      <p class="step-sub">Une ville, un nom qui vous fait rêver.</p>
       <div class="dest-field">
-        <input type="text" id="destination" class="dest-input" placeholder="Tokyo, Lisbonne, Patagonie…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false">
+        <input type="text" id="destination" class="dest-input" placeholder="Lisbonne, Tokyo, Carcassonne…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false">
         <ul class="dest-suggest" id="dest-suggest" role="listbox"></ul>
-      </div>
-      <div class="step-nav">
-        <button class="btn-back" disabled></button>
-        <button class="btn-next" id="next-1" onclick="wizNext(1)" disabled>Continuer →</button>
       </div>
     </div>
 
     <!-- ÉTAPE 2 — Durée -->
     <div class="wizard-step" id="wstep-2">
-      <div class="step-num">02 / 05</div>
-      <h2 class="step-q">Combien de jours souhaitez-vous partir ?</h2>
-      <p class="step-hint">Votre itinéraire sera construit jour par jour.</p>
-      <div class="days-grid" id="days-grid">
-        <button class="day-btn" onclick="selectDay(1)">1</button>
-        <button class="day-btn" onclick="selectDay(2)">2</button>
-        <button class="day-btn selected" onclick="selectDay(3)">3</button>
-        <button class="day-btn" onclick="selectDay(4)">4</button>
-        <button class="day-btn" onclick="selectDay(5)">5</button>
-        <button class="day-btn" onclick="selectDay(6)">6</button>
-        <button class="day-btn" onclick="selectDay(7)">7</button>
-      </div>
-      <div class="step-nav">
-        <button class="btn-back" onclick="wizBack(2)">← Retour</button>
-        <button class="btn-next" onclick="wizNext(2)">Continuer →</button>
+      <button class="wiz-back" type="button" onclick="wizBack(2)" aria-label="Retour">←</button>
+      <h2 class="step-q">Combien de temps&nbsp;?</h2>
+      <p class="step-sub">Votre itinéraire se construira jour par jour.</p>
+      <div class="wiz-days">
+        <div class="wiz-day" onclick="selectDay(1, this)"><span class="n">1</span><span class="u">jour</span></div>
+        <div class="wiz-day" onclick="selectDay(2, this)"><span class="n">2</span><span class="u">jours</span></div>
+        <div class="wiz-day" onclick="selectDay(3, this)"><span class="n">3</span><span class="u">jours</span></div>
+        <div class="wiz-day" onclick="selectDay(4, this)"><span class="n">4</span><span class="u">jours</span></div>
+        <div class="wiz-day" onclick="selectDay(5, this)"><span class="n">5</span><span class="u">jours</span></div>
       </div>
     </div>
 
     <!-- ÉTAPE 3 — Voyageurs -->
     <div class="wizard-step" id="wstep-3">
-      <div class="step-num">03 / 05</div>
-      <h2 class="step-q">Avec qui voyagez-vous ?</h2>
-      <div class="opts-grid" id="voyage-grid">
-        <div class="opt-card" onclick="selectVoyage('duo', this)">
-          <span class="opt-card-label">À deux</span>
-        </div>
-        <div class="opt-card selected" onclick="selectVoyage('solo', this)">
-          <span class="opt-card-label">Solo</span>
-        </div>
-        <div class="opt-card" onclick="selectVoyage('famille', this)">
-          <span class="opt-card-label">Famille</span>
-        </div>
-        <div class="opt-card" onclick="selectVoyage('entre amis', this)">
-          <span class="opt-card-label">Entre amis</span>
-        </div>
-      </div>
-      <div class="step-nav">
-        <button class="btn-back" onclick="wizBack(3)">← Retour</button>
-        <button class="btn-next" onclick="wizNext(3)">Continuer →</button>
+      <button class="wiz-back" type="button" onclick="wizBack(3)" aria-label="Retour">←</button>
+      <h2 class="step-q">Avec qui voyagez-vous&nbsp;?</h2>
+      <p class="step-sub">Le ton s'ajuste à votre tribu.</p>
+      <div class="wiz-cards c2">
+        <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.3"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg></span><span class="lab">Solo</span></div>
+        <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><circle cx="15" cy="8" r="2.8"/><path d="M4 20c0-2.6 2.2-4.6 5-4.6M11 20c0-2.6 2.2-4.6 5-4.6"/></svg></span><span class="lab">En duo</span></div>
+        <div class="wiz-card" onclick="selectVoyage('entre amis', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.3"/><circle cx="12" cy="7" r="2.5"/><circle cx="17" cy="8" r="2.3"/><path d="M3.5 19c0-3 3.8-4.5 8.5-4.5S20.5 16 20.5 19"/></svg></span><span class="lab">Entre amis</span></div>
+        <div class="wiz-card" onclick="selectVoyage('famille', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="7.5" r="2.7"/><circle cx="16" cy="8" r="2.5"/><circle cx="12" cy="12.5" r="1.8"/><path d="M4 20c0-2.4 1.8-4.4 4-4.4M12 20c0-2.4 1.8-4.4 4-4.4"/><path d="M9.6 20.5c0-1.5 1.1-2.7 2.4-2.7s2.4 1.2 2.4 2.7"/></svg></span><span class="lab">En famille</span></div>
       </div>
     </div>
 
     <!-- ÉTAPE 4 — Budget -->
     <div class="wizard-step" id="wstep-4">
-      <div class="step-num">04 / 05</div>
-      <h2 class="step-q">Quel niveau de confort recherchez-vous ?</h2>
-      <div class="opts-grid three" id="budget-grid">
-        <div class="opt-card" onclick="selectBudget('économique', this)">
-          <span class="opt-card-label">Essentiel</span>
-          <span class="opt-card-sub">Petits budgets, vrais voyages.</span>
-        </div>
-        <div class="opt-card selected" onclick="selectBudget('confortable', this)">
-          <span class="opt-card-label">Confort</span>
-          <span class="opt-card-sub">Le meilleur équilibre.</span>
-        </div>
-        <div class="opt-card" onclick="selectBudget('premium', this)">
-          <span class="opt-card-label">Premium</span>
-          <span class="opt-card-sub">Sans compter.</span>
-        </div>
-      </div>
-      <div class="step-nav">
-        <button class="btn-back" onclick="wizBack(4)">← Retour</button>
-        <button class="btn-next" onclick="wizNext(4)">Continuer →</button>
+      <button class="wiz-back" type="button" onclick="wizBack(4)" aria-label="Retour">←</button>
+      <h2 class="step-q">Quel budget&nbsp;?</h2>
+      <p class="step-sub">De l'essentiel au sans-compter.</p>
+      <div class="wiz-cards c3">
+        <div class="wiz-card" onclick="selectBudget('économique', this)"><span class="euro">€</span><span class="lab">Essentiel</span><span class="sub">Petits budgets, vrais voyages</span></div>
+        <div class="wiz-card" onclick="selectBudget('confortable', this)"><span class="euro">€€</span><span class="lab">Confort</span><span class="sub">Le meilleur équilibre</span></div>
+        <div class="wiz-card" onclick="selectBudget('premium', this)"><span class="euro">€€€</span><span class="lab">Premium</span><span class="sub">Sans compter</span></div>
       </div>
     </div>
 
-    <!-- ÉTAPE 5 — Thèmes -->
+    <!-- ÉTAPE 5 — Thèmes (couleurs marque, 2 max) -->
     <div class="wizard-step" id="wstep-5">
-      <div class="step-num">05 / 05</div>
-      <h2 class="step-q">Qu'est-ce qui compte le plus pour vous ?</h2>
-      <p class="step-hint">Maximum 2 thèmes.</p>
-      <div class="themes-grid">
-        <div class="theme-pill" data-cb="s-gastro" onclick="selectTheme(this)">Gastronomie</div>
-        <div class="theme-pill" data-cb="s-nature" onclick="selectTheme(this)">Nature</div>
-        <div class="theme-pill" data-cb="s-culture" onclick="selectTheme(this)">Culture</div>
-        <div class="theme-pill" data-cb="s-sportif" onclick="selectTheme(this)">Sportif</div>
-        <div class="theme-pill" data-cb="s-urban" onclick="selectTheme(this)">Urbain</div>
-        <div class="theme-pill" data-cb="s-festif" onclick="selectTheme(this)">Festif</div>
-        <div class="theme-pill" data-cb="s-bien-etre" onclick="selectTheme(this)">Bien-être</div>
+      <button class="wiz-back" type="button" onclick="wizBack(5)" aria-label="Retour">←</button>
+      <h2 class="step-q">Qu'avez-vous envie de vivre&nbsp;?</h2>
+      <p class="step-sub">Choisissez jusqu'à 2 envies.</p>
+      <div class="wiz-themes">
+        <div class="wiz-theme" data-cb="s-gastro"    style="--tc:#c68a3a" onclick="selectTheme(this)">Gastronomie</div>
+        <div class="wiz-theme" data-cb="s-nature"    style="--tc:#7a8b3f" onclick="selectTheme(this)">Nature</div>
+        <div class="wiz-theme" data-cb="s-culture"   style="--tc:#b0552f" onclick="selectTheme(this)">Culture</div>
+        <div class="wiz-theme" data-cb="s-sportif"   style="--tc:#5b8aa6" onclick="selectTheme(this)">Sport</div>
+        <div class="wiz-theme" data-cb="s-urban"     style="--tc:#9a9080" onclick="selectTheme(this)">Urbain</div>
+        <div class="wiz-theme" data-cb="s-festif"    style="--tc:#8a5a8f" onclick="selectTheme(this)">Festif</div>
+        <div class="wiz-theme" data-cb="s-bien-etre" style="--tc:#4f8a86" onclick="selectTheme(this)">Bien-être</div>
       </div>
       <div class="theme-hint" id="theme-hint"></div>
-      <div class="error-state" id="error-state"></div>
-      <div class="step-nav">
-        <button class="btn-back" onclick="wizBack(5)">← Retour</button>
-        <button class="btn-generate-wizard" onclick="generer()">Imaginer mon itinéraire</button>
+      <button class="wiz-continue" id="theme-continue" onclick="wizNext(5)" disabled>Continuer →</button>
+    </div>
+
+    <!-- ÉTAPE 6 — Presque fini : récap + champ libre + CTA -->
+    <div class="wizard-step" id="wstep-6">
+      <button class="wiz-back" type="button" onclick="wizBack(6)" aria-label="Retour">←</button>
+      <h2 class="step-q">Presque&nbsp;!</h2>
+      <p class="step-sub">On relit ensemble avant de composer.</p>
+      <div class="wiz-recap" id="wiz-recap"></div>
+      <div class="wiz-free-wrap">
+        <div class="wiz-free-label">Une envie à préciser&nbsp;? <span style="opacity:.6">(facultatif)</span></div>
+        <textarea class="wiz-free" id="wiz-free" rows="3" placeholder="« On aime flâner dans les ruelles, un café en terrasse, éviter la foule… »"></textarea>
       </div>
+      <div class="error-state" id="error-state"></div>
+      <button class="wiz-cta" onclick="generer()">Créer mon itinéraire ✦</button>
     </div>
 
   </div><!-- /wizard-steps -->
@@ -1634,7 +1520,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v290'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v291'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2659,8 +2545,11 @@ function selectPrompt(dest,quartier,jour,themes,voyage,budget,cands,opts){
   poolThemes.forEach(b=>{(cands[b]||[]).slice(0,7).forEach(c=>{const id='c'+(i++);flat.push({id,theme:b,c});});});
   const liste=flat.map(p=>{var q=p.c.notable?' ★réputé':(p.c.score>=1?'':' (peu documenté)');var w=p.c.wellness?' · cadre ressourçant':'';var ty=p.c.cat?' — type: '+p.c.cat:'';return '['+p.id+'] '+p.c.nom+' ('+p.theme+(p.c.periph?', excursion':'')+')'+ty+q+w;}).join('\n');
   const lab=themes.map(t=>THEME_LABEL[t]).join(' + ');
+  // CHAMP LIBRE optionnel du voyageur (écran 6) : CONTEXTE pour le TON, jamais un critère fermé. Vide par défaut -> aucun effet (tests offline inclus, qui ne posent pas IV_FREETEXT).
+  const freeNote=(typeof IV_FREETEXT==='string'&&IV_FREETEXT.trim())?('LE VOYAGEUR A AUSSI PRÉCISÉ (contexte libre — honore-le dans le TON, et à choix ÉQUIVALENT penche dans ce sens ; ne JAMAIS inventer de prestation ni contredire les règles ci-dessous) : « '+IV_FREETEXT.replace(/[«»"\n]/g,' ').trim().slice(0,300)+' ».\n\n'):'';
   const prompt='Tu composes le JOUR '+jour+' d\'un itinéraire à '+dest+', quartier '+quartier+'.\n'+
    'Profil: '+voyage+'. Budget: '+budget+' — '+budgetDesc+'. Thèmes choisis: '+lab+'.\n\n'+
+   freeNote+
    'LIEUX RÉELS du quartier — les SEULS utilisables (cite leur id, n\'invente AUCUN lieu) :\n'+liste+'\n\n'+
    'RÈGLES:\n'+exNote+
    '- Journée BIEN REMPLIE de ~8h30 à ~19h, à pied dans le secteur : si plusieurs activités du thème sont dans la liste, PROPOSE-EN PLUSIEURS (vise 4 à 6 étapes) et ne laisse pas l\'après-midi vide. Une activité LONGUE (canoë, golf, accro…) peut à elle seule occuper une demi-journée.\n'+
@@ -4097,63 +3986,93 @@ function getActivitesForThemes(themes) {
 }
 
 // ── WIZARD JS ────────────────────────────────────────────
-const WIZ_TOTAL = 5;
+const WIZ_TOTAL = 5;                 // 5 questions ; l'écran 6 = confirmation (non compté dans la progression)
+let IV_FREETEXT = '';                // champ libre optionnel (écran 6) -> CONTEXTE passé au prompt LLM. ZÉRO impact sur les critères fermés / la sélection moteur.
+const _wizEsc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
+// Progression RASSURANTE : points qui se remplissent + décompte du RESTANT + fine barre. `step` = écran courant (1..6).
 function wizProgress(step) {
-  document.getElementById('wiz-progress').style.width = (step / WIZ_TOTAL * 100) + '%';
+  document.querySelectorAll('#wiz-dots .wiz-dot').forEach((d, i) => {
+    d.classList.toggle('done', (i + 1) < step);
+    d.classList.toggle('current', (i + 1) === step);
+  });
+  const bar = document.getElementById('wiz-progress');
+  if (bar) bar.style.width = Math.round(Math.min(step, WIZ_TOTAL) / WIZ_TOTAL * 100) + '%';
+  const cnt = document.getElementById('wiz-count');
+  if (cnt) {
+    const remaining = WIZ_TOTAL - step;   // questions restant APRÈS l'écran courant (le point rassurant)
+    if (step > WIZ_TOTAL) cnt.textContent = 'Tout est prêt — une dernière relecture';
+    else if (step === WIZ_TOTAL) cnt.textContent = 'Dernière question';
+    else if (remaining === 1) cnt.textContent = 'Plus qu’une question';
+    else cnt.textContent = 'Plus que ' + remaining + ' questions';
+  }
 }
 
-function wizNext(step) {
-  document.getElementById('wstep-' + step).classList.remove('active');
-  document.getElementById('wstep-' + (step + 1)).classList.add('active');
-  wizProgress(step + 1);
+function wizGoto(step) {
+  document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('wstep-' + step); if (el) el.classList.add('active');
+  wizProgress(step);
+  if (step === 6) buildRecap();
+  if (step === 1) { const d = document.getElementById('destination'); if (d) setTimeout(() => { try { d.focus(); } catch(e) {} }, 80); }
   sendHeight();
 }
+function wizNext(step) { wizGoto(step + 1); }
+function wizBack(step) { wizGoto(step - 1); }
+// AUTO-AVANCE : court délai pour laisser voir la carte sélectionnée, puis on passe à l'écran suivant (pas de bouton « Suivant »).
+function wizAdvance(step) { setTimeout(() => wizGoto(step + 1), 240); }
 
-function wizBack(step) {
-  document.getElementById('wstep-' + step).classList.remove('active');
-  document.getElementById('wstep-' + (step - 1)).classList.add('active');
-  wizProgress(step - 1);
-  sendHeight();
-}
-
-function selectDay(n) {
-  document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('selected'));
-  event.target.classList.add('selected');
+function selectDay(n, el) {
+  document.querySelectorAll('.wiz-day').forEach(b => b.classList.remove('selected'));
+  if (el) el.classList.add('selected');
   document.getElementById('duree').value = n;
+  wizAdvance(2);
 }
 
 function selectVoyage(val, el) {
-  document.querySelectorAll('#voyage-grid .opt-card').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-  document.querySelector('input[name="voyage-cat"][value="' + val + '"]').checked = true;
+  document.querySelectorAll('#wstep-3 .wiz-card').forEach(c => c.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const r = document.querySelector('input[name="voyage-cat"][value="' + val + '"]'); if (r) r.checked = true;
+  wizAdvance(3);
 }
 
 function selectBudget(val, el) {
-  document.querySelectorAll('#budget-grid .opt-card').forEach(c => c.classList.remove('selected'));
-  el.classList.add('selected');
-  document.querySelector('input[name="budget-cat"][value="' + val + '"]').checked = true;
+  document.querySelectorAll('#wstep-4 .wiz-card').forEach(c => c.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const r = document.querySelector('input[name="budget-cat"][value="' + val + '"]'); if (r) r.checked = true;
+  wizAdvance(4);
 }
 
 function selectTheme(el) {
-  const cbId = el.dataset.cb;
-  const cb = document.getElementById(cbId);
-  const isSelected = el.classList.contains('selected');
-
-  if (!isSelected) {
-    const already = document.querySelectorAll('.theme-pill.selected').length;
-    if (already >= 2) {
-      document.getElementById('theme-hint').textContent = '2 thèmes maximum.';
-      setTimeout(() => document.getElementById('theme-hint').textContent = '', 2000);
+  const cb = document.getElementById(el.dataset.cb);
+  const hint = document.getElementById('theme-hint');
+  const isSel = el.classList.contains('selected');
+  if (!isSel) {
+    if (document.querySelectorAll('.wiz-theme.selected').length >= 2) {
+      if (hint) { hint.textContent = '2 envies maximum — désélectionnez-en une pour changer.'; setTimeout(() => { if (hint.textContent.indexOf('maximum') >= 0) hint.textContent = ''; }, 2200); }
       return;
     }
-    el.classList.add('selected');
-    cb.checked = true;
+    el.classList.add('selected'); if (cb) cb.checked = true;
   } else {
-    el.classList.remove('selected');
-    cb.checked = false;
+    el.classList.remove('selected'); if (cb) cb.checked = false;
   }
-  document.getElementById('theme-hint').textContent = '';
+  const n = document.querySelectorAll('.wiz-theme.selected').length;
+  const btn = document.getElementById('theme-continue'); if (btn) btn.disabled = (n < 1);   // « Continuer » actif dès 1 choix (exception multi-sélection)
+  if (hint) hint.textContent = '';
+  if (n >= 2) wizAdvance(5);   // 2e choix (= max) -> avance auto
+}
+
+// Écran 6 — récap qui se relit, à partir des sélections fermées
+function buildRecap() {
+  const dest = (document.getElementById('destination').value || '').trim() || 'Votre destination';
+  const duree = parseInt(document.getElementById('duree').value) || 3;
+  const voyage = (document.querySelector('input[name="voyage-cat"]:checked') || {}).value || 'duo';
+  const budget = (document.querySelector('input[name="budget-cat"]:checked') || {}).value || 'confortable';
+  const VOY = { solo: 'en solo', duo: 'en duo', 'entre amis': 'entre amis', famille: 'en famille' };
+  const themeLabels = Array.from(document.querySelectorAll('.wiz-theme.selected')).map(t => t.textContent.trim());
+  const el = document.getElementById('wiz-recap');
+  if (el) el.innerHTML = '<b>' + _wizEsc(dest) + '</b> · ' + duree + ' ' + (duree > 1 ? 'jours' : 'jour') +
+    ' · <b>' + _wizEsc(VOY[voyage] || voyage) + '</b> · ' + _wizEsc(budget) +
+    (themeLabels.length ? ' · <b>' + _wizEsc(themeLabels.join(' + ')) + '</b>' : '');
 }
 
 // ── MAPBOX ───────────────────────────────────────────────
@@ -4369,7 +4288,7 @@ async function init() {
     fetchActivities();
     await loadLimitsFromWorker();
     document.getElementById('destination').addEventListener('input', function() {
-      document.getElementById('next-1').disabled = this.value.trim().length < 2;
+      var _n1 = document.getElementById('next-1'); if (_n1) _n1.disabled = this.value.trim().length < 2;
     });
     ivInitDestSuggest();
     document.getElementById('duree').value = 3;
@@ -4393,7 +4312,7 @@ async function init() {
 
   // Destination — activer bouton Continuer
   document.getElementById('destination').addEventListener('input', function() {
-    document.getElementById('next-1').disabled = this.value.trim().length < 2;
+    var _n1 = document.getElementById('next-1'); if (_n1) _n1.disabled = this.value.trim().length < 2;
   });
   ivInitDestSuggest();
 
@@ -4425,7 +4344,8 @@ function ivInitDestSuggest() {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     ivDestPick = { name: f.text, center: f.center, cc: f.cc || '' }; // l'event 'input' a remis à null, on re-pose
     clearTimeout(timer); // empêche la recherche programmée par l'event ci-dessus de rouvrir la liste
-    close(); input.focus();
+    close();
+    if (typeof wizGoto === 'function') setTimeout(() => wizGoto(2), 220); // AUTO-AVANCE : la ville choisie -> écran suivant (pas de bouton)
   };
   const render = () => {
     box.innerHTML = items.map((f, i) =>
@@ -4463,10 +4383,16 @@ function ivInitDestSuggest() {
     timer = setTimeout(() => search(q), 220);
   });
   input.addEventListener('keydown', (e) => {
-    if (!box.classList.contains('open')) return;
+    const open = box.classList.contains('open');
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (open && items.length) { choose(items[active >= 0 ? active : 0]); }                              // Entrée -> choisit la suggestion (active, sinon la 1re)
+      else if (input.value.trim().length >= 2 && typeof wizGoto === 'function') { close(); setTimeout(() => wizGoto(2), 120); } // ville tapée librement -> on avance quand même
+      return;
+    }
+    if (!open) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + 1, items.length - 1); render(); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); render(); }
-    else if (e.key === 'Enter') { if (active >= 0 && items[active]) { e.preventDefault(); choose(items[active]); } }
     else if (e.key === 'Escape') { close(); }
   });
   box.addEventListener('mousedown', (e) => {
@@ -4483,7 +4409,14 @@ async function resetForm() {
   wizProgress(1);
   document.getElementById('destination').value = '';
   ivDestPick = null;
-  document.getElementById('next-1').disabled = true;
+  // remet le wizard À NEUF : plus aucune carte/thème sélectionné, champ libre vidé, « Continuer » thèmes désactivé
+  document.querySelectorAll('.wiz-day.selected, .wiz-card.selected, .wiz-theme.selected').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.style-cb').forEach(cb => { cb.checked = false; });
+  const _tc = document.getElementById('theme-continue'); if (_tc) _tc.disabled = true;
+  const _tf = document.getElementById('wiz-free'); if (_tf) _tf.value = '';
+  const _th = document.getElementById('theme-hint'); if (_th) _th.textContent = '';
+  IV_FREETEXT = '';
+  var _n1r = document.getElementById('next-1'); if (_n1r) _n1r.disabled = true;
 
   // Si la limite est atteinte, rester sur le gate
   const { allowed: resetAllowed, count: resetCount } = await getWorkerCount();
@@ -4599,6 +4532,9 @@ async function generer() {
   };
   const themeKeys = themes.map(l => THEME_LABEL_TO_KEY[l]).filter(Boolean).slice(0, 2);
   const saison = ''; // le wizard n'a pas de saison → indifférent
+
+  // CHAMP LIBRE optionnel (écran 6) : CONTEXTE pour le LLM uniquement. Aucun parsing, aucun critère fermé touché.
+  const _free = document.getElementById('wiz-free'); IV_FREETEXT = (_free && _free.value ? _free.value : '').trim().slice(0, 400);
 
   params = { destination, destinationB, duree, budget: budgetCat, periode, mode, co2, themes, themeKeys, styleLabel, voyage: voyageCat };
 
