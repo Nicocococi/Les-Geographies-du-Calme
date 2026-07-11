@@ -34,10 +34,12 @@ body.gate-mode { background: transparent; }
   background: linear-gradient(180deg, #faf7f1 0%, #f2ebdf 100%);
 }
 
-/* Scène montgolfière — le FIL VISUEL de la marque, présent sur chaque écran (motif récurrent au-dessus de la question) */
-.wiz-scene { width: 100%; max-width: 560px; margin: 1.9em auto 0; display: flex; justify-content: center; }
-.wiz-balloon { width: 84px; height: auto; display: block; animation: wizFloat 6.5s ease-in-out infinite; transform-origin: 50% 62%; }
-@keyframes wizFloat { 0%,100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-7px) rotate(1.2deg); } }
+/* Scène du favicon (ballon + collines + chemin) — FIL VISUEL de la marque, au-dessus de chaque question. Ballon qui FLOTTE (idle accentué : bob marqué + dérive gauche/droite). */
+.wiz-scene { position: relative; width: 184px; height: 122px; margin: 1.9em auto 0; }
+.wiz-hills { position: absolute; left: 0; bottom: 0; width: 100%; height: 50px; display: block; }
+.wiz-balloon { position: absolute; left: 50%; top: 0; width: 62px; margin-left: -31px; animation: wizFloat 5.5s ease-in-out infinite; transform-origin: 50% 62%; }
+.wiz-balloon svg { width: 100%; height: auto; display: block; }
+@keyframes wizFloat { 0% { transform: translate(-7px, 3px) rotate(-2deg); } 30% { transform: translate(2px, -9px) rotate(1deg); } 60% { transform: translate(7px, -1px) rotate(2deg); } 100% { transform: translate(-7px, 3px) rotate(-2deg); } }
 @media (prefers-reduced-motion: reduce) { .wiz-balloon { animation: none; } }
 
 /* Progression RASSURANTE : points qui se remplissent + décompte du RESTANT + fine barre */
@@ -944,7 +946,8 @@ body.gate-mode { background: transparent; }
 .btn-reset:hover { border-color: var(--or); color: var(--or); }
 
 @media (max-width: 480px) {
-  .wiz-balloon { width: 72px; }
+  .wiz-scene { width: 164px; height: 110px; }
+  .wiz-balloon { width: 56px; margin-left: -28px; }
   .wiz-cards.c2 { grid-template-columns: 1fr 1fr; }
   .wiz-cards.c3 { grid-template-columns: 1fr; }              /* budget en pile sur petit écran (grandes cibles) */
   .wiz-themes { grid-template-columns: 1fr 1fr; }
@@ -1254,28 +1257,31 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 <!-- ── WIZARD FORMULAIRE ─────────────────────────────────── -->
 <div class="wizard-wrap" id="form-card">
 
-  <!-- Scène montgolfière — fil visuel de la marque, sur chaque écran -->
+  <!-- Scène du favicon SANS le hublot : collines 2 tons + chemin blanc sinueux, ballon à fuseaux terracotta/BLANC qui flotte. Transparent, se fond dans la page. MÊME ballon sur l'écran de génération. -->
   <div class="wiz-scene">
-    <!-- Le beau ballon du favicon, SANS le hublot : fond transparent, se fond dans la page. MÊME ballon sur l'écran de génération. -->
-    <svg class="wiz-balloon" viewBox="0 0 72 90" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id="balGradW" x1="0.2" y1="0" x2="0.8" y2="1">
-          <stop offset="0" stop-color="#e58054"/><stop offset="0.55" stop-color="#cf5a34"/><stop offset="1" stop-color="#ad462a"/>
-        </linearGradient>
-        <radialGradient id="balShineW" cx="0.36" cy="0.28" r="0.62">
-          <stop offset="0" stop-color="#f2a67f" stop-opacity="0.85"/><stop offset="1" stop-color="#f2a67f" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-      <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="url(#balGradW)"/>
-      <g stroke="#9c4326" stroke-width="0.7" opacity="0.45" fill="none">
-        <path d="M36 4 C36 22 36 47 36 63"/><path d="M23.5 5.5 C17 24 21.5 50 30.5 61"/><path d="M48.5 5.5 C55 24 50.5 50 41.5 61"/>
-      </g>
-      <ellipse cx="27" cy="24" rx="10.5" ry="14.5" fill="url(#balShineW)"/>
-      <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="none" stroke="#9c4326" stroke-width="1.1" opacity="0.65"/>
-      <path d="M27 58 L31 73 M45 58 L41 73" stroke="#8a5a34" stroke-width="0.9"/>
-      <path d="M30.5 73 H41.5 L39.5 83 H32.5 Z" fill="#8a5a34"/>
-      <path d="M30.5 73 H41.5" stroke="#6e4526" stroke-width="1.1"/>
+    <svg class="wiz-hills" viewBox="0 0 200 66" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M0 44 Q52 28 104 36 T200 32 V66 H0 Z" fill="#dcc79c"/>
+      <path d="M0 52 Q60 38 122 46 T200 44 V66 H0 Z" fill="#cba25c"/>
+      <path d="M66 66 C78 52 60 46 74 38 C86 31 76 24 82 18" fill="none" stroke="#f6eddd" stroke-width="4.5" stroke-linecap="round"/>
     </svg>
+    <div class="wiz-balloon" aria-hidden="true">
+      <svg viewBox="0 0 72 92" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="beW"><path d="M36 5 C53 5 63 17 63 33 C63 50 49 60 36 65 C23 60 9 50 9 33 C9 17 19 5 36 5 Z"/></clipPath>
+          <linearGradient id="bgW" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#d9673b"/><stop offset="1" stop-color="#bf522b"/></linearGradient>
+        </defs>
+        <g clip-path="url(#beW)">
+          <rect x="7" y="2" width="58" height="66" fill="url(#bgW)"/>
+          <rect x="16.5" y="2" width="8.5" height="66" fill="#f6eddd"/>
+          <rect x="34" y="2" width="8" height="66" fill="#f6eddd"/>
+          <rect x="51.5" y="2" width="8.5" height="66" fill="#f6eddd"/>
+        </g>
+        <path d="M36 5 C53 5 63 17 63 33 C63 50 49 60 36 65 C23 60 9 50 9 33 C9 17 19 5 36 5 Z" fill="none" stroke="#a2451f" stroke-width="1" opacity="0.5"/>
+        <path d="M26 60 L30 75 M46 60 L42 75" stroke="#8a5a34" stroke-width="0.9"/>
+        <path d="M29 75 H43 L41 85 H31 Z" fill="#9c6b3f"/>
+        <path d="M29.4 78.6 H42.6 M30.1 82 H41.9" stroke="#6e4526" stroke-width="1"/>
+      </svg>
+    </div>
   </div>
 
   <!-- Progression RASSURANTE : points + décompte du restant + fine barre -->
@@ -1355,10 +1361,10 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
       <h2 class="step-q">Avec qui voyagez-vous&nbsp;?</h2>
       <p class="step-sub">On adapte les lieux et le rythme.</p>
       <div class="wiz-cards c2">
-        <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.3"/><path d="M5.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/></svg></span><span class="lab">Solo</span></div>
-        <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><circle cx="15" cy="8" r="2.8"/><path d="M4 20c0-2.6 2.2-4.6 5-4.6M11 20c0-2.6 2.2-4.6 5-4.6"/></svg></span><span class="lab">En duo</span></div>
-        <div class="wiz-card" onclick="selectVoyage('entre amis', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.3"/><circle cx="12" cy="7" r="2.5"/><circle cx="17" cy="8" r="2.3"/><path d="M3.5 19c0-3 3.8-4.5 8.5-4.5S20.5 16 20.5 19"/></svg></span><span class="lab">Entre amis</span></div>
-        <div class="wiz-card" onclick="selectVoyage('famille', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6.2" r="2.5"/><path d="M2.4 20c0-3 1.6-5.2 3.6-5.2s3.6 2.2 3.6 5.2"/><circle cx="18" cy="6.2" r="2.5"/><path d="M14.4 20c0-3 1.6-5.2 3.6-5.2s3.6 2.2 3.6 5.2"/><circle cx="12" cy="10.6" r="1.9"/><path d="M9.2 20c0-2.2 1.2-3.9 2.8-3.9s2.8 1.7 2.8 3.9"/></svg></span><span class="lab">En famille</span></div>
+        <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6.4a3 3 0 0 1 6 0"/><path d="M6.5 9a5.5 5.5 0 0 1 11 0v8a2.4 2.4 0 0 1-2.4 2.4H8.9A2.4 2.4 0 0 1 6.5 17z"/><path d="M9.6 12h4.8v5.4H9.6z"/></svg></span><span class="lab">Solo</span></div>
+        <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10h5.5v3a2.75 2.75 0 0 1-5.5 0z"/><path d="M9 10.5a1.9 1.9 0 0 1 0 3"/><path d="M2.8 17.2h6.9"/><path d="M15 10h5.5v3a2.75 2.75 0 0 1-5.5 0z"/><path d="M20.5 10.5a1.9 1.9 0 0 1 0 3"/><path d="M14.3 17.2h6.9"/></svg></span><span class="lab">En duo</span></div>
+        <div class="wiz-card" onclick="selectVoyage('entre amis', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.2 L10.5 5.6 L8.4 10.2 Z"/><path d="M8.4 10.2 L6.7 17.3 M4.7 17.9 L9.3 16.6"/><path d="M19.5 4.2 L13.5 5.6 L15.6 10.2 Z"/><path d="M15.6 10.2 L17.3 17.3 M19.3 17.9 L14.7 16.6"/></svg></span><span class="lab">Entre amis</span></div>
+        <div class="wiz-card" onclick="selectVoyage('famille', this)"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 L12 4.5 L20.5 11"/><path d="M5.8 10V19.2h12.4V10"/><path d="M10.3 19.2v-5h3.4v5"/></svg></span><span class="lab">En famille</span></div>
       </div>
     </div>
 
@@ -1421,17 +1427,21 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
     <div class="fresco-near" id="fr-near"></div>
     <div class="fresco-shadow" id="gen-shadow"></div>
     <div class="fresco-balloon" id="gen-balloon">
-      <svg viewBox="0 0 72 90" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 72 92" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <linearGradient id="balGradG" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0" stop-color="#e58054"/><stop offset="0.55" stop-color="#cf5a34"/><stop offset="1" stop-color="#ad462a"/></linearGradient>
-          <radialGradient id="balShineG" cx="0.36" cy="0.28" r="0.62"><stop offset="0" stop-color="#f2a67f" stop-opacity="0.85"/><stop offset="1" stop-color="#f2a67f" stop-opacity="0"/></radialGradient>
+          <clipPath id="beG"><path d="M36 5 C53 5 63 17 63 33 C63 50 49 60 36 65 C23 60 9 50 9 33 C9 17 19 5 36 5 Z"/></clipPath>
+          <linearGradient id="bgG" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#d9673b"/><stop offset="1" stop-color="#bf522b"/></linearGradient>
         </defs>
-        <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="url(#balGradG)"/>
-        <g stroke="#9c4326" stroke-width="0.7" opacity="0.45" fill="none"><path d="M36 4 C36 22 36 47 36 63"/><path d="M23.5 5.5 C17 24 21.5 50 30.5 61"/><path d="M48.5 5.5 C55 24 50.5 50 41.5 61"/></g>
-        <ellipse cx="27" cy="24" rx="10.5" ry="14.5" fill="url(#balShineG)"/>
-        <path d="M36 4 C52 4 62 16 62 32 C62 49 48 58 36 63 C24 58 10 49 10 32 C10 16 20 4 36 4 Z" fill="none" stroke="#9c4326" stroke-width="1.1" opacity="0.65"/>
-        <path d="M27 58 L31 73 M45 58 L41 73" stroke="#8a5a34" stroke-width="0.9"/>
-        <path d="M30.5 73 H41.5 L39.5 83 H32.5 Z" fill="#8a5a34"/><path d="M30.5 73 H41.5" stroke="#6e4526" stroke-width="1.1"/>
+        <g clip-path="url(#beG)">
+          <rect x="7" y="2" width="58" height="66" fill="url(#bgG)"/>
+          <rect x="16.5" y="2" width="8.5" height="66" fill="#f6eddd"/>
+          <rect x="34" y="2" width="8" height="66" fill="#f6eddd"/>
+          <rect x="51.5" y="2" width="8.5" height="66" fill="#f6eddd"/>
+        </g>
+        <path d="M36 5 C53 5 63 17 63 33 C63 50 49 60 36 65 C23 60 9 50 9 33 C9 17 19 5 36 5 Z" fill="none" stroke="#a2451f" stroke-width="1" opacity="0.5"/>
+        <path d="M26 60 L30 75 M46 60 L42 75" stroke="#8a5a34" stroke-width="0.9"/>
+        <path d="M29 75 H43 L41 85 H31 Z" fill="#9c6b3f"/>
+        <path d="M29.4 78.6 H42.6 M30.1 82 H41.9" stroke="#6e4526" stroke-width="1"/>
       </svg>
     </div>
     <div class="fresco-bubbles" id="gen-bubbles"></div>
@@ -1459,20 +1469,28 @@ const LOADING_MSGS = ['On consulte nos carnets de voyage…','Les bonnes adresse
 
 // ── ÉCRAN DE GÉNÉRATION : chiffres RÉELS (requête /places), personnalisés selon les thèmes. JAMAIS inventés (honnêteté marque). ──
 const GEN_STAT_LABEL = { gastronomie:'restaurants et bonnes tables', nature:'espaces de nature', culture:'lieux de culture', sport:'spots pour bouger', urbain:'adresses de la ville', festif:'sorties et soirées', bienetre:'haltes bien-être' };
-const GEN_BUBBLE_LABEL = { gastronomie:'tables', nature:'nature', culture:'culture', sport:'sport', urbain:'ville', festif:'sorties', bienetre:'bien-être', notable:'repères' };
+const GEN_BUBBLE_LABEL = { gastronomie:'tables', nature:'nature', culture:'culture', sport:'sport', urbain:'vie urbaine', festif:'sorties', bienetre:'bien-être', notable:'pépites' };
 
 // ===== FRESQUE-VOYAGE : briques SVG modulaires (monument + props), même ligne de sol (y=126) -> s'emboîtent sans couture. =====
 // Mono-ton terracotta, silhouettes épurées. À chaque génération on en pioche 4 au hasard, ordre aléatoire -> chaque run est unique.
 const _FR_H = 150, _FR_BW = 182, _FR_G = 126;
 const FRESCO_BRICKS = [
-  /* Gizeh */      '<path d="M12 126 L52 52 L92 126 Z" fill="#bd5f2d"/><path d="M76 126 L106 72 L136 126 Z" fill="#a4491f"/><path d="M120 126 q6 -20 28 -16 q10 -8 22 2 l3 14 Z" fill="#b45528"/>',
-  /* Paris */      '<path d="M92 22 Q94 60 106 126 L97 126 Q92 84 92 60 Q92 84 87 126 L78 126 Q90 60 92 22 Z" fill="#c0632f"/><rect x="84" y="84" width="16" height="4" fill="#c0632f"/><rect x="91" y="12" width="2" height="10" fill="#c0632f"/><path d="M18 126 V86 H56 V126 Z" fill="#a4491f"/><path d="M16 86 L37 74 L58 86 Z" fill="#a4491f"/><rect x="150" y="104" width="4" height="22" fill="#8a4a24"/><circle cx="152" cy="102" r="13" fill="#b45528"/>',
-  /* Fuji+torii */ '<path d="M4 126 L58 46 L112 126 Z" fill="#bd5f2d"/><path d="M44 62 L58 46 L72 62 L64 66 L58 60 L52 66 Z" fill="#f2e6d2"/><path d="M120 126 V80 M158 126 V80" stroke="#a4491f" stroke-width="5"/><path d="M114 80 H164 M117 88 H161" stroke="#a4491f" stroke-width="5"/><path d="M139 80 V72" stroke="#a4491f" stroke-width="4"/>',
-  /* New York */   '<rect x="14" y="66" width="18" height="60" fill="#a4491f"/><rect x="36" y="50" width="22" height="76" fill="#c0632f"/><rect x="62" y="80" width="16" height="46" fill="#b45528"/><rect x="118" y="72" width="7" height="54" fill="#c0632f"/><circle cx="121.5" cy="66" r="7" fill="#c0632f"/><path d="M121.5 59 l3 -11 l3 5 z" fill="#c0632f"/><path d="M114 63 l-6 -3 M129 63 l6 -3" stroke="#c0632f" stroke-width="2"/>',
-  /* Rome */       '<path d="M34 126 V78 Q34 60 80 60 Q126 60 126 78 V126 Z" fill="#c0632f"/><rect x="34" y="74" width="92" height="4" fill="#faf3ea" opacity="0.55"/><rect x="34" y="92" width="92" height="4" fill="#faf3ea" opacity="0.45"/><rect x="150" y="98" width="4" height="28" fill="#8a4a24"/><path d="M152 100 q-16 0 -20 -8 q11 4 20 0 q9 4 20 0 q-4 8 -20 8 Z" fill="#b45528"/>',
-  /* Agra (Taj) */ '<path d="M72 126 V82 Q72 60 92 58 Q112 60 112 82 V126 Z" fill="#c0632f"/><path d="M92 38 Q108 58 92 68 Q76 58 92 38 Z" fill="#c0632f"/><rect x="90" y="30" width="4" height="8" fill="#c0632f"/><rect x="54" y="68" width="6" height="58" fill="#b45528"/><rect x="124" y="68" width="6" height="58" fill="#b45528"/>',
-  /* Far West */   '<path d="M18 126 V78 H60 V70 H96 V126 Z" fill="#bd5f2d"/><path d="M144 126 V86 M144 100 q-11 0 -11 -11 M144 108 q11 0 11 -11" stroke="#a4491f" stroke-width="8" fill="none" stroke-linecap="round"/>',
-  /* Sydney */     '<path d="M26 126 Q30 90 52 92 Q49 108 66 108 Q62 94 82 96 Q78 112 98 112 L98 126 Z" fill="#c0632f"/><path d="M118 126 L118 84 L146 126 Z" fill="#b45528"/><path d="M118 84 L118 126" stroke="#8a4a24" stroke-width="2"/>'
+  /* GIZEH : dunes ocre + 2 pyramides + sphinx */
+  '<path d="M0 116 Q60 106 122 114 T182 112 V126 H0 Z" fill="#d9a05a"/><path d="M12 116 L52 52 L92 116 Z" fill="#c0632f"/><path d="M70 116 L102 74 L134 116 Z" fill="#a4491f"/><path d="M120 116 q3 -13 20 -12 q6 -7 15 -1 l4 13 Z" fill="#b45528"/>',
+  /* PARIS : Tour Eiffel (jambes courbes + 2 plateformes + arche) + immeuble + platane */
+  '<path d="M91 20 C91 40 86 72 74 126 L83 126 C90 92 91 66 91 52 C91 66 92 92 99 126 L108 126 C96 72 91 40 91 20 Z" fill="#c0632f"/><rect x="90" y="11" width="2" height="9" fill="#c0632f"/><rect x="81" y="58" width="20" height="4" fill="#c0632f"/><rect x="85" y="84" width="12" height="3" fill="#c0632f"/><path d="M78 126 Q91 106 104 126" fill="none" stroke="#c0632f" stroke-width="3"/><path d="M16 126 V88 H52 V126 Z" fill="#a4491f"/><path d="M14 88 L34 76 L54 88 Z" fill="#a4491f"/><rect x="150" y="106" width="4" height="20" fill="#8a4a24"/><circle cx="152" cy="104" r="12" fill="#b45528"/>',
+  /* JAPON : Mont Fuji + neige BLANCHE + torii ROUGE */
+  '<path d="M2 126 L58 42 L114 126 Z" fill="#c0632f"/><path d="M40 66 L58 42 L76 66 L67 61 L58 53 L49 61 Z" fill="#f4ecdf"/><g stroke="#c0392b" stroke-width="5" fill="none"><path d="M124 126 V82 M158 126 V82"/><path d="M118 82 H164 M121 90 H161"/></g><path d="M139 82 V74" stroke="#c0392b" stroke-width="4"/>',
+  /* NEW YORK : gratte-ciels (fenêtres) + Statue de la Liberté (couronne + torche) */
+  '<rect x="10" y="62" width="18" height="64" fill="#a4491f"/><rect x="32" y="46" width="22" height="80" fill="#c0632f"/><rect x="58" y="78" width="16" height="48" fill="#b45528"/><g fill="#f4ecdf" opacity="0.4"><rect x="37" y="52" width="3" height="4"/><rect x="45" y="52" width="3" height="4"/><rect x="37" y="62" width="3" height="4"/><rect x="45" y="62" width="3" height="4"/><rect x="37" y="72" width="3" height="4"/><rect x="45" y="72" width="3" height="4"/></g><rect x="116" y="110" width="16" height="16" fill="#a4491f"/><rect x="120" y="72" width="7" height="38" fill="#c0632f"/><circle cx="123.5" cy="66" r="6.5" fill="#c0632f"/><path d="M117 63 l1.5 -6 M123.5 60 l0 -7 M130 63 l-1.5 -6" stroke="#c0632f" stroke-width="1.6"/><path d="M127 66 L134 55" stroke="#c0632f" stroke-width="3"/><circle cx="135" cy="53" r="3" fill="#e0a24a"/>',
+  /* ROME : Colisée (arcades caractéristiques) + pin parasol */
+  '<path d="M34 126 V78 Q34 60 80 60 Q126 60 126 78 V126 Z" fill="#c0632f"/><g fill="#f4e6d4"><path d="M40 86 v-7 a4.5 4.5 0 0 1 9 0 v7 Z"/><path d="M55 86 v-7 a4.5 4.5 0 0 1 9 0 v7 Z"/><path d="M70 86 v-7 a4.5 4.5 0 0 1 9 0 v7 Z"/><path d="M85 86 v-7 a4.5 4.5 0 0 1 9 0 v7 Z"/><path d="M100 86 v-7 a4.5 4.5 0 0 1 9 0 v7 Z"/><path d="M47 108 v-7 a4 4 0 0 1 8 0 v7 Z"/><path d="M62 108 v-7 a4 4 0 0 1 8 0 v7 Z"/><path d="M77 108 v-7 a4 4 0 0 1 8 0 v7 Z"/><path d="M92 108 v-7 a4 4 0 0 1 8 0 v7 Z"/></g><rect x="150" y="98" width="4" height="28" fill="#8a4a24"/><path d="M152 100 q-16 0 -20 -8 q11 4 20 0 q9 4 20 0 q-4 8 -20 8 Z" fill="#b45528"/>',
+  /* AGRA : Taj Mahal (dôme + minarets BLANCS) */
+  '<rect x="66" y="88" width="52" height="38" fill="#c0632f"/><path d="M82 126 V104 Q82 94 92 94 Q102 94 102 104 V126 Z" fill="#8a3f1c"/><path d="M70 90 Q70 66 92 62 Q114 66 114 90 Z" fill="#f4ecdf"/><path d="M92 44 Q100 60 92 66 Q84 60 92 44 Z" fill="#f4ecdf"/><rect x="90" y="37" width="4" height="8" fill="#f4ecdf"/><rect x="54" y="72" width="5" height="54" fill="#efe3d0"/><rect x="125" y="72" width="5" height="54" fill="#efe3d0"/>',
+  /* FAR WEST : mesa + cactus saguaro (bras) */
+  '<path d="M14 126 V80 H56 V72 H94 V126 Z" fill="#bd5f2d"/><path d="M144 126 V84 M144 102 q-11 0 -11 -12 v-4 M144 110 q11 0 11 -12 v-4" fill="none" stroke="#a4491f" stroke-width="8" stroke-linecap="round"/>',
+  /* SYDNEY : coques BLANCHES de l\'Opéra + Harbour Bridge */
+  '<path d="M18 126 Q24 86 50 90 Q45 108 66 108 Q60 92 86 96 Q80 114 102 114 L102 126 Z" fill="#f4ecdf"/><path d="M18 126 Q24 86 50 90 Q45 108 66 108 Q60 92 86 96 Q80 114 102 114" fill="none" stroke="#cba58a" stroke-width="1"/><path d="M110 126 V114 Q140 86 170 114 V126" fill="none" stroke="#a4491f" stroke-width="4"/><path d="M110 114 H170" stroke="#a4491f" stroke-width="3"/>'
 ];
 const _FRESCO_FAR = '<path d="M0 126 Q120 98 240 112 T480 108 T720 116 V150 H0 Z" fill="#cba873"/>';
 const _FRESCO_CLOUD = '<g fill="#ffffff" opacity="0.9"><ellipse cx="60" cy="34" rx="26" ry="12"/><ellipse cx="42" cy="40" rx="16" ry="10"/><ellipse cx="80" cy="40" rx="18" ry="10"/></g>';
@@ -1498,8 +1516,8 @@ function _countUp(el, target, dur){
 }
 // Chiffres RÉELS (/places ville+thèmes) présentés en NUAGES : GROS = catégories des thèmes CHOISIS (mis en avant), PETITS =
 // autres catégories (contexte). Personnalisé -> changer les thèmes change QUELS nuages sont gros. Parallèle à la génération.
-const _FR_SLOTS_BIG = [ {x:19,y:14}, {x:74,y:12} ];
-const _FR_SLOTS_SMALL = [ {x:6,y:48}, {x:88,y:44}, {x:28,y:6}, {x:72,y:58}, {x:46,y:60} ];
+const _FR_SLOTS_BIG = [ {x:17,y:11}, {x:75,y:9} ];
+const _FR_SLOTS_SMALL = [ {x:5,y:40}, {x:91,y:36}, {x:33,y:3}, {x:66,y:42} ];
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
@@ -1669,7 +1687,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v294'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v295'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
