@@ -1585,6 +1585,22 @@ const _FR_SLOTS_SMALL = [ {x:1,y:38}, {x:78,y:30}, {x:33,y:22}, {x:64,y:40} ];
 const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:56,y:2} ];
 // petits : 2 en haut (G/D), le 3e CENTRÉ mais un cran plus BAS (son milieu ~ au bas des 2 du haut -> triangle organique, pas 3 alignés), le 4e en bas-droite.
 const _FR_SLOTS_SMALL_M = [ {x:2,y:30}, {x:68,y:30}, {x:35,y:39}, {x:66,y:50} ];
+// Chaque nuage a un nombre de BOSSES aléatoire (3 à 6) : bosse centrale plus haute/grosse, bords plus bas, petites variations.
+// La base (rect arrondi) reste PLEINE et couvre la zone du texte -> chiffre/label toujours lisibles quelle que soit la forme.
+function _cloudShapeSVG(){
+  const n = 3 + Math.floor(Math.random() * 4);     // 3..6 bosses
+  const circles = [];
+  for (let i = 0; i < n; i++){
+    const t = n === 1 ? 0.5 : i / (n - 1);          // position 0..1 sur la largeur
+    const cx = 16 + t * 68;                          // 16..84 (dans le viewBox)
+    const central = 1 - Math.abs(t - 0.5) * 2;       // 0 aux bords, 1 au centre
+    const r = 14 + central * 9 + (Math.random() * 4 - 2);
+    const cy = 34 - central * 10 + (Math.random() * 3 - 1.5);
+    circles.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '"/>');
+  }
+  return '<svg class="fr-cloud-bg" viewBox="0 0 100 68" preserveAspectRatio="none"><g fill="#fffdf9">' +
+    circles.join('') + '<rect x="6" y="34" width="88" height="28" rx="14"/></g></svg>';
+}
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
@@ -1609,14 +1625,19 @@ async function _ivGenStats(dest, themeKeys, pick){
   const _mob = (window.innerWidth || 999) <= 640;
   const mk = (b, big, slot) => {
     // MOBILE : nuages + texte un peu plus PETITS -> tiennent sans s'empiler dans une scène raccourcie (page sans scroll). Desktop inchangé.
-    const w = big ? (_mob ? 160 : 190) : (_mob ? 112 : 124), h = Math.round(w * 0.74);
+    // TAILLE ALÉATOIRE des petits nuages (thèmes NON choisis) : facteur 0.84..1.0, TOUJOURS < gros nuages (thèmes). Police mise à l'échelle -> texte lisible.
+    const sizeF = big ? 1 : (0.84 + Math.random() * 0.16);
+    const baseW = big ? (_mob ? 160 : 190) : (_mob ? 112 : 124);
+    const w = Math.round(baseW * sizeF), h = Math.round(w * 0.74);
     const el = document.createElement('div');
     el.className = 'fr-bubble ' + (big ? 'big' : 'small');
     el.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + slot.x + '%;top:' + slot.y + '%;';
     el.dataset.ph = (Math.random() * 6.28).toFixed(2);
-    el.innerHTML = '<svg class="fr-cloud-bg" viewBox="0 0 100 68" preserveAspectRatio="none"><g fill="#fffdf9"><circle cx="27" cy="34" r="20"/><circle cx="50" cy="24" r="25"/><circle cx="74" cy="34" r="20"/><rect x="6" y="34" width="88" height="28" rx="14"/></g></svg>' +
-      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + (big ? (_mob ? 1.72 : 2.05) : (_mob ? 1.22 : 1.45)) + 'em">0</span>' +
-      '<span class="fr-lab" style="font-size:' + (big ? (_mob ? 0.62 : 0.7) : (_mob ? 0.5 : 0.56)) + 'em">' + _wizEsc(b.label) + '</span>';
+    const numEm = (big ? (_mob ? 1.72 : 2.05) : (_mob ? 1.22 : 1.45)) * sizeF;
+    const labEm = (big ? (_mob ? 0.62 : 0.7) : (_mob ? 0.5 : 0.56)) * sizeF;
+    el.innerHTML = _cloudShapeSVG() +
+      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + numEm.toFixed(3) + 'em">0</span>' +
+      '<span class="fr-lab" style="font-size:' + labEm.toFixed(3) + 'em">' + _wizEsc(b.label) + '</span>';
     box.appendChild(el);
   };
   const _SB = _mob ? _FR_SLOTS_BIG_M : _FR_SLOTS_BIG, _SS = _mob ? _FR_SLOTS_SMALL_M : _FR_SLOTS_SMALL;
@@ -1805,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v320'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v321'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
