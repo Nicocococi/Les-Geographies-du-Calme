@@ -1583,7 +1583,8 @@ const _FR_SLOTS_SMALL = [ {x:1,y:38}, {x:78,y:30}, {x:33,y:22}, {x:64,y:40} ];
 // MOBILE (écran étroit ≤640px) : les nuages (largeur px fixe) se chevauchaient dans le tiers haut. On les ÉTALE en zig-zag qui
 // descend (gauche/droite alternés), certains plus bas MAIS au-dessus du globe (sommet ~83% de la scène). Desktop inchangé.
 const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:56,y:2} ];
-const _FR_SLOTS_SMALL_M = [ {x:2,y:30}, {x:68,y:30}, {x:27,y:51}, {x:60,y:51} ];
+// petits : 2 en haut (G/D), le 3e CENTRÉ mais un cran plus BAS (son milieu ~ au bas des 2 du haut -> triangle organique, pas 3 alignés), le 4e en bas-droite.
+const _FR_SLOTS_SMALL_M = [ {x:2,y:30}, {x:68,y:30}, {x:35,y:39}, {x:66,y:50} ];
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
@@ -1804,7 +1805,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v319'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v320'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
