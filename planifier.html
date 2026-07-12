@@ -1588,22 +1588,27 @@ const _FR_SLOTS_SMALL_M = [ {x:2,y:30}, {x:68,y:30}, {x:35,y:39}, {x:66,y:50} ];
 // Chaque nuage a un nombre de BOSSES aléatoire (3 à 6) : bosse centrale plus haute/grosse, bords plus bas, petites variations.
 // La base (rect arrondi) reste PLEINE et couvre la zone du texte -> chiffre/label toujours lisibles quelle que soit la forme.
 function _cloudShapeSVG(){
-  const n = 3 + Math.floor(Math.random() * 4);       // 3..6 bosses (silhouette VISIBLEMENT différente)
+  const n = 4 + Math.floor(Math.random() * 5);       // 4..8 bosses (silhouette VISIBLEMENT différente)
   const span = 78, x0 = 11, gap = span / (n - 1);
-  const baseR = gap * 0.62;                            // rayon lié à l'espacement -> vraies VALLÉES entre bosses (3 grosses bosses vs 6 petites)
+  const baseR = gap * 0.62;                            // rayon lié à l'espacement -> vraies VALLÉES entre bosses
   const circles = [];
-  for (let i = 0; i < n; i++){
-    const t = i / (n - 1);                            // 0..1
-    const cx = x0 + t * span;
-    const central = 1 - Math.abs(t - 0.5) * 2;         // 0 aux bords, 1 au centre
-    let r = baseR * (0.8 + central * 0.45) + (Math.random() * 3 - 1.5);
-    r = Math.max(6, Math.min(23, r));                  // borné pour rester DANS le viewBox
-    let cy = 40 - r * 0.35 - central * 3 + (Math.random() * 2 - 1);
-    cy = Math.max(r + 2, cy);                           // le sommet ne sort jamais par le haut
-    circles.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '"/>');
-  }
+  const row = (cyBase, dir) => {                       // dir -1 = bosses vers le HAUT, +1 = vers le BAS
+    for (let i = 0; i < n; i++){
+      const t = i / (n - 1);                          // 0..1
+      const cx = x0 + t * span;
+      const central = 1 - Math.abs(t - 0.5) * 2;       // 0 aux bords, 1 au centre
+      let r = baseR * (0.8 + central * 0.45) + (Math.random() * 3 - 1.5);
+      r = Math.max(6, Math.min(23, r));                // borné pour rester DANS le viewBox
+      let cy = cyBase + dir * (r * 0.35 + central * 3) + (Math.random() * 2 - 1);
+      cy = Math.max(r + 2, Math.min(66 - r, cy));      // ni par le haut ni par le bas
+      circles.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '"/>');
+    }
+  };
+  row(30, -1);   // bosses du HAUT
+  row(46,  1);   // bosses du BAS (plus de base plate)
+  // cœur plein (invisible, noyé sous les bosses) qui garantit un fond blanc DERRIÈRE le texte -> chiffre/label lisibles
   return '<svg class="fr-cloud-bg" viewBox="0 0 100 68" preserveAspectRatio="none"><g fill="#fffdf9">' +
-    circles.join('') + '<rect x="6" y="40" width="88" height="22" rx="11"/></g></svg>';
+    circles.join('') + '<rect x="6" y="24" width="88" height="26" rx="12"/></g></svg>';
 }
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
