@@ -491,7 +491,7 @@ body.gate-mode { background: transparent; }
 .loading-state { display: none; text-align: center; padding: 0 0 4em; background: linear-gradient(180deg, #faf7f1 0%, #f2ebdf 100%); }
 .loading-state.visible { display: block; }
 /* FRESQUE-VOYAGE (écran de génération) : décor modulaire (parallaxe) + ballon flottant + chiffres réels en nuages */
-.fresco { position: relative; width: 100%; height: 580px; overflow: hidden; }
+.fresco { position: relative; width: 100%; max-width: 780px; margin: 0 auto; height: 580px; overflow: hidden; }   /* bridée à 780px (comme .stage de la page de test) -> nuages concentrés au centre + plus gros relativement à la scène, au lieu de s'étaler plein écran */
 /* GLOBE : sphère 3D (Three.js) dans un carré posé BAS (calotte large et basse) ; les monuments 2D (#iv-mons) se posent sur le HAUT via _globeGeo. */
 .globe { position: absolute; left: 50%; bottom: 0; width: min(720px, 98vw); height: min(720px, 98vw); transform: translate(-50%, 73%); z-index: 1; }
 .globe canvas { display: block; width: 100% !important; height: 100% !important; }
@@ -1728,7 +1728,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v313'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v314'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
