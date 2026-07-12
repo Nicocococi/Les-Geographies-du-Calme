@@ -1582,8 +1582,8 @@ const _FR_SLOTS_BIG = [ {x:4,y:16}, {x:60,y:8} ];
 const _FR_SLOTS_SMALL = [ {x:1,y:38}, {x:78,y:30}, {x:33,y:22}, {x:64,y:40} ];
 // MOBILE (écran étroit ≤640px) : les nuages (largeur px fixe) se chevauchaient dans le tiers haut. On les ÉTALE en zig-zag qui
 // descend (gauche/droite alternés), certains plus bas MAIS au-dessus du globe (sommet ~83% de la scène). Desktop inchangé.
-const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:35,y:28} ];
-const _FR_SLOTS_SMALL_M = [ {x:60,y:2}, {x:1,y:28}, {x:3,y:55}, {x:52,y:55} ];
+const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:56,y:2} ];
+const _FR_SLOTS_SMALL_M = [ {x:2,y:30}, {x:68,y:30}, {x:27,y:51}, {x:60,y:51} ];
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
@@ -1621,7 +1621,20 @@ async function _ivGenStats(dest, themeKeys, pick){
   const _SB = _mob ? _FR_SLOTS_BIG_M : _FR_SLOTS_BIG, _SS = _mob ? _FR_SLOTS_SMALL_M : _FR_SLOTS_SMALL;
   bigs.slice(0, 2).forEach((b, i) => mk(b, true, _SB[i] || _SB[0]));
   smalls.slice(0, _SS.length).forEach((b, i) => mk(b, false, _SS[i]));
-  box.querySelectorAll('.fr-num').forEach((el, i) => setTimeout(() => _countUp(el, parseInt(el.dataset.n, 10) || 0, 1500), 300 + i * 220));
+  // ANIMATION « le nuage naît du néant et grossit pendant que le chiffre se calcule » :
+  // chaque bulle démarre invisible (scale 0), puis grandit sur la MÊME durée que le comptage (1500 ms), en décalé.
+  // Le grossissement (scale) est appliqué DANS la boucle RAF de la fresque (_growStart) pour ne PAS écraser le flottement (translateY).
+  const _grReduced = (typeof _ivReducedMotion === 'function' && _ivReducedMotion());
+  Array.from(box.children).forEach((c, i) => {
+    const num = c.querySelector('.fr-num');
+    if (_grReduced){ if (num) num.textContent = parseInt(num.dataset.n, 10) || 0; return; }   // accessibilité : pas d'anim
+    c._growStart = 0;              // 0 = en attente de naissance
+    c.style.opacity = '0';         // invisible tant que pas née
+    setTimeout(() => {
+      c._growStart = Date.now();   // top départ : grossit + le chiffre s'incrémente ensemble
+      if (num) _countUp(num, parseInt(num.dataset.n, 10) || 0, 1500);
+    }, 300 + i * 220);
+  });
 }
 
 // MONTGOLFIÈRE = grande traversée bord-à-bord en boucle + ondulation douce (trajectoire de vol) dans la BANDE DU HAUT, au-dessus des nuages.
@@ -1669,7 +1682,20 @@ function _ivFrescoStart(){
     if (_g3.ok){ _g3.sphere.rotation.y = -rot * Math.PI / 180; _g3.renderer.render(_g3.scene, _g3.camera); }   // rotation SIMPLE, axe vertical
     if (g){ for (let i = 0; i < _slots.length; i++) _slotStep(_slots[i], rot, g); }                            // monuments 2D : dérivent AVEC le globe, fondu aux bords
     if (bl){ _balloonStep(bl, t, (f ? f.clientWidth : 0) || 600); }   // grande traversée bord-à-bord, en boucle
-    if (bubbles){ for (let i = 0; i < bubbles.children.length; i++){ const c = bubbles.children[i], ph = parseFloat(c.dataset.ph) || 0; c.style.transform = 'translateY(' + (Math.sin(t / 1500 + ph) * 5).toFixed(2) + 'px)'; } }
+    if (bubbles){ const _now = Date.now(); for (let i = 0; i < bubbles.children.length; i++){
+      const c = bubbles.children[i], ph = parseFloat(c.dataset.ph) || 0;
+      const bob = (Math.sin(t / 1500 + ph) * 5).toFixed(2);
+      // Naissance : scale 0 -> 1 (et opacité 0 -> valeur finale) synchronisé avec le comptage. _growStart : undefined = pas géré (scale plein) ; 0 = pas encore née (invisible) ; >0 = grossit.
+      let sc = 1;
+      if (c._growStart === 0){ sc = 0.0001; c.style.opacity = '0'; }
+      else if (c._growStart > 0){
+        const e = 1 - Math.pow(1 - Math.min(1, (_now - c._growStart) / 1500), 3);   // même easing que _countUp
+        sc = 0.04 + 0.96 * e;
+        const full = c.classList.contains('small') ? 0.66 : 1;
+        c.style.opacity = (e >= 1 ? full : full * e).toFixed(3);
+      }
+      c.style.transform = 'translateY(' + bob + 'px) scale(' + sc.toFixed(3) + ')';
+    } }
     _frRAF = requestAnimationFrame(tick);
   };
   tick();
@@ -1778,7 +1804,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v318'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v319'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
