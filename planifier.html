@@ -1540,6 +1540,10 @@ function _countUp(el, target, dur){
 // Toutes les bulles dans le CIEL (partie haute), autour du ballon (haut-centre libre) -> la Terre reste dégagée en bas
 const _FR_SLOTS_BIG = [ {x:4,y:16}, {x:60,y:8} ];
 const _FR_SLOTS_SMALL = [ {x:1,y:38}, {x:78,y:30}, {x:33,y:22}, {x:64,y:40} ];
+// MOBILE (écran étroit ≤640px) : les nuages (largeur px fixe) se chevauchaient dans le tiers haut. On les ÉTALE en zig-zag qui
+// descend (gauche/droite alternés), certains plus bas MAIS au-dessus du globe (sommet ~83% de la scène). Desktop inchangé.
+const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:47,y:31} ];
+const _FR_SLOTS_SMALL_M = [ {x:64,y:3}, {x:2,y:32}, {x:3,y:58}, {x:54,y:58} ];
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
@@ -1572,8 +1576,10 @@ async function _ivGenStats(dest, themeKeys, pick){
       '<span class="fr-lab" style="font-size:' + (big ? 0.7 : 0.56) + 'em">' + _wizEsc(b.label) + '</span>';
     box.appendChild(el);
   };
-  bigs.slice(0, 2).forEach((b, i) => mk(b, true, _FR_SLOTS_BIG[i] || _FR_SLOTS_BIG[0]));
-  smalls.slice(0, _FR_SLOTS_SMALL.length).forEach((b, i) => mk(b, false, _FR_SLOTS_SMALL[i]));
+  const _mob = (window.innerWidth || 999) <= 640;
+  const _SB = _mob ? _FR_SLOTS_BIG_M : _FR_SLOTS_BIG, _SS = _mob ? _FR_SLOTS_SMALL_M : _FR_SLOTS_SMALL;
+  bigs.slice(0, 2).forEach((b, i) => mk(b, true, _SB[i] || _SB[0]));
+  smalls.slice(0, _SS.length).forEach((b, i) => mk(b, false, _SS[i]));
   box.querySelectorAll('.fr-num').forEach((el, i) => setTimeout(() => _countUp(el, parseInt(el.dataset.n, 10) || 0, 1500), 300 + i * 220));
 }
 
@@ -1731,7 +1737,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v315'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v316'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
