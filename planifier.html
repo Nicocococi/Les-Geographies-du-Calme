@@ -969,6 +969,15 @@ body.gate-mode { background: transparent; }
   .step-q { font-size: 1.5em; }
 }
 
+/* MOBILE (≤640px, MÊME seuil que le JS des nuages _mob) : écran de génération compact -> tient sur UNE page sans scroll
+   (ballon → « on consulte nos carnets »). Scène raccourcie (580→452) -> globe + titre remontent ; nuages remontés côté JS. */
+@media (max-width: 640px) {
+  .fresco { height: 452px; }
+  .loading-state { padding-bottom: 1.1em; }
+  .gen-title { margin: 0.55em 0 0.3em; font-size: 1.32em; }
+  .loading-text { font-size: 0.84em; }
+}
+
 /* ════════════════════════════════════════════════════════
    ITINÉRAIRE V2 — carte fixe + étapes dépliables (airbnb-like)
    ════════════════════════════════════════════════════════ */
@@ -1542,8 +1551,8 @@ const _FR_SLOTS_BIG = [ {x:4,y:16}, {x:60,y:8} ];
 const _FR_SLOTS_SMALL = [ {x:1,y:38}, {x:78,y:30}, {x:33,y:22}, {x:64,y:40} ];
 // MOBILE (écran étroit ≤640px) : les nuages (largeur px fixe) se chevauchaient dans le tiers haut. On les ÉTALE en zig-zag qui
 // descend (gauche/droite alternés), certains plus bas MAIS au-dessus du globe (sommet ~83% de la scène). Desktop inchangé.
-const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:47,y:31} ];
-const _FR_SLOTS_SMALL_M = [ {x:64,y:3}, {x:2,y:32}, {x:3,y:58}, {x:54,y:58} ];
+const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:35,y:28} ];
+const _FR_SLOTS_SMALL_M = [ {x:60,y:2}, {x:1,y:28}, {x:3,y:55}, {x:52,y:55} ];
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
@@ -1565,18 +1574,19 @@ async function _ivGenStats(dest, themeKeys, pick){
   chosen.forEach(th => { const n = count(th); if (n > 0) bigs.push({ n, label: GEN_BUBBLE_LABEL[th] || th }); });        // MIS EN AVANT
   ALL.forEach(th => { if (chosen.indexOf(th) >= 0) return; const n = count(th); if (n > 0) smalls.push({ n, label: GEN_BUBBLE_LABEL[th] }); }); // CONTEXTE
   if (notable > 1) smalls.push({ n: notable, label: GEN_BUBBLE_LABEL.notable });
+  const _mob = (window.innerWidth || 999) <= 640;
   const mk = (b, big, slot) => {
-    const w = big ? 190 : 124, h = Math.round(w * 0.74);
+    // MOBILE : nuages + texte un peu plus PETITS -> tiennent sans s'empiler dans une scène raccourcie (page sans scroll). Desktop inchangé.
+    const w = big ? (_mob ? 160 : 190) : (_mob ? 112 : 124), h = Math.round(w * 0.74);
     const el = document.createElement('div');
     el.className = 'fr-bubble ' + (big ? 'big' : 'small');
     el.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + slot.x + '%;top:' + slot.y + '%;';
     el.dataset.ph = (Math.random() * 6.28).toFixed(2);
     el.innerHTML = '<svg class="fr-cloud-bg" viewBox="0 0 100 68" preserveAspectRatio="none"><g fill="#fffdf9"><circle cx="27" cy="34" r="20"/><circle cx="50" cy="24" r="25"/><circle cx="74" cy="34" r="20"/><rect x="6" y="34" width="88" height="28" rx="14"/></g></svg>' +
-      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + (big ? 2.05 : 1.45) + 'em">0</span>' +
-      '<span class="fr-lab" style="font-size:' + (big ? 0.7 : 0.56) + 'em">' + _wizEsc(b.label) + '</span>';
+      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + (big ? (_mob ? 1.72 : 2.05) : (_mob ? 1.22 : 1.45)) + 'em">0</span>' +
+      '<span class="fr-lab" style="font-size:' + (big ? (_mob ? 0.62 : 0.7) : (_mob ? 0.5 : 0.56)) + 'em">' + _wizEsc(b.label) + '</span>';
     box.appendChild(el);
   };
-  const _mob = (window.innerWidth || 999) <= 640;
   const _SB = _mob ? _FR_SLOTS_BIG_M : _FR_SLOTS_BIG, _SS = _mob ? _FR_SLOTS_SMALL_M : _FR_SLOTS_SMALL;
   bigs.slice(0, 2).forEach((b, i) => mk(b, true, _SB[i] || _SB[0]));
   smalls.slice(0, _SS.length).forEach((b, i) => mk(b, false, _SS[i]));
@@ -1737,7 +1747,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v316'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v317'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
