@@ -35,9 +35,9 @@ body.gate-mode { background: transparent; }
 }
 
 /* Scène du favicon (ballon + collines + chemin) — FIL VISUEL de la marque, au-dessus de chaque question. Ballon qui FLOTTE (idle accentué : bob marqué + dérive gauche/droite). */
-.wiz-scene { position: relative; width: 184px; height: 122px; margin: 1.9em auto 0; }
+.wiz-scene { position: relative; width: 184px; height: 150px; margin: 1.9em auto 0; }
 .wiz-hills { position: absolute; left: 0; bottom: 0; width: 100%; height: auto; display: block; }
-.wiz-balloon { position: absolute; left: 50%; top: 0; width: 62px; margin-left: -31px; animation: wizFloat 5.5s ease-in-out infinite; transform-origin: 50% 62%; }
+.wiz-balloon { position: absolute; left: 50%; top: 0; width: 54px; margin-left: -27px; animation: wizFloat 5.5s ease-in-out infinite; transform-origin: 50% 62%; }
 .wiz-balloon img { width: 100%; height: auto; display: block; }
 @keyframes wizFloat { 0% { transform: translate(-7px, 3px) rotate(-2deg); } 30% { transform: translate(2px, -9px) rotate(1deg); } 60% { transform: translate(7px, -1px) rotate(2deg); } 100% { transform: translate(-7px, 3px) rotate(-2deg); } }
 @media (prefers-reduced-motion: reduce) { .wiz-balloon { animation: none; } }
@@ -971,8 +971,8 @@ body.gate-mode { background: transparent; }
 .btn-reset:hover { border-color: var(--or); color: var(--or); }
 
 @media (max-width: 480px) {
-  .wiz-scene { width: 164px; height: 110px; }
-  .wiz-balloon { width: 56px; margin-left: -28px; }
+  .wiz-scene { width: 164px; height: 135px; }
+  .wiz-balloon { width: 48px; margin-left: -24px; }
   .wiz-cards.c2 { grid-template-columns: 1fr 1fr; }
   .wiz-cards.c3 { grid-template-columns: 1fr; }              /* budget en pile sur petit écran (grandes cibles) */
   .wiz-themes { grid-template-columns: 1fr 1fr; }
