@@ -107,11 +107,9 @@ body.gate-mode { background: transparent; }
 .wiz-cards { display: grid; gap: 0.7em; }
 .wiz-cards.c2 { grid-template-columns: 1fr 1fr; }
 .wiz-cards.c3 { grid-template-columns: 1fr 1fr 1fr; }
-.wiz-cards.c4 { grid-template-columns: repeat(4, 1fr); }   /* « avec qui » : 4 cartes sur UNE ligne en desktop (2×2 sur mobile via media query) */
 .wiz-card { border: 1.5px solid #e2d7c3; border-radius: 15px; padding: 1.15em 0.9em; background: #fffdf9;
   cursor: pointer; transition: all .15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.55em; }
 .wiz-card:hover { border-color: var(--or); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(120,90,50,0.08); }
-.who-cards .wiz-card { padding: 1.1em 0.5em; }            /* resserré horizontalement -> 4 pastilles + libellés tiennent sur la ligne */
 /* PASTILLE « avec qui » : rond terracotta clair, icône trait terracotta (currentColor). Point focal -> grande (96px / SVG 58px). */
 .wiz-card .ico { width: 96px; height: 96px; border-radius: 50%; background: #f4e5d8; color: #c15a2b; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s, box-shadow .15s; }
 .wiz-card .ico svg { width: 58px; height: 58px; display: block; }
@@ -1001,8 +999,7 @@ body.gate-mode { background: transparent; }
   #wstep-5 .step-sub { margin-bottom: 0.85em; }
   #wstep-6 .step-sub { margin-bottom: 0.7em; }
 
-  /* Page 3 (avec qui) : desktop = 4 sur une ligne ; mobile = 2×2 (pastilles un peu plus petites) */
-  #wstep-3 .wiz-cards.c4 { grid-template-columns: 1fr 1fr; }
+  /* Page 3 (avec qui) : 2×2 (pastilles un peu plus petites) — mobile INCHANGÉ, comme desktop désormais aussi en 2×2 */
   #wstep-3 .wiz-card { padding: 0.8em 0.5em; gap: 0.4em; }
   #wstep-3 .wiz-card .ico { width: 76px; height: 76px; }
   #wstep-3 .wiz-card .ico svg { width: 46px; height: 46px; }
@@ -1413,7 +1410,7 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
       <button class="wiz-back" type="button" onclick="wizBack(3)" aria-label="Retour">←</button>
       <h2 class="step-q">Avec qui voyagez-vous&nbsp;?</h2>
       <p class="step-sub">On adapte les lieux et le rythme.</p>
-      <div class="wiz-cards c4 who-cards">
+      <div class="wiz-cards c2 who-cards">
         <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico" data-who="solo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="28" r="5.5"/><path d="M21 50 a11 11 0 0 1 22 0"/><path d="M6 54 Q32 47 58 54"/></svg></span><span class="lab">Solo</span></div>
         <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico" data-who="duo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M31 15 C31 15 24.5 11 24.5 6.8 C24.5 4.4 26.6 3.6 28.3 4.7 C29.4 5.4 31 7.6 31 7.6 C31 7.6 32.6 5.4 33.7 4.7 C35.4 3.6 37.5 4.4 37.5 6.8 C37.5 11 31 15 31 15 Z" fill="currentColor" stroke="none"/><circle cx="24" cy="30" r="5"/><path d="M15 50 a9 9 0 0 1 18 0"/><circle cx="39" cy="30" r="5"/><path d="M30 50 a9 9 0 0 1 18 0"/><path d="M6 54 Q32 47 58 54"/></svg></span><span class="lab">En duo</span></div>
         <div class="wiz-card" onclick="selectVoyage('entre amis', this)"><span class="ico" data-who="amis"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M25 9 Q25 11.4 27.4 11.4 Q25 11.4 25 13.8 Q25 11.4 22.6 11.4 Q25 11.4 25 9 Z" fill="currentColor" stroke="none"/><path d="M33 5 Q33 7.8 35.8 7.8 Q33 7.8 33 10.6 Q33 7.8 30.2 7.8 Q33 7.8 33 5 Z" fill="currentColor" stroke="none"/><path d="M41 10 Q41 12 43 12 Q41 12 41 14 Q41 12 39 12 Q41 12 41 10 Z" fill="currentColor" stroke="none"/><circle cx="18" cy="31" r="4.5"/><path d="M10 50 a8 8 0 0 1 16 0"/><circle cx="32" cy="28" r="4.5"/><path d="M24 50 a8 8 0 0 1 16 0"/><circle cx="46" cy="31" r="4.5"/><path d="M38 50 a8 8 0 0 1 16 0"/><path d="M6 54 Q32 47 58 54"/></svg></span><span class="lab">Entre amis</span></div>
