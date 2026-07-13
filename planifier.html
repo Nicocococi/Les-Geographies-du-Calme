@@ -976,6 +976,7 @@ body.gate-mode { background: transparent; }
   .loading-state { padding-bottom: 1.1em; }
   .gen-title { margin: 0.55em 0 0.3em; font-size: 1.32em; }
   .loading-text { font-size: 0.84em; }
+  .fresco-balloon { width: 74.8px; }   /* montgolfière -15% en mobile uniquement (88 -> 74.8) ; desktop inchangé. Le JS suit la largeur réelle (offsetWidth). */
 }
 
 /* MOBILE (≤640px) : étapes 3→6 du wizard tiennent sur UNE page sans scroll.
@@ -1609,14 +1610,18 @@ async function _ivGenStats(dest, themeKeys, pick){
   const _mob = (window.innerWidth || 999) <= 640;
   const mk = (b, big, slot) => {
     // MOBILE : nuages + texte un peu plus PETITS -> tiennent sans s'empiler dans une scène raccourcie (page sans scroll). Desktop inchangé.
-    const w = big ? (_mob ? 160 : 190) : (_mob ? 112 : 124), h = Math.round(w * 0.74);
+    // DESKTOP : nuages (+ texte) 15% plus GROS ; MOBILE strictement inchangé (_GS=1). Facteur appliqué à la largeur ET aux polices.
+    const _GS = _mob ? 1 : 1.15;
+    const w = Math.round((big ? (_mob ? 160 : 190) : (_mob ? 112 : 124)) * _GS), h = Math.round(w * 0.74);
     const el = document.createElement('div');
     el.className = 'fr-bubble ' + (big ? 'big' : 'small');
     el.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + slot.x + '%;top:' + slot.y + '%;';
     el.dataset.ph = (Math.random() * 6.28).toFixed(2);
+    const numEm = (big ? (_mob ? 1.72 : 2.05) : (_mob ? 1.22 : 1.45)) * _GS;
+    const labEm = (big ? (_mob ? 0.62 : 0.7) : (_mob ? 0.5 : 0.56)) * _GS;
     el.innerHTML = '<svg class="fr-cloud-bg" viewBox="0 0 100 68" preserveAspectRatio="none"><g fill="#fffdf9"><circle cx="27" cy="34" r="20"/><circle cx="50" cy="24" r="25"/><circle cx="74" cy="34" r="20"/><rect x="6" y="34" width="88" height="28" rx="14"/></g></svg>' +
-      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + (big ? (_mob ? 1.72 : 2.05) : (_mob ? 1.22 : 1.45)) + 'em">0</span>' +
-      '<span class="fr-lab" style="font-size:' + (big ? (_mob ? 0.62 : 0.7) : (_mob ? 0.5 : 0.56)) + 'em">' + _wizEsc(b.label) + '</span>';
+      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + numEm.toFixed(3) + 'em">0</span>' +
+      '<span class="fr-lab" style="font-size:' + labEm.toFixed(3) + 'em">' + _wizEsc(b.label) + '</span>';
     box.appendChild(el);
   };
   const _SB = _mob ? _FR_SLOTS_BIG_M : _FR_SLOTS_BIG, _SS = _mob ? _FR_SLOTS_SMALL_M : _FR_SLOTS_SMALL;
@@ -1649,10 +1654,11 @@ function _buildFlightPath(){   // fine ligne pointillée = le "chemin" (même on
 }
 function _balloonStep(bl, t, fw){
   const p = (t % _BAL_PERIOD) / _BAL_PERIOD;
-  const X = -_BAL_W + p * (fw + 2 * _BAL_W);                 // traverse gauche -> droite, EN BOUCLE
+  const bw = bl.offsetWidth || _BAL_W;                       // largeur RÉELLE (CSS) -> suit le -15% mobile ; centrage/boucle corrects
+  const X = -bw + p * (fw + 2 * bw);                         // traverse gauche -> droite, EN BOUCLE
   const y = _balY(X, fw), slope = Math.cos(X / fw * 2 * Math.PI * _BAL_WAVES);
   const bh = bl.offsetHeight || 125;
-  bl.style.transform = 'translate(' + (X - _BAL_W / 2).toFixed(1) + 'px,' + (y - bh / 2).toFixed(1) + 'px) rotate(' + (slope * 4).toFixed(2) + 'deg)';
+  bl.style.transform = 'translate(' + (X - bw / 2).toFixed(1) + 'px,' + (y - bh / 2).toFixed(1) + 'px) rotate(' + (slope * 4).toFixed(2) + 'deg)';
 }
 
 // ANIMATION : la SPHÈRE 3D tourne sur l'axe vertical + les MONUMENTS 2D plantés glissent AVEC elle · le BALLON traverse toute
