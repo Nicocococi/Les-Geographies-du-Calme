@@ -1578,40 +1578,13 @@ function _countUp(el, target, dur){
 // Chiffres RÉELS (/places ville+thèmes) présentés en NUAGES : GROS = catégories des thèmes CHOISIS (mis en avant), PETITS =
 // autres catégories (contexte). Personnalisé -> changer les thèmes change QUELS nuages sont gros. Parallèle à la génération.
 // Toutes les bulles dans le CIEL (partie haute), autour du ballon (haut-centre libre) -> la Terre reste dégagée en bas
-const _FR_SLOTS_BIG = [ {x:2,y:3}, {x:56,y:2} ];
-const _FR_SLOTS_SMALL = [ {x:0,y:43}, {x:74,y:40}, {x:25,y:45}, {x:51,y:42} ];
+const _FR_SLOTS_BIG = [ {x:4,y:16}, {x:60,y:8} ];
+const _FR_SLOTS_SMALL = [ {x:1,y:38}, {x:78,y:30}, {x:33,y:22}, {x:64,y:40} ];
 // MOBILE (écran étroit ≤640px) : les nuages (largeur px fixe) se chevauchaient dans le tiers haut. On les ÉTALE en zig-zag qui
 // descend (gauche/droite alternés), certains plus bas MAIS au-dessus du globe (sommet ~83% de la scène). Desktop inchangé.
-const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:49,y:2} ];
+const _FR_SLOTS_BIG_M = [ {x:1,y:2}, {x:56,y:2} ];
 // petits : 2 en haut (G/D), le 3e CENTRÉ mais un cran plus BAS (son milieu ~ au bas des 2 du haut -> triangle organique, pas 3 alignés), le 4e en bas-droite.
-const _FR_SLOTS_SMALL_M = [ {x:1,y:32}, {x:62,y:32}, {x:33,y:44}, {x:60,y:56} ];
-// Chaque nuage a un nombre de BOSSES aléatoire (3 à 6) : bosse centrale plus haute/grosse, bords plus bas, petites variations.
-// La base (rect arrondi) reste PLEINE et couvre la zone du texte -> chiffre/label toujours lisibles quelle que soit la forme.
-function _cloudShapeSVG(){
-  const total = 4 + Math.floor(Math.random() * 6);    // 4..9 bosses AU TOTAL (haut + bas confondus)
-  const nBottom = Math.floor(total / 2), nTop = total - nBottom;   // le HAUT reçoit la bosse en plus si impair
-  const circles = [];
-  const row = (n, cyBase, dir) => {                    // dir -1 = bosses vers le HAUT, +1 = vers le BAS
-    if (n < 1) return;
-    const span = 78, x0 = 11, gap = n > 1 ? span / (n - 1) : span;
-    const baseR = gap * 0.62;                           // rayon lié à l'espacement -> vraies VALLÉES entre bosses
-    for (let i = 0; i < n; i++){
-      const t = n > 1 ? i / (n - 1) : 0.5;             // 0..1
-      const cx = x0 + t * span;
-      const central = 1 - Math.abs(t - 0.5) * 2;        // 0 aux bords, 1 au centre
-      let r = baseR * (0.8 + central * 0.45) + (Math.random() * 3 - 1.5);
-      r = Math.max(6, Math.min(23, r));                 // borné pour rester DANS le viewBox
-      let cy = cyBase + dir * (r * 0.35 + central * 3) + (Math.random() * 2 - 1);
-      cy = Math.max(r + 2, Math.min(66 - r, cy));       // ni par le haut ni par le bas
-      circles.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r.toFixed(1) + '"/>');
-    }
-  };
-  row(nTop, 30, -1);     // bosses du HAUT
-  row(nBottom, 46, 1);   // bosses du BAS (plus de base plate)
-  // cœur plein (invisible, noyé sous les bosses) qui garantit un fond blanc DERRIÈRE le texte -> chiffre/label lisibles
-  return '<svg class="fr-cloud-bg" viewBox="0 0 100 68" preserveAspectRatio="none"><g fill="#fffdf9">' +
-    circles.join('') + '<rect x="6" y="24" width="88" height="26" rx="12"/></g></svg>';
-}
+const _FR_SLOTS_SMALL_M = [ {x:2,y:30}, {x:68,y:30}, {x:35,y:39}, {x:66,y:50} ];
 async function _ivGenStats(dest, themeKeys, pick){
   const box = document.getElementById('gen-bubbles'); if (!box) return;
   box.innerHTML = '';
@@ -1636,21 +1609,14 @@ async function _ivGenStats(dest, themeKeys, pick){
   const _mob = (window.innerWidth || 999) <= 640;
   const mk = (b, big, slot) => {
     // MOBILE : nuages + texte un peu plus PETITS -> tiennent sans s'empiler dans une scène raccourcie (page sans scroll). Desktop inchangé.
-    // TAILLE ALÉATOIRE des petits nuages (thèmes NON choisis) : facteur 0.84..1.0, TOUJOURS < gros nuages (thèmes). Police mise à l'échelle -> texte lisible.
-    const sizeF = big ? 1 : (0.72 + Math.random() * 0.28);      // petits : 0.72..1.0 -> écart de taille bien VISIBLE, toujours < gros
-    const fontF = big ? 1 : Math.max(0.88, sizeF);              // la police descend moins vite que le nuage -> texte toujours LISIBLE
-    const _GS = _mob ? 1.15 : 1.5;                              // agrandissement : desktop 1.5x ; mobile 1.15x (max qui tient sur 375px sans chevaucher)
-    const baseW = (big ? (_mob ? 160 : 190) : (_mob ? 112 : 124)) * _GS;
-    const w = Math.round(baseW * sizeF), h = Math.round(w * 0.74);
+    const w = big ? (_mob ? 160 : 190) : (_mob ? 112 : 124), h = Math.round(w * 0.74);
     const el = document.createElement('div');
     el.className = 'fr-bubble ' + (big ? 'big' : 'small');
     el.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + slot.x + '%;top:' + slot.y + '%;';
     el.dataset.ph = (Math.random() * 6.28).toFixed(2);
-    const numEm = (big ? (_mob ? 1.72 : 2.05) : (_mob ? 1.22 : 1.45)) * fontF * _GS;
-    const labEm = (big ? (_mob ? 0.62 : 0.7) : (_mob ? 0.5 : 0.56)) * fontF * _GS;
-    el.innerHTML = _cloudShapeSVG() +
-      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + numEm.toFixed(3) + 'em">0</span>' +
-      '<span class="fr-lab" style="font-size:' + labEm.toFixed(3) + 'em">' + _wizEsc(b.label) + '</span>';
+    el.innerHTML = '<svg class="fr-cloud-bg" viewBox="0 0 100 68" preserveAspectRatio="none"><g fill="#fffdf9"><circle cx="27" cy="34" r="20"/><circle cx="50" cy="24" r="25"/><circle cx="74" cy="34" r="20"/><rect x="6" y="34" width="88" height="28" rx="14"/></g></svg>' +
+      '<span class="fr-num" data-n="' + b.n + '" style="font-size:' + (big ? (_mob ? 1.72 : 2.05) : (_mob ? 1.22 : 1.45)) + 'em">0</span>' +
+      '<span class="fr-lab" style="font-size:' + (big ? (_mob ? 0.62 : 0.7) : (_mob ? 0.5 : 0.56)) + 'em">' + _wizEsc(b.label) + '</span>';
     box.appendChild(el);
   };
   const _SB = _mob ? _FR_SLOTS_BIG_M : _FR_SLOTS_BIG, _SS = _mob ? _FR_SLOTS_SMALL_M : _FR_SLOTS_SMALL;
