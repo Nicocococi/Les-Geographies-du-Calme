@@ -107,20 +107,34 @@ body.gate-mode { background: transparent; }
 .wiz-cards { display: grid; gap: 0.7em; }
 .wiz-cards.c2 { grid-template-columns: 1fr 1fr; }
 .wiz-cards.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.wiz-cards.c4 { grid-template-columns: repeat(4, 1fr); }   /* « avec qui » : 4 cartes sur UNE ligne en desktop (2×2 sur mobile via media query) */
 .wiz-card { border: 1.5px solid #e2d7c3; border-radius: 15px; padding: 1.15em 0.9em; background: #fffdf9;
   cursor: pointer; transition: all .15s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.55em; }
 .wiz-card:hover { border-color: var(--or); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(120,90,50,0.08); }
-.wiz-card .ico { width: 92px; height: 92px; border-radius: 50%; background: #f4e5d8; color: #b0552f; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s, box-shadow .15s; }
-.wiz-card .ico svg { width: 50px; height: 50px; display: block; }
-.wiz-card .ico .who { width: 56px; height: 56px; display: block; background-color: currentColor;
-  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;
-  -webkit-mask-size: contain; mask-size: contain; transition: background-color .15s; }
+.who-cards .wiz-card { padding: 1.1em 0.5em; }            /* resserré horizontalement -> 4 pastilles + libellés tiennent sur la ligne */
+/* PASTILLE « avec qui » : rond terracotta clair, icône trait terracotta (currentColor). Point focal -> grande (96px / SVG 58px). */
+.wiz-card .ico { width: 96px; height: 96px; border-radius: 50%; background: #f4e5d8; color: #c15a2b; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s, box-shadow .15s; }
+.wiz-card .ico svg { width: 58px; height: 58px; display: block; }
 .wiz-card .lab { font-weight: 600; font-size: 0.95em; color: #3a2f22; }
 .wiz-card .sub { font-size: 0.72em; color: #a2937a; line-height: 1.3; }
 .wiz-card.selected { border-color: #b0552f; background: #b0552f; box-shadow: 0 6px 18px rgba(176,85,47,0.28); }
 .wiz-card.selected .ico { background: #964327; color: #fdf2ea; box-shadow: 0 5px 14px rgba(70,30,12,0.32); }
 .wiz-card.selected .lab { color: #fff; }
 .wiz-card.selected .sub { color: rgba(255,255,255,0.72); }
+/* État sélectionné « avec qui » (négatif) — scopé #wstep-3 pour ne PAS toucher les cartes budget (wstep-4). */
+#wstep-3 .wiz-card.selected { background: #c15a2b; border-color: #c15a2b; box-shadow: 0 6px 18px rgba(193,90,43,0.30); }
+#wstep-3 .wiz-card.selected .ico { background: #a94a22; color: #f4e5d8; box-shadow: 0 5px 14px rgba(70,30,12,0.32); }
+/* Micro-animation de sélection (ponctuelle, ~600ms, jamais en boucle) : cœur (duo) = battement ; étincelles (amis) = scintillement décalé. */
+.wiz-card .ico[data-who] svg path[fill], .wiz-card .ico[data-who] svg path { transform-box: fill-box; transform-origin: center; }
+#wstep-3 .wiz-card.selected .ico[data-who="duo"] svg > path:first-of-type { animation: wizHeartBeat 0.6s ease both; }
+#wstep-3 .wiz-card.selected .ico[data-who="amis"] svg > path:nth-of-type(1) { animation: wizSparkle 0.6s ease both; animation-delay: 0.02s; }
+#wstep-3 .wiz-card.selected .ico[data-who="amis"] svg > path:nth-of-type(2) { animation: wizSparkle 0.6s ease both; animation-delay: 0.14s; }
+#wstep-3 .wiz-card.selected .ico[data-who="amis"] svg > path:nth-of-type(3) { animation: wizSparkle 0.6s ease both; animation-delay: 0.26s; }
+@keyframes wizHeartBeat { 0% { transform: scale(1); } 35% { transform: scale(1.25); } 65% { transform: scale(0.94); } 100% { transform: scale(1); } }
+@keyframes wizSparkle { 0% { opacity: 0.25; transform: scale(0.5); } 55% { opacity: 1; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  #wstep-3 .wiz-card.selected .ico[data-who] svg > path { animation: none !important; }
+}
 /* Budget : jauge douce = 3 € arrondis, pleins selon le palier (on lit un NIVEAU, pas un prix). Jamais de € noir dur. */
 .bgauge { display: inline-flex; gap: 3px; align-items: baseline; }
 .bgauge i { font-family: var(--font-serif); font-style: normal; font-weight: 600; font-size: 1.55em; line-height: 1; color: #e2d3bb; transition: color .15s; }
@@ -987,10 +1001,11 @@ body.gate-mode { background: transparent; }
   #wstep-5 .step-sub { margin-bottom: 0.85em; }
   #wstep-6 .step-sub { margin-bottom: 0.7em; }
 
-  /* Page 3 (avec qui) : cartes 2×2 un peu plus petites */
-  #wstep-3 .wiz-card { padding: 0.7em 0.5em; gap: 0.35em; }
-  #wstep-3 .wiz-card .ico { width: 58px; height: 58px; }
-  #wstep-3 .wiz-card .ico .who { width: 34px; height: 34px; }
+  /* Page 3 (avec qui) : desktop = 4 sur une ligne ; mobile = 2×2 (pastilles un peu plus petites) */
+  #wstep-3 .wiz-cards.c4 { grid-template-columns: 1fr 1fr; }
+  #wstep-3 .wiz-card { padding: 0.8em 0.5em; gap: 0.4em; }
+  #wstep-3 .wiz-card .ico { width: 76px; height: 76px; }
+  #wstep-3 .wiz-card .ico svg { width: 46px; height: 46px; }
 
   /* Page 4 (budget) : 3 boîtes CARRÉES côte à côte, sans la ligne descriptive */
   #wstep-4 .wiz-cards.c3 { grid-template-columns: 1fr 1fr 1fr; gap: 0.5em; }
@@ -1398,11 +1413,11 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
       <button class="wiz-back" type="button" onclick="wizBack(3)" aria-label="Retour">←</button>
       <h2 class="step-q">Avec qui voyagez-vous&nbsp;?</h2>
       <p class="step-sub">On adapte les lieux et le rythme.</p>
-      <div class="wiz-cards c2">
-        <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico"><i class="who" style="-webkit-mask-image:url(assets/who-solo.png);mask-image:url(assets/who-solo.png)"></i></span><span class="lab">Solo</span></div>
-        <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico"><i class="who" style="-webkit-mask-image:url(assets/who-duo.png);mask-image:url(assets/who-duo.png)"></i></span><span class="lab">En duo</span></div>
-        <div class="wiz-card" onclick="selectVoyage('entre amis', this)"><span class="ico"><i class="who" style="-webkit-mask-image:url(assets/who-amis.png);mask-image:url(assets/who-amis.png)"></i></span><span class="lab">Entre amis</span></div>
-        <div class="wiz-card" onclick="selectVoyage('famille', this)"><span class="ico"><i class="who" style="-webkit-mask-image:url(assets/who-famille.png);mask-image:url(assets/who-famille.png)"></i></span><span class="lab">En famille</span></div>
+      <div class="wiz-cards c4 who-cards">
+        <div class="wiz-card" onclick="selectVoyage('solo', this)"><span class="ico" data-who="solo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="28" r="5.5"/><path d="M21 50 a11 11 0 0 1 22 0"/><path d="M6 54 Q32 47 58 54"/></svg></span><span class="lab">Solo</span></div>
+        <div class="wiz-card" onclick="selectVoyage('duo', this)"><span class="ico" data-who="duo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M31 15 C31 15 24.5 11 24.5 6.8 C24.5 4.4 26.6 3.6 28.3 4.7 C29.4 5.4 31 7.6 31 7.6 C31 7.6 32.6 5.4 33.7 4.7 C35.4 3.6 37.5 4.4 37.5 6.8 C37.5 11 31 15 31 15 Z" fill="currentColor" stroke="none"/><circle cx="24" cy="30" r="5"/><path d="M15 50 a9 9 0 0 1 18 0"/><circle cx="39" cy="30" r="5"/><path d="M30 50 a9 9 0 0 1 18 0"/><path d="M6 54 Q32 47 58 54"/></svg></span><span class="lab">En duo</span></div>
+        <div class="wiz-card" onclick="selectVoyage('entre amis', this)"><span class="ico" data-who="amis"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M25 9 Q25 11.4 27.4 11.4 Q25 11.4 25 13.8 Q25 11.4 22.6 11.4 Q25 11.4 25 9 Z" fill="currentColor" stroke="none"/><path d="M33 5 Q33 7.8 35.8 7.8 Q33 7.8 33 10.6 Q33 7.8 30.2 7.8 Q33 7.8 33 5 Z" fill="currentColor" stroke="none"/><path d="M41 10 Q41 12 43 12 Q41 12 41 14 Q41 12 39 12 Q41 12 41 10 Z" fill="currentColor" stroke="none"/><circle cx="18" cy="31" r="4.5"/><path d="M10 50 a8 8 0 0 1 16 0"/><circle cx="32" cy="28" r="4.5"/><path d="M24 50 a8 8 0 0 1 16 0"/><circle cx="46" cy="31" r="4.5"/><path d="M38 50 a8 8 0 0 1 16 0"/><path d="M6 54 Q32 47 58 54"/></svg></span><span class="lab">Entre amis</span></div>
+        <div class="wiz-card" onclick="selectVoyage('famille', this)"><span class="ico" data-who="famille"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="20" cy="26" r="5"/><path d="M11 49 a9 9 0 0 1 18 0"/><circle cx="37" cy="26" r="5"/><path d="M28 49 a9 9 0 0 1 18 0"/><circle cx="50" cy="34" r="3.4"/><path d="M44 52 a6 6 0 0 1 12 0"/><path d="M6 55 Q32 48 58 55"/></svg></span><span class="lab">En famille</span></div>
       </div>
     </div>
 
