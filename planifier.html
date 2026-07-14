@@ -2166,11 +2166,12 @@ function mapBasePlace(p,themes,budget,dc,voyage){
   if(isFit && /intercontinental|h[ôo]tel|marriott|hilton|hyatt|\britz\b|sofitel|westin|sheraton|kempinski|palace|resort/i.test(p.name))return null;
   var _price=(p.tags&&typeof p.tags.price==='number'&&p.tags.price>0)?p.tags.price:null;
   if(_price && (_price<_blo||_price>_bhi))return null; // cohérence budget dure
+  var _rat=(p.tags&&typeof p.tags.rating==='number')?p.tags.rating:null, _ratc=(p.tags&&typeof p.tags.rating_count==='number')?p.tags.rating_count:0; // ÉTAPE 2 : porter la NOTE FSQ (0-10) + nb d'avis jusqu'au candidat (avant, seul le prix voyageait) -> sert à départager les repas par note pondérée dans _pickNearMeal
   var _sc=isFit?Math.max(0,(p.score||0)-3):(p.score||0);
   if(theme==='gastronomie')_sc=+(_sc+priceFit(_price,budget)).toFixed(2);
   if(voyage==='famille' && _kid)_sc=+(_sc+4).toFixed(2); // FAMILLE : remonter les POI enfants (zoo/aquarium/aire de jeux) en ÉTAPE, sinon écrasés par les jardins notables
   if(voyage==='entre amis' && GROUPCAT.test(((p.category_src||[]).join(' ')+' '+(p.name||'')).toLowerCase()))_sc=+(_sc+3).toFixed(2); // AMIS : remonter les activités de groupe (bowling, escape, arcade, mini-golf)
-  return {nom:p.name,lat:p.lat,lng:p.lng,theme:theme,score:_sc,notable:!!p.notable,price:_price,
+  return {nom:p.name,lat:p.lat,lng:p.lng,theme:theme,score:_sc,notable:!!p.notable,price:_price,rating:_rat,ratingCount:_ratc,
     periph:(p.distKm||0)>2.5,distKm:p.distKm||hav(dc.lat,dc.lng,p.lat,p.lng),
     source:_src0,membership:(isFit||/\bclub\b|association|\bcercle\b/i.test(p.name)),
     cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),
@@ -2244,11 +2245,12 @@ async function collectFromBase(dc,themes,budget,voyage){
     var _price=(p.tags&&typeof p.tags.price==='number'&&p.tags.price>0)?p.tags.price:null;
     // COHÉRENCE BUDGET (dur) : un resto au PRIX CONNU hors fourchette est écarté (pas de €€€€ en Essentiel). Prix inconnu = gardé.
     if(_price && (_price<_blo||_price>_bhi))return; // COHÉRENCE BUDGET sur TOUTE activité (pas que les restos) : un spa/lieu €€€€ est écarté en essentiel/confort. Prix inconnu (parc gratuit…) = gardé.
+    var _rat=(p.tags&&typeof p.tags.rating==='number')?p.tags.rating:null, _ratc=(p.tags&&typeof p.tags.rating_count==='number')?p.tags.rating_count:0; // ÉTAPE 2 : porter la NOTE FSQ (0-10) + nb d'avis jusqu'au candidat -> départage des repas par note pondérée (_pickNearMeal)
     var _sc=isFit?Math.max(0,(p.score||0)-3):(p.score||0);
     if(theme==='gastronomie')_sc=+(_sc+priceFit(_price,budget)).toFixed(2);
     if(voyage==='famille' && _kid)_sc=+(_sc+4).toFixed(2); // FAMILLE : remonter les POI enfants en ÉTAPE
     if(voyage==='entre amis' && GROUPCAT.test(((p.category_src||[]).join(' ')+' '+(p.name||'')).toLowerCase()))_sc=+(_sc+3).toFixed(2); // AMIS : remonter les activités de groupe
-    out.push({nom:p.name,lat:p.lat,lng:p.lng,theme:theme,score:_sc,notable:!!p.notable,price:_price,
+    out.push({nom:p.name,lat:p.lat,lng:p.lng,theme:theme,score:_sc,notable:!!p.notable,price:_price,rating:_rat,ratingCount:_ratc,
       periph:(p.distKm||0)>2.5,distKm:p.distKm||hav(dc.lat,dc.lng,p.lat,p.lng),
       source:_src0,membership:(isFit||/\bclub\b|association|\bcercle\b/i.test(p.name)),
       cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),
@@ -3160,8 +3162,19 @@ function recomposeDay(day, ctx){
     }
     if(!cands.length) return null;
     cands.sort(function(a,b){ return a.d-b.d; });               // tri par proximité (VOL D'OISEAU, gratuit)
-    var N=Math.min(8,cands.length), best=null,bs=-Infinity;     // ne garder que les N=8 plus proches
-    for(var k=0;k<N;k++){ var sc=(typeof cands[k].c.score==='number'?cands[k].c.score:0); if(sc>bs){ bs=sc; best=cands[k].c; } } // MIEUX NOTÉ parmi eux (la proximité est déjà garantie -> la qualité départage)
+    var N=Math.min(8,cands.length);                             // ne garder que les N=8 plus proches
+    // ÉTAPE 2 (option MÉLANGE, note-dominant) — parmi les 8 plus proches, on classe les restos NOTÉS par un mélange où la
+    // NOTE FSQ pondérée DOMINE et l'affluence (score composite) ne fait qu'un LÉGER départage (anti resto-désert) :
+    //   note(0-10) × min(nbAvis/20,1)  +  0,04 × min(score,10)
+    // On n'y croit qu'à partir de 3 avis. Un 9/10 à 3 avis pèse moins qu'un 8/10 à 200 avis ; l'affluence ne renverse
+    // qu'à note quasi égale. La note ne FILTRE pas : c'est un DÉPARTAGE (les 8 plus proches incluent les non-notés).
+    var bestR=null, brs=-Infinity;
+    for(var k=0;k<N;k++){ var c2=cands[k].c, rt=(typeof c2.rating==='number'?c2.rating:null), rc=c2.ratingCount||0;
+      if(rt!=null && rc>=3){ var sc2=(typeof c2.score==='number'?c2.score:0); var blend=rt*Math.min(rc/20,1)+0.04*Math.min(Math.max(sc2,0),10); if(blend>brs){ brs=blend; bestR=c2; } } }
+    if(bestR) return bestR;                                     // au moins un resto noté parmi les 8 -> mélange note-dominant
+    // REPLI (ville pauvre / aucun des 8 noté) : meilleur score composite = MÉTHODE ACTUELLE inchangée. Jamais de repas vidé.
+    var best=null,bs=-Infinity;
+    for(var k2=0;k2<N;k2++){ var sc=(typeof cands[k2].c.score==='number'?cands[k2].c.score:0); if(sc>bs){ bs=sc; best=cands[k2].c; } }
     return best;
   }
   function _mealStep(c, kind){ var _p=(kind==='déjeuner')?'Déjeuner — ':'Dîner — '; return {theme:'gastronomie',nom:c.nom,lat:c.lat,lng:c.lng,adresse:c.address||c.adresse||null,price:(typeof c.price==='number'?c.price:null),extract:c.extract||null,image:c.image||null,titre:_p+c.nom,texte:(typeof _mealTxt==='function'?_mealTxt(c.nom,kind):(_p+c.nom))}; }
