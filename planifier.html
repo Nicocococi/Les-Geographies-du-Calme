@@ -3058,6 +3058,24 @@ function _orderDaysByRichness(days){
   days.forEach(function(d,idx){ if(d) d.num=idx+1; });
   return days;
 }
+// RÈGLE DE REPAS UNIQUE (étape 5 — « une seule règle partout ») : cœur de décision PARTAGÉ par les DEUX chemins de choix
+// de repas — recomposeDay._pickNearMeal (chemin densité + passe finale) ET le chemin LLM (pickL/pick/pickNear). Chaque chemin
+// fait SON PROPRE filtrage amont (zone/dédup pour recomposeDay ; budget/chaînes/génériques pour le chemin LLM) puis passe ici
+// la liste de candidats DÉJÀ TRIÉE par distance croissante [{c, d}]. La DÉCISION (étape 2, note-dominant) est ici, une seule fois :
+//   parmi les N=8 plus proches, le mieux noté par  note(0-10) × min(nbAvis/20,1) + 0,04 × min(score,10)  (≥ 3 avis) ;
+//   REPLI = meilleur score composite (méthode historique). Jamais de repas vidé (null seulement si aucun candidat).
+// Avant l'étape 5, le chemin LLM classait par « score − dist×3 » (SANS la note) -> la note ne mordait que sur un chemin sur deux.
+function _chooseMeal(sorted, N){
+  if(!sorted || !sorted.length) return null;
+  N = Math.min(N || 8, sorted.length);
+  var bestR=null, brs=-Infinity;
+  for(var k=0;k<N;k++){ var c2=sorted[k].c, rt=(typeof c2.rating==='number'?c2.rating:null), rc=c2.ratingCount||0;
+    if(rt!=null && rc>=3){ var sc2=(typeof c2.score==='number'?c2.score:0); var blend=rt*Math.min(rc/20,1)+0.04*Math.min(Math.max(sc2,0),10); if(blend>brs){ brs=blend; bestR=c2; } } }
+  if(bestR) return bestR;                                     // au moins un resto noté parmi les 8 -> mélange note-dominant
+  var best=null,bs=-Infinity;                                 // REPLI (aucun des 8 noté / ville pauvre) : meilleur score composite = méthode historique
+  for(var k2=0;k2<N;k2++){ var sc=(typeof sorted[k2].c.score==='number'?sorted[k2].c.score:0); if(sc>bs){ bs=sc; best=sorted[k2].c; } }
+  return best;
+}
 // RECONSTRUCTION PROPRE DE LA JOURNÉE (appelée en TOUTE FIN de finalizeDay) : après toutes les mutations, on rebâtit
 // une journée cohérente. 1) CLAMP ville : retirer toute étape (repas COMPRIS) hors ville de destination ou > bulle de
 // l'ancre. 2) CHAÎNE : ré-ordonner les activités (hors repas) en plus-proche-voisin (anti-zigzag, invariant CLAUDE.md #4).
@@ -3162,20 +3180,10 @@ function recomposeDay(day, ctx){
     }
     if(!cands.length) return null;
     cands.sort(function(a,b){ return a.d-b.d; });               // tri par proximité (VOL D'OISEAU, gratuit)
-    var N=Math.min(8,cands.length);                             // ne garder que les N=8 plus proches
-    // ÉTAPE 2 (option MÉLANGE, note-dominant) — parmi les 8 plus proches, on classe les restos NOTÉS par un mélange où la
-    // NOTE FSQ pondérée DOMINE et l'affluence (score composite) ne fait qu'un LÉGER départage (anti resto-désert) :
-    //   note(0-10) × min(nbAvis/20,1)  +  0,04 × min(score,10)
-    // On n'y croit qu'à partir de 3 avis. Un 9/10 à 3 avis pèse moins qu'un 8/10 à 200 avis ; l'affluence ne renverse
-    // qu'à note quasi égale. La note ne FILTRE pas : c'est un DÉPARTAGE (les 8 plus proches incluent les non-notés).
-    var bestR=null, brs=-Infinity;
-    for(var k=0;k<N;k++){ var c2=cands[k].c, rt=(typeof c2.rating==='number'?c2.rating:null), rc=c2.ratingCount||0;
-      if(rt!=null && rc>=3){ var sc2=(typeof c2.score==='number'?c2.score:0); var blend=rt*Math.min(rc/20,1)+0.04*Math.min(Math.max(sc2,0),10); if(blend>brs){ brs=blend; bestR=c2; } } }
-    if(bestR) return bestR;                                     // au moins un resto noté parmi les 8 -> mélange note-dominant
-    // REPLI (ville pauvre / aucun des 8 noté) : meilleur score composite = MÉTHODE ACTUELLE inchangée. Jamais de repas vidé.
-    var best=null,bs=-Infinity;
-    for(var k2=0;k2<N;k2++){ var sc=(typeof cands[k2].c.score==='number'?cands[k2].c.score:0); if(sc>bs){ bs=sc; best=cands[k2].c; } }
-    return best;
+    // ÉTAPE 2+5 — décision déléguée à la RÈGLE DE REPAS UNIQUE `_chooseMeal` (parmi les 8 plus proches, note-dominant ;
+    // repli score). La note ne FILTRE pas : c'est un DÉPARTAGE (les 8 plus proches incluent les non-notés). Même règle
+    // exactement que le chemin LLM (pickL/pick) depuis l'étape 5.
+    return _chooseMeal(cands, 8);
   }
   function _mealStep(c, kind){ var _p=(kind==='déjeuner')?'Déjeuner — ':'Dîner — '; return {theme:'gastronomie',nom:c.nom,lat:c.lat,lng:c.lng,adresse:c.address||c.adresse||null,price:(typeof c.price==='number'?c.price:null),extract:c.extract||null,image:c.image||null,titre:_p+c.nom,texte:(typeof _mealTxt==='function'?_mealTxt(c.nom,kind):(_p+c.nom))}; }
   // 3+4. HORAIRES séquentiels + repas
@@ -3914,8 +3922,8 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         if(!dayActs.length||!mealsArr[0])return;
         var midA=dayActs[Math.min(2,dayActs.length-1)],lo=budget==='économique'?1:budget==='premium'?3:2,hi=lo+1,dinNom=mealsArr[1]?_norm(mealsArr[1].nom):'';
         if(hav(midA.lat,midA.lng,mealsArr[0].lat,mealsArr[0].lng)<=1.3)return; // déjeuner déjà proche du matin -> on ne touche pas
-        function pickL(R){return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(midA.lat,midA.lng,c.lat,c.lng)<=R;}).sort(function(a,b){return ((b.score||0)-hav(midA.lat,midA.lng,b.lat,b.lng)*3)-((a.score||0)-hav(midA.lat,midA.lng,a.lat,a.lng)*3);})[0];} // PROXIMITÉ prime (compromis qualité/distance) -> le bon resto le plus proche des activités du matin
-        function pickLNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return Object.assign({},c,{_dd:hav(midA.lat,midA.lng,c.lat,c.lng)});}).sort(function(a,b){return a._dd-b._dd;})[0];} // FILET PROXIMITÉ : déjeuner le PLUS PROCHE du matin en élargissant d'UN cran (±1) si rien EN BUDGET dans 2 km
+        function pickL(R){var _cs=all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(midA.lat,midA.lng,c.lat,c.lng)<=R;}).map(function(c){return {c:c,d:hav(midA.lat,midA.lng,c.lat,c.lng)};}).sort(function(a,b){return a.d-b.d;});return _chooseMeal(_cs,8);} // ÉTAPE 5 : filtrage budget/zone conservé, DÉCISION = règle unique _chooseMeal (8 plus proches, note-dominant) — même règle que _pickNearMeal (avant : « score − dist×3 », sans la note)
+        function pickLNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);var _cs=all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==dinNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return {c:c,d:hav(midA.lat,midA.lng,c.lat,c.lng)};}).sort(function(a,b){return a.d-b.d;});return _chooseMeal(_cs,8);} // FILET PROXIMITÉ (budget élargi ±1 si rien en budget) : 8 plus proches -> même règle unique _chooseMeal
         var cl=pickL(1.0)||pickL(1.5)||pickL(2.0)||pickLNear();
         if(cl) mealsArr[0]=Object.assign({},cl,{_c:cl,theme:'gastronomie',titre:'Déjeuner',texte:_mealTxt(cl.nom,'déjeuner')});
       })();
@@ -3926,8 +3934,8 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         var curD=hav(last.lat,last.lng,mealsArr[1].lat,mealsArr[1].lng);
         if(curD<=1.3)return; // dîner déjà proche de la fin de journée -> on ne touche pas
         // sinon : on cherche le MEILLEUR resto DANS UN RAYON SERRÉ de la dernière étape (la proximité prime sur la notoriété — fini le resto célèbre à l'autre bout)
-        function pick(R){return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(last.lat,last.lng,c.lat,c.lng)<=R;}).sort(function(a,b){return ((b.score||0)-hav(last.lat,last.lng,b.lat,b.lng)*3)-((a.score||0)-hav(last.lat,last.lng,a.lat,a.lng)*3);})[0];} // PROXIMITÉ prime : compromis qualité/distance fortement pondéré par la distance -> le bon resto le PLUS PROCHE, fini le resto célèbre à l'autre bout du rayon
-        function pickNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);return all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return Object.assign({},c,{_dd:hav(last.lat,last.lng,c.lat,c.lng)});}).sort(function(a,b){return a._dd-b._dd;})[0];} // FILET PROXIMITÉ : aucun resto EN BUDGET dans 2 km -> on prend le PLUS PROCHE en élargissant d'UN cran de prix (±1) ; mieux vaut un resto à côté à 1 cran d'écart qu'un « dans la gamme » à 2,6 km. Les ACTIVITÉS gardent le budget strict.
+        function pick(R){var _cs=all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=lo&&c.price<=hi))&&hav(last.lat,last.lng,c.lat,c.lng)<=R;}).map(function(c){return {c:c,d:hav(last.lat,last.lng,c.lat,c.lng)};}).sort(function(a,b){return a.d-b.d;});return _chooseMeal(_cs,8);} // ÉTAPE 5 : filtrage budget/zone conservé, DÉCISION = règle unique _chooseMeal (8 plus proches, note-dominant) — même règle que _pickNearMeal (avant : « score − dist×3 », sans la note)
+        function pickNear(){var _b=Math.max(1,lo-1),_t=Math.min(4,hi+1);var _cs=all.filter(function(c){return c.theme==='gastronomie'&&!c.foodExp&&!CHAINS.test(c.nom||'')&&!VAGUE.test(c.nom||'')&&!_usedAlready(c)&&_norm(c.nom)!==lunchNom&&(!c.price||(c.price>=_b&&c.price<=_t));}).map(function(c){return {c:c,d:hav(last.lat,last.lng,c.lat,c.lng)};}).sort(function(a,b){return a.d-b.d;});return _chooseMeal(_cs,8);} // FILET PROXIMITÉ (budget élargi ±1 si rien en budget) : 8 plus proches -> même règle unique _chooseMeal
         var cand=pick(1.0)||pick(1.5)||pick(2.0)||pickNear();
         if(cand) mealsArr[1]=Object.assign({},cand,{_c:cand,theme:'gastronomie',titre:'Dîner',texte:_mealTxt(cand.nom,'dîner')});
       })();
