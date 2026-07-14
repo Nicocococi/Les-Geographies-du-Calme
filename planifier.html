@@ -3223,9 +3223,11 @@ function recomposeDay(day, ctx){
   if(lunch){
     // DÉJEUNER « N plus proches » (cause racine du brief : le déjeuner n'avait AUCUN clamp -> il partait au loin, 1,8 km).
     // Ancre = DERNIÈRE étape du matin (la vraie « étape précédente », pas le centre). On ne re-choisit QUE s'il est loin
-    // (>1,2 km) -> un déjeuner déjà proche NE BOUGE PAS (snapshot Paris intact). Aligné sur la logique du dîner.
+    // (>0,9 km) -> un déjeuner déjà proche NE BOUGE PAS (snapshot Paris intact). Aligné sur la logique du dîner.
+    // NB : 0,9 km = SEUIL de déclenchement (« faut-il resserrer ce repas ? »), PAS un rayon dur ; la sélection reste
+    // « 8 plus proches » auto-adaptative (un rayon dur viderait les villes pauvres — cf. étape 3 du chantier restos).
     var _lprev=null; for(var lz=out.length-1;lz>=0;lz--){ if(!isMeal(out[lz])&&!out[lz].libre){ _lprev=out[lz]; break; } }
-    if(_lprev && _lprev.lat!=null && lunch.lat!=null && hav(_lprev.lat,_lprev.lng,lunch.lat,lunch.lng)>1.2){
+    if(_lprev && _lprev.lat!=null && lunch.lat!=null && hav(_lprev.lat,_lprev.lng,lunch.lat,lunch.lng)>0.9){
       var _ln=_pickNearMeal(_lprev, lunch, dinner?_norm(dinner.nom||''):'');
       if(_ln && _norm(_ln.nom)!==_norm(lunch.nom||'')){ lunch=_mealStep(_ln,'déjeuner'); if(_usedN&&_usedN.add)_usedN.add(_norm(_ln.nom)); }
     }
@@ -3248,10 +3250,10 @@ function recomposeDay(day, ctx){
     var s1=queue.splice(pi,1)[0]; place(s1,_dur(s1),null,s1.openEnd);
   }
   var DINNER=20*60, lastChain=null; for(var z=out.length-1;z>=0;z--){ if(!isMeal(out[z]) && !out[z].libre){ lastChain=out[z]; break; } }
-  // dîner « N plus proches » de la dernière étape (proximité prime, invariant #4). On ne re-choisit QUE s'il est loin (>1,2 km)
-  // -> un dîner déjà proche NE BOUGE PAS (snapshot Paris intact) ; le seuil 1,2 km ne sert plus que de DÉCLENCHEUR, la
+  // dîner « N plus proches » de la dernière étape (proximité prime, invariant #4). On ne re-choisit QUE s'il est loin (>0,9 km)
+  // -> un dîner déjà proche NE BOUGE PAS (snapshot Paris intact) ; le seuil 0,9 km ne sert plus que de DÉCLENCHEUR, la
   // sélection elle-même = les 8 plus proches, mieux-noté (rayon implicite auto-adaptatif, cf. _pickNearMeal).
-  if(lastChain && (!dinner || (lastChain.lat!=null && dinner.lat!=null && hav(lastChain.lat,lastChain.lng,dinner.lat,dinner.lng)>1.2))){
+  if(lastChain && (!dinner || (lastChain.lat!=null && dinner.lat!=null && hav(lastChain.lat,lastChain.lng,dinner.lat,dinner.lng)>0.9))){
     var _keep=dinner?_norm(dinner.nom||''):''; // le dîner actuel reste éligible (on ne se ré-exclut pas soi-même)
     var nd=_pickNearMeal(lastChain, dinner, lunch?_norm(lunch.nom||''):'');
     if(nd && _norm(nd.nom)!==_keep){ dinner=_mealStep(nd,'dîner'); if(_usedN&&_usedN.add)_usedN.add(_norm(nd.nom)); }
