@@ -2110,6 +2110,46 @@ function cleanCat(cats){
 }
 // VARIATION DES LIBELLÉS (anti-monotonie) : choix DÉTERMINISTE par nom (hash) -> stable au refresh, mais deux lieux voisins (noms ≠) tombent sur des phrases différentes. Pas de Math.random (invariants restent déterministes).
 function _cap(s){s=s||'';return s.charAt(0).toUpperCase()+s.slice(1);}
+// ===== ÉTAPE 8 — DESCRIPTIF = LE VRAI TYPE (couche d'AFFICHAGE, français précis) =====
+// But : sur une carte on doit lire « Bistrot français » / « Bar à vin » / « Place / square », pas le seau générique
+// « un restaurant » / « une place ». On NE touche PAS cleanCat (qui reste le seau utilisé pour le prompt LLM et la
+// sélection — le changer bougerait le comportement/snapshot) : ceci est une couche purement AFFICHAGE.
+// Source = `catsrc` (= category_src déjà en base). §4 : on classe par CATÉGORIE, jamais par le nom. Table SPÉCIFIQUE
+// d'abord (cuisines + types de lieu que le seau écrase), repli sur cleanCat sans l'article, '' si type inconnu (jamais inventé).
+var TYPE_FINE=[
+  [/wine ?bar|bar à vin|bar a vin/,'Bar à vin'],
+  [/\bbouillon\b/,'Bouillon'],
+  [/brasserie/,'Brasserie'],
+  [/gastropub/,'Gastropub'],
+  [/\bbistro/,'Bistrot'],
+  [/seafood|fruits de mer|fish restaurant|poissonnerie/,'Restaurant de fruits de mer'],
+  [/sushi|japanese|ramen|izakaya|yakitori|udon|soba|japonais/,'Restaurant japonais'],
+  [/\bthai\b|thaï|tha[ïi]land/,'Restaurant thaï'],
+  [/dim ?sum|cantonese|szechuan|sichuan|chinese|chinois/,'Restaurant chinois'],
+  [/vietnamese|vietnamien|\bpho\b/,'Restaurant vietnamien'],
+  [/korean|coréen|coreen/,'Restaurant coréen'],
+  [/tandoori|\bindian\b|indien/,'Restaurant indien'],
+  [/trattoria|osteria|italian|italien/,'Restaurant italien'],
+  [/pizzeria|\bpizza\b/,'Pizzeria'],
+  [/cr[êe]perie|cr[êe]pe/,'Crêperie'],
+  [/tapas/,'Bar à tapas'],
+  [/taqueria|mexican|mexicain|\btaco/,'Restaurant mexicain'],
+  [/lebanese|libanais|\bmezze\b|mediterranean|méditerran/,'Restaurant méditerranéen'],
+  [/vegetarian|végétar|\bvegan\b|végan/,'Restaurant végétarien'],
+  [/steak.?house|\bgrill\b|barbecue|\bbbq\b/,'Grill / steakhouse'],
+  [/burger/,'Burger'],
+  [/french restaurant|cuisine française|fran[çc]ais/,'Restaurant français'],
+  [/\bsquare\b|\bplaza\b|\bplace\b/,'Place / square']
+];
+function _stripArt(s){ s=(s||'').replace(/^(un |une |des |de l'|du |de la |le |la |l'|d'|de )/i,''); return _cap(s); }
+function _typeLabel(data){
+  var s=(((data&&data.catsrc)||'')+' '+((data&&data._c&&data._c.catsrc)||'')+' '+((data&&data.cat)||'')).toLowerCase();
+  if(!s.replace(/\s/g,'')) return '';                 // aucune catégorie connue -> pas de type inventé
+  for(var i=0;i<TYPE_FINE.length;i++) if(TYPE_FINE[i][0].test(s)) return TYPE_FINE[i][1];
+  var g=cleanCat([s]);
+  if(g==='un lieu emblématique') return '';            // type inconnu -> '' (jamais un type inventé)
+  return _stripArt(g);
+}
 function _variHash(s){s=(s||'')+'';var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
 function _vari(key,arr){return arr[_variHash(key)%arr.length];}
 function _comblage(n){return _vari(n,['Une halte du quartier à découvrir au fil de la marche.','À voir en flânant dans le secteur.','Une étape agréable au fil de la promenade du quartier.']);}
@@ -2897,11 +2937,13 @@ function parseJSON(txt){try{const m=txt.match(/\[[\s\S]*\]/);return JSON.parse(m
 function _bcVariant(place, step, tid){
   var ct = place.cat || '';
   var cap = ct ? (ct.charAt(0).toUpperCase()+ct.slice(1)) : 'Une adresse';
+  var _tyBc = (typeof _typeLabel==='function') ? _typeLabel(place) : ''; // (étape 8) vrai type de CETTE alternative
   return {
     id: tid, label: place.nom||'', heure: (typeof step._t0==='number'?fmtH(rc(step._t0)):(step.heure||'')), heure_fin: (typeof step._t1==='number'?fmtH(rc(step._t1)):(step.fin||'')), // (item 4) heure affichée arrondie 5 min (variante B/C = même créneau que A)
     nom: place.nom||'', titre: place.nom||'',
     price: (typeof place.price==='number' && place.price>0 ? place.price : null), // (carte_prix) prix propre À CETTE alternative -> badge €/€€/€€€/€€€€ dans sa case B/C
-    texte: place.extract ? place.extract : (cap + ' à proximité — une autre adresse pour cette étape.'), // BUG 3 : vrai extrait si dispo (comme la variante A) ; sinon fallback EN CLAIR (plus d'entités &agrave; brutes)
+    catsrc: place.catsrc || (place._c && place._c.catsrc) || null,     // (étape 8) catégorie réelle portée sur l'alternative -> _typeLabel (sous-titre + case A/B/C)
+    texte: place.extract ? place.extract : (_tyBc ? (_tyBc + ' à proximité — une autre adresse pour cette étape.') : (cap + ' à proximité — une autre adresse pour cette étape.')), // (étape 8) repli EN CLAIR : le VRAI type (« Bar à vin à proximité… ») plutôt que le seau générique ; sinon cap
     adresse: place.address||place.adresse||null,
     image: place.image||null,
     points_chute: [],
@@ -3004,6 +3046,7 @@ function adaptDayToJours(day){
       theme: step.theme || null,                                       // (3) pour le badge prix (restos)
       kind: (typeof kindOf==='function' && !step.libre) ? kindOf(step) : null, // (refonte output étape 2) RÔLE du lieu -> couleur du nœud/chip du fil (mockup : musée/parc/point de vue/place/repas…)
       cat: step.cat || null,                                           // (refonte output) sert à distinguer bord d'eau/canal des autres nature
+      catsrc: step.catsrc || (step._c && step._c.catsrc) || null,      // (étape 8) catégorie réelle -> _typeLabel affiche le type précis (« Bistrot français »/« Place / square ») en sous-titre
       price: (typeof step.price==='number' ? step.price : null),       // (3) prix €..€€€€ (porté sur l'étape avant suppression de _c)
       nom: step.nom || step.adresse || step.titre || '',
       titre: step.titre || '',
@@ -5222,6 +5265,10 @@ function ivTeaser(data) {
   const nom = _norm((data && data.nom) || '');
   // 1) un libellé UTILE différent du nom (ex. « Déjeuner — X », « Café de spécialité — X »)
   if (data && data.titre && _norm(data.titre) !== nom) return data.titre;
+  // 1b) (étape 8) le TYPE PRÉCIS du lieu (« Bistrot français », « Place / square », « Musée ») — plus parlant qu'une
+  //     adresse de rue pour trancher d'un coup d'œil (façon Mindtrip). L'adresse reste affichée dans le détail déplié.
+  const _ty = (typeof _typeLabel === 'function') ? _typeLabel(data) : '';
+  if (_ty && _norm(_ty) !== nom) return _ty;
   // 2) sinon la VRAIE adresse si connue (évite de répéter le nom sur les places/icônes)
   if (data && data.adresse && _norm(data.adresse) !== nom) return data.adresse;
   // 3) sinon la 1re phrase de la description
