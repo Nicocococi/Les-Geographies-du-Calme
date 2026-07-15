@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v325'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v326'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4070,6 +4070,32 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       else { log('  · Jour '+(i+1)+' écarté ('+_realN+' vraies étapes < 4) — séjour raccourci plutôt qu\'un jour-croupion.',true); }
       log('  ⏱ Jour '+(i+1)+' construit en '+((Date.now()-_tDay)/1000).toFixed(1)+' s (dont réseau '+(_tEnrich/1000).toFixed(1)+'s + robot '+(_tLLM/1000).toFixed(1)+'s) (cumul '+_el()+' s).'); _tDay=Date.now();
     }
+    // FILET FINAL — PLAFONDS « spectacle » ≤ 1 PAR SÉJOUR (footing / théâtre / cabaret / concert).
+    // Tant que les jours sont bâtis EN SÉQUENCE, `usedShow` garantit déjà ce plafond PENDANT la boucle : ce balayage
+    // ne trouve donc RIEN à retirer -> NO-OP (snapshot Paris + matrice intacts). Il devient le GARANT le jour où les
+    // jours seront bâtis EN PARALLÈLE (usedShow ne peut plus être un compteur partagé fiable entre branches).
+    // Détection alignée sur les points d'application de la boucle (théâtre = thème culture ; cabaret/concert = sortie
+    // du soir festive ; footing = _footing) -> mêmes verdicts qu'en séquentiel, jamais par nom de ville (§4). Placé
+    // AVANT le balayage inter-jours pour que son garde-fou « jour < 4 étapes » couvre aussi ces retraits.
+    (function(){
+      var _capOf=function(s){
+        if(!s||s.libre||s.theme==='gastronomie')return null;
+        if(s._footing)return 'footing';
+        var _nc=(s.nom||'')+' '+(s.cat||s.catsrc||'');
+        if(s.theme==='culture' && /th[éeè][âa]tre|theater|theatre/i.test(_nc))return 'theatre';
+        if(s.theme==='festif'){
+          if(/cabaret|revue|burlesque|moulin rouge|lido|crazy horse|paradis latin/i.test(_nc))return 'cabaret';
+          if(/concert|music.?hall|salle de concert|salle de spectacle|op[ée]ra|live music|performing arts/i.test(_nc))return 'concert';
+        }
+        return null;
+      };
+      var _cnt={};
+      DAYS.forEach(function(d){ var kept=[]; (d.steps||[]).forEach(function(s){
+        var c=_capOf(s);
+        if(c){ if(_cnt[c]){ log('  · plafond « '+c+' » dépassé (≤1/séjour) — étape retirée : '+(s.nom||'')); return; } _cnt[c]=1; }
+        kept.push(s);
+      }); d.steps=kept; });
+    })();
     // BALAYAGE FINAL INTER-JOURS (filet) : après tous les jours, un lieu (non-repas) ne peut PAS répéter un lieu d'un jour
     // ANTÉRIEUR — identité robuste (_sameLieuStep : nom/QID, ou <150 m + tokens-cœur/adresse ; jamais proximité seule).
     // Attrape ce que le registre incrémental rate (ex. le filler de recomposeDay, qui pioche dans localLM sans consulter
