@@ -2138,7 +2138,19 @@ var TYPE_FINE=[
   [/vegetarian|végétar|\bvegan\b|végan/,'Restaurant végétarien'],
   [/steak.?house|\bgrill\b|barbecue|\bbbq\b/,'Grill / steakhouse'],
   [/burger/,'Burger'],
-  [/french restaurant|cuisine française|fran[çc]ais/,'Restaurant français'],
+  [/\bfrench\b|cuisine française|fran[çc]ais/,'Restaurant français'],
+  [/\basian\b|asiatique/,'Restaurant asiatique'],
+  [/turkish|\bturc\b/,'Restaurant turc'],
+  [/\bkebab\b/,'Kebab'],
+  [/portuguese|portugais/,'Restaurant portugais'],
+  [/\bafrican\b|africain/,'Restaurant africain'],
+  [/moroccan|marocain/,'Restaurant marocain'],
+  [/spanish|espagnol/,'Restaurant espagnol'],
+  [/brazilian|br[ée]silien/,'Restaurant brésilien'],
+  [/\bchicken\b|r[ôo]tisserie|poulet r[ôo]ti/,'Rôtisserie'],
+  [/hawaiian|hawa[ïi]en/,'Restaurant hawaïen'],
+  [/bubble.?tea/,'Bubble tea'],
+  [/\bcaf(e|é)(?![a-z])|coffee/,'Café'],
   [/\bsquare\b|\bplaza\b|\bplace\b/,'Place / square']
 ];
 function _stripArt(s){ s=(s||'').replace(/^(un |une |des |de l'|du |de la |le |la |l'|d'|de )/i,''); return _cap(s); }
