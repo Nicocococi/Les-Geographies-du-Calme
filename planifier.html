@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v326'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v327'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -3713,9 +3713,15 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     // GRANDE VILLE (métropole) : beaucoup de lieux collectés -> un quartier ne peut PAS être à 8 km (ce serait un géocodage foireux d'un nom LLM bâtard), et on n'autorise pas d'excursion voiture de remplissage. Petite ville (peu de lieux) -> excursions légitimes gardées (Carcassonne : canoë à 15 km).
     const bigCity = all.length >= 500;
     log('  ⏱ démarrage (géocodage + collecte + ambiance + nommage quartiers) : '+_el()+' s.');
-    var _tDay=Date.now();
+    // ===== VITESSE — ÉTAPE 2 : LES JOURS EN PARALLÈLE =====
+    // PHASE 1 (SÉQUENTIELLE) : on choisit les quartiers ÉTALÉS (usedZones), on enrichit, on bâtit les candidats + le prompt
+    // de CHAQUE jour. Reste séquentiel car l'étalement d'un jour dépend des zones déjà prises + le gate lit l'enrich du jour.
+    // On ne mute PAS encore used/usedKinds/usedShow (inconnus tant que le robot n'a pas répondu) : l'anti-doublon inter-jours
+    // est assuré APRÈS, par la passe SÉQUENTIELLE de la PHASE 3 (comblage lit used/usedKinds au fil des jours) + le balayage
+    // final (filet). Chaque prompt est autonome -> les jours peuvent être rédigés indépendamment.
+    const _prep=[];
     for(let i=0;i<duree;i++){
-      var _tEnrich=0,_tLLM=0; // ⏱ sous-chronos du jour : réseau (enrich) vs robot (LLM sélection)
+      var _tEnrich=0; // ⏱ sous-chrono réseau (enrich) du jour — PHASE 1
       // on cherche un ancrage dans un QUARTIER encore inexploré (pas deux jours au même endroit)
       let anchor=null,quartier=null,_didEnrich=false,_dayRepere='';const tried=new Set();
       // NIVEAU 2 — PRIORITÉ au quartier NOMMÉ par le LLM (caractère). On ENRICHIT d'ABORD le quartier (lecture live) PUIS on compte : le garde-fou voit les POI DU QUARTIER, plus le pool central. ≥2 POI du thème sinon repli densité.
@@ -3797,6 +3803,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(useBase && !_didEnrich){try{ var _te1=Date.now(); var _ea=await _enrich(center); _tEnrich+=(Date.now()-_te1); log('  · '+(/^quartier/i.test(quartier||'')?'':'quartier ')+quartier+' : +'+_ea+' lieux (lecture live /near + /places 2 km).'); }catch(e){}}
       const excursion=anchor.distKm>7 && !bigCity; // EXCURSION (bandeau voiture) seulement en PETITE ville pour un quartier éloigné (Carcassonne) — jamais en métropole (un quartier « à 8 km » dans Paris = géocodage foireux, déjà rejeté en amont)
       usedQuartiers.add(quartier);
+      usedZones.push(center); // ÉTALEMENT : on marque la ZONE du jour DÈS sa sélection (PHASE 1), pour que les jours suivants s'en écartent. Avant : poussé en fin de construction — mais les jours ne sont plus bâtis en séquence, donc on marque ici.
       log('Jour '+(i+1)+' · '+quartier+(excursion?' — excursion ~'+Math.round(anchor.distKm)+' km (voiture)':'')+' · ancrage : '+anchor.nom);
       let cands=buildDayAround(center,all,themes,used,usedKinds,_usedAlready);
       const nbBrut=Object.values(cands).reduce((a,b)=>a+b.length,0);
@@ -3825,8 +3832,19 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       }
       log('  -> '+Object.values(cands).reduce((a,b)=>a+b.length,0)+' lieux retenus. Sélection + horaires…');
       const {prompt,pool}=selectPrompt(dest,quartier,i+1,themes,voyage,budget,cands,{excursion});
+      _prep.push({i:i,anchor:anchor,quartier:quartier,center:center,excursion:excursion,cands:cands,pool:pool,prompt:prompt});
+    }
+    // PHASE 2 (PARALLÈLE) : le robot rédige les N jours EN MÊME TEMPS (au lieu d'un par un) — LE gain de vitesse.
+    // Chaque prompt est autonome (bâti en PHASE 1) -> résultats indépendants. Un échec isolé retombe sur '' -> jour comblé en déterministe.
+    log('  ⏱ PHASE 1 prête ('+_prep.length+' jour(s) : quartiers + enrich + prompts) : '+_el()+' s. Robot en parallèle…');
+    var _raws=await Promise.all(_prep.map(function(p){return llm(p.prompt,1800).catch(function(){return '';});}));
+    log('  ⏱ PHASE 2 (robot en parallèle) terminée : '+_el()+' s. Assemblage des jours…');
+    // PHASE 3 (SÉQUENTIELLE) : on assemble chaque jour = réponse du robot + comblage déterministe. Séquentielle pour que
+    // used/usedKinds/usedShow se remplissent d'un jour à l'autre (anti-doublon + variété de type + plafonds inter-jours préservés).
+    for(let _di=0;_di<_prep.length;_di++){
+      var i=_prep[_di].i, anchor=_prep[_di].anchor, quartier=_prep[_di].quartier, center=_prep[_di].center, excursion=_prep[_di].excursion, cands=_prep[_di].cands, pool=_prep[_di].pool;
       const seen=new Set();
-      var _tl0=Date.now(); var _rawLLM=await llm(prompt,1800); _tLLM+=(Date.now()-_tl0);
+      var _rawLLM=_raws[_di];
       let steps=(parseJSON(_rawLLM)||[]).map(s=>{const c=pool[s.id];return c?Object.assign({},s,{nom:c.nom,lat:c.lat,lng:c.lng,periph:c.periph,carhop:!!c.carhop,theme:c.theme,_c:c}):null;}).filter(Boolean).filter(s=>{if(seen.has(s.id))return false;seen.add(s.id);return true;});
       let gc=0;steps=steps.filter(s=>{if(s.theme==='gastronomie'&&!(s._c&&s._c.foodExp)){if(!_MEAL_TITLE_RE.test(s.titre||''))return false;gc++;if(gc>2)return false;}return true;}); // gastro NON-foodExp = REPAS UNIQUEMENT (titre déjeuner/dîner/…), plafonné à 2. Fini le loophole « café/goûter » par NOM (§4) qui servait un resto en activité. Les EXPÉRIENCES food (marché, halle, glacier, cave = foodExp) restent des activités par ailleurs.
       // ANTI-DOUBLON de sous-type : pas 2 piscines / 2 golfs… dans la même journée
@@ -3877,7 +3895,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
           gpool=gpool.concat(_gall.filter(c=>!_usedAlready(c))); // restos PAS déjà servis un autre jour (identité robuste aux variantes)
           // FILET DE RÉUTILISATION SUPPRIMÉ (brief villes pauvres) : en ville pauvre, mieux vaut RACCOURCIR/assumer un creux que répéter un resto d'un autre jour.
         }
-        for(var gi=0;gi<gpool.length && mealsArr.length<2;gi++){var g=gpool[gi];if(gch.has(_norm(g.nom)))continue;gch.add(_norm(g.nom));mealsArr.push(Object.assign({},g,{_c:g,theme:'gastronomie',titre:mealsArr.length===0?'Déjeuner gourmand':'Dîner du soir',texte:_mealTxt(g.nom,mealsArr.length===0?'déjeuner':'dîner')}));}
+        for(var gi=0;gi<gpool.length && mealsArr.length<2;gi++){var g=gpool[gi];if(gch.has(_norm(g.nom)))continue;if(_usedAlready(g))continue;gch.add(_norm(g.nom));mealsArr.push(Object.assign({},g,{_c:g,theme:'gastronomie',titre:mealsArr.length===0?'Déjeuner gourmand':'Dîner du soir',texte:_mealTxt(g.nom,mealsArr.length===0?'déjeuner':'dîner')}));}
       }
       // réservoir d'activités encore dispo (hors repas, hors déjà choisies), qualité + proximité d'abord
       var chosenNoms=new Set(actsArr.map(s=>_norm(s.nom)));
@@ -4056,7 +4074,6 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         delete s._c;}); // variété inter-jours + on garde l'adresse réelle pour l'affichage
       if(steps.some(s=>BIKE.test(s.nom||'')))usedKinds.add('velo');
       if(steps.some(s=>FIT_RE.test(s.nom||'')))usedKinds.add('fitness');
-      usedZones.push(center);
       var _day={num:i+1,quartier,center,steps,cands,excursion,distKm:Math.round(anchor.distKm),localLM:_dayLM};
       finalizeDay(_day,{themes:themes,voyage:voyage,budget:budget,center:center,bubble:BUBBLE,all:all,destCity:(dc&&dc.nom)||dest||'',usedNames:used,excursion:excursion}); // PASSE DE COHÉRENCE (avant rendu) — inclut le re-libellé « [lieu le plus notable] et ses environs »
       // DIAGNOSTIC (vérité terrain) : dump de CHAQUE étape rendue avec sa catégorie + le verdict des classifieurs -> on voit
@@ -4068,7 +4085,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var _realN=(_day.steps||[]).filter(function(s){return s && !s.libre;}).length;
       if(_realN>=4 || DAYS.length===0){ DAYS.push(_day); }
       else { log('  · Jour '+(i+1)+' écarté ('+_realN+' vraies étapes < 4) — séjour raccourci plutôt qu\'un jour-croupion.',true); }
-      log('  ⏱ Jour '+(i+1)+' construit en '+((Date.now()-_tDay)/1000).toFixed(1)+' s (dont réseau '+(_tEnrich/1000).toFixed(1)+'s + robot '+(_tLLM/1000).toFixed(1)+'s) (cumul '+_el()+' s).'); _tDay=Date.now();
+      log('  ⏱ Jour '+(i+1)+' assemblé (cumul '+_el()+' s).');
     }
     // FILET FINAL — PLAFONDS « spectacle » ≤ 1 PAR SÉJOUR (footing / théâtre / cabaret / concert).
     // Tant que les jours sont bâtis EN SÉQUENCE, `usedShow` garantit déjà ce plafond PENDANT la boucle : ce balayage
