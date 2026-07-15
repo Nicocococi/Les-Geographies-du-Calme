@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v322'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v323'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -3629,17 +3629,24 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     const dc=await geocode(dest,null,null,'place,locality,district,region');if(!dc)throw new Error('destination introuvable');
     log('Le thème pilote la carte : collecte des lieux réels…');
     const useBase=true; // MODE BASE FORCÉ (vrais lieux depuis le Worker /places)
-    let all=await collectFromBase(dc,themes,budget,voyage);
+    // ===== VITESSE — ÉTAPE 1 : DÉMARRAGE EN PARALLÈLE =====
+    // Les 3 opérations de démarrage sont INDÉPENDANTES (aucune ne lit le résultat d'une autre) :
+    //   (1) collectFromBase -> `all`  (2) lecture AMBIANCE -> AMBIANCE  (3) LLM nommage des quartiers -> _llmQ (parsé plus bas).
+    // On les LANCE ensemble (un seul temps d'attente au lieu de trois enchaînés). Résultats identiques : rien n'est recalculé, seul l'ordre d'attente des I/O change.
+    var _P_all=collectFromBase(dc,themes,budget,voyage);
+    var _P_amb=useBase?fetchT(API+'/places?lat='+dc.lat+'&lng='+dc.lng+'&km='+REGION_KM+'&themes=culture,nature,gastronomie,festif,bienetre,sport,urbain&limit=2000',{},15000).then(function(r){return r.json();}).catch(function(){return null;}):Promise.resolve(null);
+    var _P_llmQ=useBase?llm(buildPromptQuartiers(dest,duree,themes,budget,saison||'belle saison'),700).catch(function(){return '';}):Promise.resolve('');
+    let all=await _P_all;
     // COUCHE AMBIANCE : TOUS les lieux de la ville (tous thèmes), lus depuis D1 (gratuit). Sert (1) à scorer l'ambiance des quartiers, (2) les repères « sur le chemin »/incontournables (sous-ensemble notable).
     AMBIANCE=[];LANDMARKS=[];
     // ANTI-BIAIS CENTRE : /places trie par score DESC ; à limit=500 sur 35 km, une métropole ne remonte QUE ses monuments
     // centraux à forte notoriété -> la périphérie n'existe pas dans AMBIANCE, et le repli densité (ambianceAt) reste collé
     // au centre. On relève au plafond Worker (2000) pour que les quartiers périphériques pèsent dans l'ambiance. NB : le
     // gate _Tn/_Rn n'utilise PAS AMBIANCE (il lit `all` + l'enrich live du quartier) -> ceci ne touche QUE le repli.
-    if(useBase){try{const _lr=await fetchT(API+'/places?lat='+dc.lat+'&lng='+dc.lng+'&km='+REGION_KM+'&themes=culture,nature,gastronomie,festif,bienetre,sport,urbain&limit=2000',{},15000);const _lj=await _lr.json();
+    if(useBase){try{const _lj=await _P_amb;if(_lj){
       AMBIANCE=(_lj.places||[]).filter(p=>p.name&&p.lat&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({nom:p.name,lat:p.lat,lng:p.lng,score:p.score||0,theme:p.primary_theme||'culture',notable:!!p.notable,pop:(p.tags&&typeof p.tags.popularity==='number'?p.tags.popularity:0),address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),_pouvoir:_isPouvoir(p.category_src||[],p.name)}));
       LANDMARKS=AMBIANCE.filter(p=>p.notable); // repères notables = sous-ensemble
-      log('  · '+AMBIANCE.length+' lieux pour l\'ambiance ('+LANDMARKS.length+' notables).');}catch(e){}}
+      log('  · '+AMBIANCE.length+' lieux pour l\'ambiance ('+LANDMARKS.length+' notables).');}}catch(e){}}
     // SAISON : on écarte les lieux hors-saison. Par défaut (Indifférent) on bloque 'cold' (le ski n'apparaît qu'en Hiver explicite) -> jamais golf+ski.
     const blockSeason=(saison==='hiver')?'warm':'cold';
     const beforeS=all.length; all=all.filter(c=>c.season!==blockSeason);
@@ -3681,7 +3688,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     // NIVEAU 2 — le LLM NOMME les quartiers par CARACTÈRE (caractère > densité, anti-checklist). 1 seul appel LLM. Repli TOTAL sur pickAnchor (A×T) si échec/simulé (matrice) -> jamais bloquant. Le LLM ne remplit JAMAIS de POI.
     var _llmQ={};
     if(useBase){try{
-      var _qtxt=await llm(buildPromptQuartiers(dest,duree,themes,budget,saison||'belle saison'),700);
+      var _qtxt=await _P_llmQ; // lancé EN PARALLÈLE au démarrage (voir ÉTAPE 1) ; ici il est déjà (ou presque) prêt — plus d'attente séquentielle
       _llmQ=parseQuartiers(_qtxt)||{};
       var _qn=Object.keys(_llmQ).length;
       if(_qn)log('  · LLM (caractère) : '+_qn+' quartier(s) proposé(s) → '+Object.values(_llmQ).map(function(o){return o.nom+(o.repere?(' ('+o.repere+')'):'');}).join(' · '));
