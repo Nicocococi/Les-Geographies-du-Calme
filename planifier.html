@@ -2162,6 +2162,19 @@ function _typeLabel(data){
   if(g==='un lieu emblématique') return '';            // type inconnu -> '' (jamais un type inventé)
   return _stripArt(g);
 }
+// (refonte carte resto) Un RESTAURANT (repas OU alternative de repas) : repas = gastronomie NON-foodExp (titre déjeuner/dîner)
+// ou thème gastronomie porté par une alternative (_bcVariant). Un foodExp (marché/glacier/cave) N'EST PAS une table -> exclu
+// (il ne doit jamais afficher « Restaurant »). Sert au sous-titre « Restaurant japonais » (type précis) / « Restaurant » (muet).
+function _isEatery(data){
+  if(!data) return false;
+  if((data._c && data._c.foodExp) || data.foodExp) return false;         // marché/glacier/cave = activité, pas une table
+  if(/d[ée]jeuner|d[îi]ner|repas|brunch/i.test(data.titre||'')) return true; // repas (titre)
+  return data.theme==='gastronomie';                                     // alternative de repas (thème porté)
+}
+// (refonte carte resto) Descriptions FABRIQUÉES à supprimer à l'affichage : les phrases bouche-trou de _mealTxt / _bcVariant
+// (« une table du quartier pour… », « à proximité — une autre adresse… »). On n'affiche RIEN tant qu'on n'a pas de vraie
+// description (extract réel) — jamais de faux texte. Les extracts réels ne matchent pas et passent donc intacts.
+var _FAB_TXT_RE=/une table du quartier pour|une adresse du secteur o[uù]|on s'attable dans le quartier|à proximité — une autre adresse/i;
 function _variHash(s){s=(s||'')+'';var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
 function _vari(key,arr){return arr[_variHash(key)%arr.length];}
 function _comblage(n){return _vari(n,['Une halte du quartier à découvrir au fil de la marche.','À voir en flânant dans le secteur.','Une étape agréable au fil de la promenade du quartier.']);}
@@ -2960,6 +2973,7 @@ function _bcVariant(place, step, tid){
   return {
     id: tid, label: place.nom||'', heure: (typeof step._t0==='number'?fmtH(rc(step._t0)):(step.heure||'')), heure_fin: (typeof step._t1==='number'?fmtH(rc(step._t1)):(step.fin||'')), // (item 4) heure affichée arrondie 5 min (variante B/C = même créneau que A)
     nom: place.nom||'', titre: place.nom||'',
+    theme: step.theme || place.theme || '', foodExp: !!(place.foodExp || (place._c && place._c.foodExp)), // (refonte carte resto) thème porté sur l'alternative -> _isEatery la reconnaît comme table -> MÊME format que l'étape A (sous-titre « Restaurant … », description vide)
     price: (typeof place.price==='number' && place.price>0 ? place.price : null), // (carte_prix) prix propre À CETTE alternative -> badge €/€€/€€€/€€€€ dans sa case B/C
     catsrc: place.catsrc || (place._c && place._c.catsrc) || null,     // (étape 8) catégorie réelle portée sur l'alternative -> _typeLabel (sous-titre + case A/B/C)
     texte: place.extract ? place.extract : (_tyBc ? (_tyBc + ' à proximité — une autre adresse pour cette étape.') : (cap + ' à proximité — une autre adresse pour cette étape.')), // (étape 8) repli EN CLAIR : le VRAI type (« Bar à vin à proximité… ») plutôt que le seau générique ; sinon cap
@@ -5346,7 +5360,10 @@ function ivOpt(num, tid, opt) { const d = joursData[ivJourKey(num)]; return d &&
 function ivCurOpt(num, tid) { return (IV.sel[num] && IV.sel[num][tid]) || 'a'; }
 function ivTeaser(data) {
   const nom = _norm((data && data.nom) || '');
-  // 1) un libellé UTILE différent du nom (ex. « Déjeuner — X », « Café de spécialité — X »)
+  // 0) (refonte carte resto) un RESTAURANT -> sous-titre = TYPE PUR (« Restaurant japonais »), ou « Restaurant » si type muet.
+  //    Le chip affiche déjà « Déjeuner »/« Dîner » et le nom est au-dessus : pas de redondance, même format pour les 3 alternatives.
+  if (_isEatery(data)) return _typeLabel(data) || 'Restaurant';
+  // 1) un libellé UTILE différent du nom (ex. « Café de spécialité — X »)
   if (data && data.titre && _norm(data.titre) !== nom) return data.titre;
   // 1b) (étape 8) le TYPE PRÉCIS du lieu (« Bistrot français », « Place / square », « Musée ») — plus parlant qu'une
   //     adresse de rue pour trancher d'un coup d'œil (façon Mindtrip). L'adresse reste affichée dans le détail déplié.
@@ -5730,7 +5747,10 @@ function ivDetailHTML(num, t, i, optOverride) {
   let html = '<div class="iv-detail-inner">';
   // (refonte output — correctif 1) UNE SEULE photo : la vignette à droite du texte (rendue dans l'en-tête, visible pliée ET
   // dépliée) suffit. On NE ré-affiche PLUS la grande photo au dépliage (il y en avait deux).
-  html += '<p class="iv-text">' + _escHtml((data && data.texte) || '') + '</p>'; // texte stocké EN CLAIR partout -> échappé ici (innerHTML) ; le sous-titre l'affiche via textContent (donc plus d'entités brutes)
+  // (refonte carte resto) description = SEULEMENT si c'est une vraie description : on masque les phrases FABRIQUÉES bouche-trou
+  // (_mealTxt / _bcVariant) -> RIEN tant qu'on n'a pas d'extract réel (jamais de faux texte). Les extracts réels passent intacts.
+  var _tx=(data && data.texte) || '';
+  if(_tx && !_FAB_TXT_RE.test(_tx)) html += '<p class="iv-text">' + _escHtml(_tx) + '</p>'; // texte stocké EN CLAIR partout -> échappé ici (innerHTML)
   // ADRESSE RÉELLE dans le détail : affichée pour TOUTE étape à adresse connue (repas inclus) — sauf temps libre,
   // et sauf si le sous-titre la montre déjà (évite le doublon avec ivTeaser). Corrige les repas, dont le titre
   // « Déjeuner — X » masquait toujours l'adresse en sous-titre.
