@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v323'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
+const APP_VERSION='v324'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »)
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -3624,6 +3624,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
   saison=saison||''; // ''=indifférent
   if(!dest||!themes.length){throw new Error('Destination et au moins 1 thème requis.');}
   {
+    const _t0=Date.now();const _el=function(){return ((Date.now()-_t0)/1000).toFixed(1);}; // ⏱ chrono par phase (diagnostic vitesse — affichage seul)
     log('◆ Planificateur '+APP_VERSION+' — démarrage de la génération.'); // 1re ligne = version servie (vérif d'un coup d'œil)
     log('Token + géocodage destination…');await getToken();try{if(typeof mapboxgl!=='undefined'&&mapboxgl)mapboxgl.accessToken=TOKEN;}catch(_){}
     const dc=await geocode(dest,null,null,'place,locality,district,region');if(!dc)throw new Error('destination introuvable');
@@ -3711,6 +3712,8 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     }
     // GRANDE VILLE (métropole) : beaucoup de lieux collectés -> un quartier ne peut PAS être à 8 km (ce serait un géocodage foireux d'un nom LLM bâtard), et on n'autorise pas d'excursion voiture de remplissage. Petite ville (peu de lieux) -> excursions légitimes gardées (Carcassonne : canoë à 15 km).
     const bigCity = all.length >= 500;
+    log('  ⏱ démarrage (géocodage + collecte + ambiance + nommage quartiers) : '+_el()+' s.');
+    var _tDay=Date.now();
     for(let i=0;i<duree;i++){
       // on cherche un ancrage dans un QUARTIER encore inexploré (pas deux jours au même endroit)
       let anchor=null,quartier=null,_didEnrich=false,_dayRepere='';const tried=new Set();
@@ -4063,6 +4066,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var _realN=(_day.steps||[]).filter(function(s){return s && !s.libre;}).length;
       if(_realN>=4 || DAYS.length===0){ DAYS.push(_day); }
       else { log('  · Jour '+(i+1)+' écarté ('+_realN+' vraies étapes < 4) — séjour raccourci plutôt qu\'un jour-croupion.',true); }
+      log('  ⏱ Jour '+(i+1)+' construit en '+((Date.now()-_tDay)/1000).toFixed(1)+' s (cumul '+_el()+' s).'); _tDay=Date.now();
     }
     // BALAYAGE FINAL INTER-JOURS (filet) : après tous les jours, un lieu (non-repas) ne peut PAS répéter un lieu d'un jour
     // ANTÉRIEUR — identité robuste (_sameLieuStep : nom/QID, ou <150 m + tokens-cœur/adresse ; jamais proximité seule).
@@ -4090,6 +4094,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       RACCOURCI_MSG='Pour ces thèmes, '+(dest||'cette destination')+' se savoure pleinement en '+_jrs(_nd)+' : on a préféré '+_jrs(_nd)+' bien remplies à '+duree+' étirées. Élargissez les thèmes ou allongez plus tard, une fois d’autres lieux ajoutés.';
     }
     if(!DAYS.length)throw new Error('aucun lieu trouvé pour ces thèmes');
+    log('  ⏱ TOTAL moteur (jusqu\'aux jours prêts) : '+_el()+' s.');
     log('Terminé ✔');
     return DAYS; // la belle UI prend le relais (adaptDayToJours + rendu iv*)
   }
