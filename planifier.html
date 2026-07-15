@@ -2247,7 +2247,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
       || /marketplace|march[ée]\b|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' ')))
     )),
     tags:{name:p.name},address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
-    extract:(p.tags&&p.tags.extract)||null,image:(p.tags&&p.tags.image)||null, // VAGUE 1 : vraie phrase Wikipédia + vraie photo Commons (si POI matché Wikidata à l'enrich)
+    extract:(p.tags&&(p.tags.extract||p.tags.fsq_desc))||null,image:(p.tags&&p.tags.image)||null, // VAGUE 1 : vraie phrase Wikipédia (prioritaire) OU description Foursquare (repli restos) + vraie photo Commons (si POI matché Wikidata à l'enrich)
     season:(p.tags&&p.tags.season)||seasonOf(p.name,p.category_src||[])};
 }
 async function collectFromBase(dc,themes,budget,voyage){
@@ -2326,7 +2326,7 @@ async function collectFromBase(dc,themes,budget,voyage){
         || /marketplace|march[ée]\b|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' '))) // repli mots-clés (FSQ/DATAtourisme)
       )), // EXPÉRIENCE food (marché, halle, cave, fromager, chocolatier, glacier…) -> étape de journée, jamais un repas
       tags:{name:p.name},address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
-      extract:(p.tags&&p.tags.extract)||null,image:(p.tags&&p.tags.image)||null, // (fix descriptif) PORTE PRINCIPALE : emporter la vraie phrase Wikipédia + photo Commons comme mapBasePlace — sans ça, monuments/musées/parcs perdaient leur résumé à l'entrée et retombaient sur le bouche-trou « … du quartier, à voir en passant »
+      extract:(p.tags&&(p.tags.extract||p.tags.fsq_desc))||null,image:(p.tags&&p.tags.image)||null, // (fix descriptif) PORTE PRINCIPALE : emporter la vraie phrase Wikipédia (prioritaire) OU la description Foursquare (repli restos) + photo Commons comme mapBasePlace — sans ça, monuments/musées/parcs perdaient leur résumé à l'entrée et retombaient sur le bouche-trou « … du quartier, à voir en passant »
       season:(p.tags&&p.tags.season)||seasonOf(p.name,p.category_src||[])});
   });
   log('  -> '+out.length+' candidats issus de la base ('+places.length+' lieux multi-sources, '+themes.join('+')+').');
