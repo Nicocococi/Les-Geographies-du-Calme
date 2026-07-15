@@ -2423,23 +2423,29 @@ async function clusterLabel(cluster){
 }
 
 // CURATEUR sémantique : dernier filet, rejette tout lieu non présentable (généralise sans liste noire)
-async function curateCands(cands,themesLab){
-  const flat=[]; let i=1;
-  Object.keys(cands).forEach(th=>(cands[th]||[]).forEach(c=>flat.push({id:'k'+(i++),th,c})));
-  if(flat.length<3) return cands;
-  const lst=flat.map(p=>p.id+'. '+p.c.nom+' ('+p.th+')').join('\n');
-  const prompt='Filtre une liste de lieux pour un itinéraire de voyage. Thèmes du voyageur : '+(themesLab||'variés')+'.\n'+
-   'OBJECTIF : GARDER tout lieu où l\'on peut réellement FAIRE une activité liée à ces thèmes, MÊME un lieu ordinaire et non secret (ex. si Sport : piscine, tennis, salle d\'escalade, club, base de loisirs, parcours, salle de sport ; si Bien-être : spa, thermes). Le but est que le voyageur ait TOUJOURS de quoi faire.\n'+
-   'ÉCARTE UNIQUEMENT le manifestement parasite : fast-food et chaînes, supermarchés et commerces banals, MAGASINS et BOUTIQUES (magasins de sport, de skis, « X Sports », stores, enseignes), LOUEURS de matériel (location de skis/vélos) — ce ne sont PAS des lieux d\'activité —, stations de trottinettes/vélos en libre-service, parkings, administrations, écoles, hôtels, et tout nom qui ressemble à un artefact de données (sigle obscur, nom tronqué, opérateurs accolés par un point-virgule). '+
-   'Garde les restaurants pour les repas. En cas de doute sur la pertinence, GARDE — n\'écarte que le clairement parasite.\n\n'+
-   lst+'\n\nRéponds UNIQUEMENT en JSON: ["k1","k3", ...] = la liste des id à CONSERVER.';
-  let keep=null;
-  try{keep=parseJSON(await llm(prompt,700));}catch(e){}
-  if(!Array.isArray(keep)) return cands; // échec curateur -> on garde
-  const ks=new Set(keep);
+// CURATEUR DÉTERMINISTE (ex-appel LLM, retiré pour la VITESSE : il tournait 1×/jour = ~3 appels IA
+// en série sur un séjour, principal poste de latence). Il écartait le « manifestement parasite » ;
+// or ce filtrage est DÉJÀ fait, par CATÉGORIE structurée (§4), dans mapBasePlace (magasins/boutiques,
+// loueurs, hôtels, cinémas, lieux de pouvoir, écoles, chaînes/junk/vague). On réapplique donc les
+// MÊMES règles en déterministe (ceinture + bretelles), sans réseau ni IA. Signature/porte inchangées.
+function curateCands(cands,themesLab){
+  // Parasites résiduels par CATÉGORIE/NOM (jamais un classement fin : uniquement l'évidence, §4).
+  const PARASITE=/parking|parkhaus|station.?service|petrol|\bfuel\b|trottinette|scooter.?share|v[ée]lib|bike.?share|bike.?rental|location de (?:v[ée]lo|ski|mat[ée]riel)|\brental\b|supermarch|supermarket|hypermarch|grande surface|convenience|superette|\bmagasin\b|\bstore\b|\bshop\b|boutique|commerce de detail|articles de sport|sporting goods|\b[ée]cole\b|coll[èe]ge\b|lyc[ée]e\b|universit[ée]|administration|pr[ée]fecture|minist[èe]re|ambassade|hostel|\bmotel\b|guest.?house/i;
   const out={};
-  flat.forEach(p=>{if(ks.has(p.id))(out[p.th]=out[p.th]||[]).push(p.c);});
-  return Object.keys(out).length?out:cands;
+  Object.keys(cands).forEach(th=>{
+    (cands[th]||[]).forEach(c=>{
+      if(th!=='gastronomie'){ // les restos passent toujours (repas)
+        const t=(c.nom||'')+' '+(c.catsrc||c.cat||'');
+        if(CHAINS.test(c.nom||'')) return; // fast-food / chaîne
+        if(PARASITE.test(t)) return;       // commerce / loueur / parking / admin / école / hôtel-hostel
+      }
+      (out[th]=out[th]||[]).push(c);
+    });
+  });
+  // Garde-fou : si le filtre a tout vidé (faux positifs), on rend l'original — on ne perd JAMAIS une journée.
+  const kept=Object.values(out).reduce((a,b)=>a+b.length,0);
+  const orig=Object.values(cands).reduce((a,b)=>a+b.length,0);
+  return (orig===0||kept>=Math.min(3,orig))?out:cands;
 }
 // ===== ZONAGE : construit la journée autour d'un ancrage (bulle marchable + saut voiture limité) =====
 function buildDayAround(center,all,themes,used,usedKinds,isUsed){
@@ -3685,8 +3691,15 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     async function _enrich(pt){
       var added=0, seen=new Set(all.map(c=>_norm(c.nom)+'@'+(+c.lat).toFixed(4)+','+(+c.lng).toFixed(4)));
       function _merge(arr){(arr||[]).forEach(function(pp){var c=mapBasePlace(pp,themes,budget,dc,voyage);if(!c)return;var k=_norm(c.nom)+'@'+(+c.lat).toFixed(4)+','+(+c.lng).toFixed(4);if(seen.has(k))return;seen.add(k);all.push(c);added++;});}
-      try{var _r1=await fetchT(API+'/near?lat='+pt.lat+'&lng='+pt.lng+'&km=1.5',{},10000);var _j1=await _r1.json();_merge(_j1&&_j1.places);}catch(e){}
-      try{var _tt=[...new Set([...themes,'gastronomie','nature'])].join(',');var _r2=await fetchT(API+'/places?lat='+pt.lat+'&lng='+pt.lng+'&km=2&themes='+encodeURIComponent(_tt)+'&limit=2000',{},12000);var _j2=await _r2.json();_merge(_j2&&_j2.places);}catch(e){}
+      // Les 2 lectures (/near restos+bars, /places bbox 2 km) sont INDÉPENDANTES -> on les lance EN PARALLÈLE
+      // (gain de latence, un round-trip au lieu de deux). Le merge/dedup reste SÉQUENTIEL (ordre stable : near puis places).
+      var _tt=[...new Set([...themes,'gastronomie','nature'])].join(',');
+      var _res=await Promise.all([
+        fetchT(API+'/near?lat='+pt.lat+'&lng='+pt.lng+'&km=1.5',{},10000).then(r=>r.json()).catch(function(){return null;}),
+        fetchT(API+'/places?lat='+pt.lat+'&lng='+pt.lng+'&km=2&themes='+encodeURIComponent(_tt)+'&limit=2000',{},12000).then(r=>r.json()).catch(function(){return null;})
+      ]);
+      _merge(_res[0]&&_res[0].places);
+      _merge(_res[1]&&_res[1].places);
       return added;
     }
     // GRANDE VILLE (métropole) : beaucoup de lieux collectés -> un quartier ne peut PAS être à 8 km (ce serait un géocodage foireux d'un nom LLM bâtard), et on n'autorise pas d'excursion voiture de remplissage. Petite ville (peu de lieux) -> excursions légitimes gardées (Carcassonne : canoë à 15 km).
@@ -3776,7 +3789,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       log('Jour '+(i+1)+' · '+quartier+(excursion?' — excursion ~'+Math.round(anchor.distKm)+' km (voiture)':'')+' · ancrage : '+anchor.nom);
       let cands=buildDayAround(center,all,themes,used,usedKinds,_usedAlready);
       const nbBrut=Object.values(cands).reduce((a,b)=>a+b.length,0);
-      log('  · curateur qualité (LLM) sur '+nbBrut+' lieux…');
+      log('  · curateur qualité (déterministe) sur '+nbBrut+' lieux…');
       cands=await curateCands(cands,themes.map(t=>THEME_LABEL[t]).join(' + '));
       // FILL auto-régulé, basé sur le TEMPS (pas le nombre) : on vise ~MINFILL minutes d'activités.
       // Une longue activité (golf 3h, ski 4h) remplit seule ; deux courtes (tennis 1h + piscine 1h30) laissent du temps.
