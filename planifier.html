@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v333'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v333 : repas — descriptif PRIORITAIRE dans le pool proche (un resto avec une vraie histoire passe #1), MAIS uniquement ≤900 m ; + PLAFOND ADAPTATIF : ville dense (≥3 restos dans 900 m) = on ne choisit jamais un repas hors du cercle, ville pauvre = on élargit. Déjeuner ET dîner, dans _chooseMeal. Test tests/repas-descriptif.js. v332 : dîner re-calé APRÈS le comblage du soir (#28) — le dîner suit désormais le VRAI dernier pin, même quand le comblage ajoute un « à voir » en fin de chaîne (bug live Porte Saint-Denis → dîner à 2 km) ; aligné sur le déjeuner (dont le comblage précède déjà son re-choix). Test tests/diner-comblage.js. v331 : café/coffee/salon de thé = halte gourmande (foodExp) PAR CATÉGORIE, jamais un repas du soir (#29, « Le Jardin de Thé ») ; doublon « Palais de la découverte » corrigé (dédup alternatives par identité _sameLieuStep, #27) ; alternatives repas B/C jamais vides (recompute dans finalizeDay depuis ctx.all, #32). v330 : les marchés (« Marché Beauvau/d'Aligre ») ne fuient plus en « restaurant » — la frontière de mot après un accent (é) échouait en JS, corrigée en (?![a-z]). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
+const APP_VERSION='v334'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v334 : le descriptif prend enfin le pas MÊME quand le repas initial était déjà proche — la règle _chooseMeal ne tournait que sur un RE-CHOIX (gated « repas à >0,9 km »), donc un resto muet déjà proche (Pizzou) restait #1 et le resto décrit voisin (Les Maquereaux) restait une simple alternative. Ajout d'une passe UPGRADE DESCRIPTIF dans recomposeDay (déjeuner ET dîner) : bascule sur un vrai resto DÉCRIT ≤900 m du pin précédent, UNIQUEMENT sur un gain strict de descriptif (repas courant sans descriptif) -> snapshot Paris (données sans extract) byte-identique. Tests tests/repas-descriptif.js + note.js. v333 : repas — descriptif PRIORITAIRE dans le pool proche (un resto avec une vraie histoire passe #1), MAIS uniquement ≤900 m ; + PLAFOND ADAPTATIF : ville dense (≥3 restos dans 900 m) = on ne choisit jamais un repas hors du cercle, ville pauvre = on élargit. Déjeuner ET dîner, dans _chooseMeal. Test tests/repas-descriptif.js. v332 : dîner re-calé APRÈS le comblage du soir (#28) — le dîner suit désormais le VRAI dernier pin, même quand le comblage ajoute un « à voir » en fin de chaîne (bug live Porte Saint-Denis → dîner à 2 km) ; aligné sur le déjeuner (dont le comblage précède déjà son re-choix). Test tests/diner-comblage.js. v331 : café/coffee/salon de thé = halte gourmande (foodExp) PAR CATÉGORIE, jamais un repas du soir (#29, « Le Jardin de Thé ») ; doublon « Palais de la découverte » corrigé (dédup alternatives par identité _sameLieuStep, #27) ; alternatives repas B/C jamais vides (recompute dans finalizeDay depuis ctx.all, #32). v330 : les marchés (« Marché Beauvau/d'Aligre ») ne fuient plus en « restaurant » — la frontière de mot après un accent (é) échouait en JS, corrigée en (?![a-z]). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -3305,6 +3305,31 @@ function recomposeDay(day, ctx){
     return _chooseMeal(cands, 8);
   }
   function _mealStep(c, kind){ var _p=(kind==='déjeuner')?'Déjeuner — ':'Dîner — '; return {theme:'gastronomie',nom:c.nom,lat:c.lat,lng:c.lng,adresse:c.address||c.adresse||null,price:(typeof c.price==='number'?c.price:null),extract:c.extract||null,image:c.image||null,titre:_p+c.nom,texte:(typeof _mealTxt==='function'?_mealTxt(c.nom,kind):(_p+c.nom))}; }
+  // UPGRADE DESCRIPTIF (brief Nicoco) : la règle « privilégier le resto DÉCRIT » vit dans _chooseMeal, mais _chooseMeal ne
+  // tourne QUE lors d'un RE-CHOIX, lui-même gated par « repas à >0,9 km du pin précédent ». Donc quand le repas initial est
+  // DÉJÀ proche (cas Pizzou), aucun re-choix -> le resto décrit voisin (Les Maquereaux) restait une simple alternative au lieu
+  // de passer #1. Cette passe tourne TOUJOURS, mais ne bascule QUE sur un GAIN STRICT de descriptif : repas courant SANS
+  // descriptif + un vrai resto DÉCRIT dans les 900 m du pin précédent. Si le repas est déjà décrit, ou si aucun resto décrit
+  // n'est proche, elle ne touche à rien -> snapshot Paris (données synthétiques sans extract) byte-identique.
+  function _descUpgrade(anchor, curMeal, otherNom){
+    if(!anchor || anchor.lat==null || !curMeal) return null;
+    if(_hasDesc(curMeal) || _hasDesc(curMeal._c)) return null;               // déjà décrit -> rien à gagner
+    var _keep=_norm(curMeal.nom||''), cands=[];
+    for(var mm=0;mm<all.length;mm++){ var c=all[mm];
+      if(!c||c.theme!=='gastronomie'||c.foodExp||c.lat==null||c.lng==null) continue;
+      if(!_hasDesc(c)) continue;                                             // uniquement les restos DÉCRITS
+      if(!inZone(c.lat,c.lng,c.address||c.adresse)) continue;
+      if(_norm(c.nom)===_keep) continue;
+      if(otherNom && _norm(c.nom)===otherNom) continue;                      // jamais 2× le même repas
+      if(_usedN && _usedN.has && _usedN.has(_norm(c.nom))) continue;         // pas un repas déjà servi un autre jour
+      var d=hav(anchor.lat,anchor.lng,c.lat,c.lng);
+      if(d>MEAL_PREF_KM) continue;                                          // DANS les 900 m du pin précédent (cap dense)
+      cands.push({c:c,d:d});
+    }
+    if(!cands.length) return null;
+    cands.sort(function(a,b){ return a.d-b.d; });
+    return _chooseMeal(cands, cands.length);                                 // parmi les décrits proches, _chooseMeal départage (note/proximité)
+  }
   // 3+4. HORAIRES séquentiels + repas
   var out=[], t=8*60+30;
   function place(s,d,minStart,openEnd){
@@ -3358,6 +3383,9 @@ function recomposeDay(day, ctx){
       var _ln=_pickNearMeal(_lprev, lunch, dinner?_norm(dinner.nom||''):'');
       if(_ln && _norm(_ln.nom)!==_norm(lunch.nom||'')){ lunch=_mealStep(_ln,'déjeuner'); if(_usedN&&_usedN.add)_usedN.add(_norm(_ln.nom)); }
     }
+    // UPGRADE DESCRIPTIF (tourne même si le déj est déjà proche) : bascule sur un resto DÉCRIT ≤900 m du dernier pin du matin.
+    var _luD=_descUpgrade(_lprev, lunch, dinner?_norm(dinner.nom||''):'');
+    if(_luD){ lunch=_mealStep(_luD,'déjeuner'); if(_usedN&&_usedN.add)_usedN.add(_norm(_luD.nom)); }
     place(lunch,90,Math.max(t,12*60));                                                // déjeuner ~12h+
   }
   // APRÈS-MIDI : suite de la chaîne + différés, en respectant les fenêtres. À chaque tour on place le PREMIER item ouvert à
@@ -3407,6 +3435,9 @@ function recomposeDay(day, ctx){
       var _ndD=_pickNearMeal(_lastPin, dinner, lunch?_norm(lunch.nom||''):'');
       if(_ndD && _norm(_ndD.nom)!==_keepD){ dinner=_mealStep(_ndD,'dîner'); if(_usedN&&_usedN.add)_usedN.add(_norm(_ndD.nom)); }
     }
+    // UPGRADE DESCRIPTIF (tourne même si le dîner est déjà proche) : bascule sur un resto DÉCRIT ≤900 m du dernier pin.
+    var _diD=_lastPin?_descUpgrade(_lastPin, dinner, lunch?_norm(lunch.nom||''):''):null;
+    if(_diD){ dinner=_mealStep(_diD,'dîner'); if(_usedN&&_usedN.add)_usedN.add(_norm(_diD.nom)); }
     // DÎNER : flotte dans [20h,21h]. Se cale dès la fin de l'après-midi ; jamais avant 20h (plancher dur), jamais après 21h.
     var _dinStart=Math.max(DIN_FLOOR, Math.min(t, DIN_CEIL));
     if((_dinStart-t)>45){ var _l0=t; out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler avant le dîner : flâner dans le quartier, s\'attabler en terrasse, ou se reposer.',duree:_dinStart-_l0,_t0:_l0,_t1:_dinStart,heure:_F?fmtH(_l0):'',fin:_F?fmtH(_dinStart):''}); t=_dinStart; } // temps libre SEULEMENT si un trou subsiste (rien à placer) — couvre le reste honnêtement
