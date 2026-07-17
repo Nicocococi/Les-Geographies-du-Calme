@@ -2245,6 +2245,8 @@ function mapBasePlace(p,themes,budget,dc,voyage){
       && (
       /commercial\.food_and_drink|commercial\.marketplace|commercial\.health_food|production\.(winery|brewery|distillery)|catering\.(ice_cream|food_court)/i.test((p.category_src||[]).join(' '))
       || /marketplace|march[ée]s?(?![a-z])|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' ')))
+      || (/catering\.cafe|\bcoffee\b/i.test((p.category_src||[]).join(' ')) && !/catering\.restaurant/i.test((p.category_src||[]).join(' '))) // CAFÉ / COFFEE SHOP / SALON DE THÉ = halte gourmande légère, JAMAIS un repas du soir (§5-2). Par CATÉGORIE catering.cafe (jamais par le nom « Café … » qui désigne souvent un VRAI resto — rustine proscrite §4), gardé contre un café-RESTAURANT (catering.restaurant) qui, lui, reste une table.
+      || /\bsalon de th[ée]|\bmaison de th[ée]|tea.?room|tea.?house/i.test((p.name||'')) // salon de thé : repli NOM NARROW, sans ambiguïté (contrairement à « café »)
     )),
     tags:{name:p.name},address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
     extract:(p.tags&&(p.tags.extract||p.tags.fsq_desc))||null,image:(p.tags&&p.tags.image)||null, // VAGUE 1 : vraie phrase Wikipédia (prioritaire) OU description Foursquare (repli restos) + vraie photo Commons (si POI matché Wikidata à l'enrich)
@@ -2324,6 +2326,8 @@ async function collectFromBase(dc,themes,budget,voyage){
         && (
         /commercial\.food_and_drink|commercial\.marketplace|commercial\.health_food|production\.(winery|brewery|distillery)|catering\.(ice_cream|food_court)/i.test((p.category_src||[]).join(' ')) // UNIVERSEL par CATÉGORIE OSM : tout commerce de bouche, marché, cave/brasserie, glacier, food court
         || /marketplace|march[ée]s?(?![a-z])|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' '))) // repli mots-clés (FSQ/DATAtourisme)
+        || (/catering\.cafe|\bcoffee\b/i.test((p.category_src||[]).join(' ')) && !/catering\.restaurant/i.test((p.category_src||[]).join(' '))) // CAFÉ / COFFEE SHOP / SALON DE THÉ = halte gourmande légère, JAMAIS un repas du soir (§5-2). Par CATÉGORIE (jamais le nom « Café … » = souvent un vrai resto, §4), gardé contre un café-RESTAURANT qui reste une table.
+        || /\bsalon de th[ée]|\bmaison de th[ée]|tea.?room|tea.?house/i.test((p.name||'')) // salon de thé : repli NOM NARROW sans ambiguïté
       )), // EXPÉRIENCE food (marché, halle, cave, fromager, chocolatier, glacier…) -> étape de journée, jamais un repas
       tags:{name:p.name},address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
       extract:(p.tags&&(p.tags.extract||p.tags.fsq_desc))||null,image:(p.tags&&p.tags.image)||null, // (fix descriptif) PORTE PRINCIPALE : emporter la vraie phrase Wikipédia (prioritaire) OU la description Foursquare (repli restos) + photo Commons comme mapBasePlace — sans ça, monuments/musées/parcs perdaient leur résumé à l'entrée et retombaient sur le bouche-trou « … du quartier, à voir en passant »
