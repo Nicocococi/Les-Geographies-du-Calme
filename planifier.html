@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v332'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v332 : dîner re-calé APRÈS le comblage du soir (#28) — le dîner suit désormais le VRAI dernier pin, même quand le comblage ajoute un « à voir » en fin de chaîne (bug live Porte Saint-Denis → dîner à 2 km) ; aligné sur le déjeuner (dont le comblage précède déjà son re-choix). Test tests/diner-comblage.js. v331 : café/coffee/salon de thé = halte gourmande (foodExp) PAR CATÉGORIE, jamais un repas du soir (#29, « Le Jardin de Thé ») ; doublon « Palais de la découverte » corrigé (dédup alternatives par identité _sameLieuStep, #27) ; alternatives repas B/C jamais vides (recompute dans finalizeDay depuis ctx.all, #32). v330 : les marchés (« Marché Beauvau/d'Aligre ») ne fuient plus en « restaurant » — la frontière de mot après un accent (é) échouait en JS, corrigée en (?![a-z]). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
+const APP_VERSION='v333'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v333 : repas — descriptif PRIORITAIRE dans le pool proche (un resto avec une vraie histoire passe #1), MAIS uniquement ≤900 m ; + PLAFOND ADAPTATIF : ville dense (≥3 restos dans 900 m) = on ne choisit jamais un repas hors du cercle, ville pauvre = on élargit. Déjeuner ET dîner, dans _chooseMeal. Test tests/repas-descriptif.js. v332 : dîner re-calé APRÈS le comblage du soir (#28) — le dîner suit désormais le VRAI dernier pin, même quand le comblage ajoute un « à voir » en fin de chaîne (bug live Porte Saint-Denis → dîner à 2 km) ; aligné sur le déjeuner (dont le comblage précède déjà son re-choix). Test tests/diner-comblage.js. v331 : café/coffee/salon de thé = halte gourmande (foodExp) PAR CATÉGORIE, jamais un repas du soir (#29, « Le Jardin de Thé ») ; doublon « Palais de la découverte » corrigé (dédup alternatives par identité _sameLieuStep, #27) ; alternatives repas B/C jamais vides (recompute dans finalizeDay depuis ctx.all, #32). v330 : les marchés (« Marché Beauvau/d'Aligre ») ne fuient plus en « restaurant » — la frontière de mot après un accent (é) échouait en JS, corrigée en (?![a-z]). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -3167,17 +3167,32 @@ function _orderDaysByRichness(days){
 // existe pour des restos ORDINAIRES (pas seulement les stars Wikipédia) -> « avoir un descriptif » n'est PAS « célèbre & loin »
 // -> ne rouvre pas le bug « resto célèbre à l'autre bout ». Snapshot Paris (restos synthétiques SANS extract) : bonus 0 -> intact.
 var MEAL_DIST_PEN = 3.0;                                      // points de note retranchés par km d'éloignement (dose réglable : ↑ = proximité encore plus dominante)
-var DESC_BONUS = 1.0;                                         // bonus « a un descriptif » (dose réglable) — 3e critère, sous la note ; ~0,33 km d'équivalent-distance
+var MEAL_PREF_KM = 0.9;                                       // PLAFOND « ville dense » : rayon (km) au-delà duquel on NE choisit PAS un repas s'il y a assez de choix dedans
+var MEAL_MIN_POOL = 3;                                        // « assez de choix » = au moins N restos dans les 900 m ; en dessous (zone trouée) on élargit -> le repas peut alors dépasser 900 m
 function _hasDesc(c){ return !!(c && c.extract && String(c.extract).trim().length>=30); } // « y a un descriptif ? » (binaire) : extract réel (Wikipédia/Foursquare), jamais un stub
+// RÈGLE DE REPAS UNIQUE (déjeuner + dîner, chemin densité ET chemin LLM). `sorted` = candidats DÉJÀ triés par proximité au pin
+// précédent, sous forme {c, d(km)}. Trois décisions, dans l'ordre voulu (§brief Nicoco) :
+//  (1) PLAFOND ADAPTATIF : si ≥ MEAL_MIN_POOL restos tombent dans les 900 m -> on ne considère QUE ceux-là (ville dense : on ne
+//      sort jamais du cercle, là où il y a du choix). Sinon on garde les N plus proches (ville pauvre : faute de choix, le repas
+//      PEUT dépasser 900 m — seul cas où on en sort). Le 900 m devient un vrai plafond quand la densité le permet.
+//  (2) DESCRIPTIF D'ABORD (mais ≤ 900 m) : parmi le pool, si un/des restos ont une VRAIE histoire (extract) ET sont dans les
+//      900 m, on RESTREINT le choix à ceux-là -> un resto avec descriptif passe #1. Il ne renverse JAMAIS la proximité hors du
+//      cercle (un descriptif lointain ne rapatrie pas le repas au loin — garde-fou #28, cf. tests/note.js E2).
+//  (3) DÉPARTAGE : entre les restos retenus, mélange note pondérée par les avis − pénalité distance (réglage #31) ; repli score.
 function _chooseMeal(sorted, N){
   if(!sorted || !sorted.length) return null;
   N = Math.min(N || 8, sorted.length);
-  var bestR=null, brs=-Infinity;
-  for(var k=0;k<N;k++){ var c2=sorted[k].c, rt=(typeof c2.rating==='number'?c2.rating:null), rc=c2.ratingCount||0;
-    if(rt!=null && rc>=3){ var sc2=(typeof c2.score==='number'?c2.score:0), _dk=(typeof sorted[k].d==='number'?Math.max(sorted[k].d,0):0); var blend=rt*Math.min(rc/20,1)+0.04*Math.min(Math.max(sc2,0),10)-MEAL_DIST_PEN*_dk+(_hasDesc(c2)?DESC_BONUS:0); if(blend>brs){ brs=blend; bestR=c2; } } }
-  if(bestR) return bestR;                                     // au moins un resto noté parmi les 8 -> mélange note-dominant PONDÉRÉ PAR LA PROXIMITÉ + descriptif
-  var best=null,bs=-Infinity;                                 // REPLI (aucun des 8 noté / ville pauvre) : meilleur score composite (+ bonus descriptif) = méthode historique
-  for(var k2=0;k2<N;k2++){ var sc=(typeof sorted[k2].c.score==='number'?sorted[k2].c.score:0)+(_hasDesc(sorted[k2].c)?DESC_BONUS:0); if(sc>bs){ bs=sc; best=sorted[k2].c; } }
+  var top = sorted.slice(0, N);                               // les N plus proches (comportement historique)
+  var near = top.filter(function(x){ return typeof x.d==='number' && x.d<=MEAL_PREF_KM; });
+  var pool = (near.length>=MEAL_MIN_POOL) ? near : top;       // (1) plafond adaptatif : cercle 900 m si assez de choix, sinon élargi
+  var withDesc = pool.filter(function(x){ return _hasDesc(x.c) && typeof x.d==='number' && x.d<=MEAL_PREF_KM; });
+  var cand = withDesc.length ? withDesc : pool;               // (2) descriptif d'abord, uniquement dans les 900 m
+  var bestR=null, brs=-Infinity;                              // (3) départage NOTÉ : note×confiance + score − distance×pénalité
+  for(var k=0;k<cand.length;k++){ var c2=cand[k].c, rt=(typeof c2.rating==='number'?c2.rating:null), rc=c2.ratingCount||0;
+    if(rt!=null && rc>=3){ var sc2=(typeof c2.score==='number'?c2.score:0), _dk=(typeof cand[k].d==='number'?Math.max(cand[k].d,0):0); var blend=rt*Math.min(rc/20,1)+0.04*Math.min(Math.max(sc2,0),10)-MEAL_DIST_PEN*_dk; if(blend>brs){ brs=blend; bestR=c2; } } }
+  if(bestR) return bestR;                                     // au moins un resto noté dans le pool -> mélange note-dominant PONDÉRÉ PAR LA PROXIMITÉ
+  var best=null,bs=-Infinity;                                 // REPLI (aucun noté / ville pauvre) : meilleur score composite = méthode historique
+  for(var k2=0;k2<cand.length;k2++){ var sc=(typeof cand[k2].c.score==='number'?cand[k2].c.score:0); if(sc>bs){ bs=sc; best=cand[k2].c; } }
   return best;
 }
 // RECONSTRUCTION PROPRE DE LA JOURNÉE (appelée en TOUTE FIN de finalizeDay) : après toutes les mutations, on rebâtit
