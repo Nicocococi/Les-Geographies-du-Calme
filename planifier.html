@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v331'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v331 : café/coffee/salon de thé = halte gourmande (foodExp) PAR CATÉGORIE, jamais un repas du soir (#29, « Le Jardin de Thé ») ; doublon « Palais de la découverte » corrigé (dédup alternatives par identité _sameLieuStep, #27) ; alternatives repas B/C jamais vides (recompute dans finalizeDay depuis ctx.all, #32). v330 : les marchés (« Marché Beauvau/d'Aligre ») ne fuient plus en « restaurant » — la frontière de mot après un accent (é) échouait en JS, corrigée en (?![a-z]). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
+const APP_VERSION='v332'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v332 : dîner re-calé APRÈS le comblage du soir (#28) — le dîner suit désormais le VRAI dernier pin, même quand le comblage ajoute un « à voir » en fin de chaîne (bug live Porte Saint-Denis → dîner à 2 km) ; aligné sur le déjeuner (dont le comblage précède déjà son re-choix). Test tests/diner-comblage.js. v331 : café/coffee/salon de thé = halte gourmande (foodExp) PAR CATÉGORIE, jamais un repas du soir (#29, « Le Jardin de Thé ») ; doublon « Palais de la découverte » corrigé (dédup alternatives par identité _sameLieuStep, #27) ; alternatives repas B/C jamais vides (recompute dans finalizeDay depuis ctx.all, #32). v330 : les marchés (« Marché Beauvau/d'Aligre ») ne fuient plus en « restaurant » — la frontière de mot après un accent (é) échouait en JS, corrigée en (?![a-z]). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -3361,15 +3361,14 @@ function recomposeDay(day, ctx){
     }
     var s1=queue.splice(pi,1)[0]; place(s1,_dur(s1),null,s1.openEnd);
   }
-  var DINNER=20*60, lastChain=null; for(var z=out.length-1;z>=0;z--){ if(!isMeal(out[z]) && !out[z].libre){ lastChain=out[z]; break; } }
-  // dîner « N plus proches » de la dernière étape (proximité prime, invariant #4). On ne re-choisit QUE s'il est loin (>0,9 km)
-  // -> un dîner déjà proche NE BOUGE PAS (snapshot Paris intact) ; le seuil 0,9 km ne sert plus que de DÉCLENCHEUR, la
-  // sélection elle-même = les 8 plus proches, mieux-noté (rayon implicite auto-adaptatif, cf. _pickNearMeal).
-  if(lastChain && (!dinner || (lastChain.lat!=null && dinner.lat!=null && hav(lastChain.lat,lastChain.lng,dinner.lat,dinner.lng)>0.9))){
-    var _keep=dinner?_norm(dinner.nom||''):''; // le dîner actuel reste éligible (on ne se ré-exclut pas soi-même)
-    var nd=_pickNearMeal(lastChain, dinner, lunch?_norm(lunch.nom||''):'');
-    if(nd && _norm(nd.nom)!==_keep){ dinner=_mealStep(nd,'dîner'); if(_usedN&&_usedN.add)_usedN.add(_norm(nd.nom)); }
-  }
+  var DINNER=20*60;
+  // GARANTIE D'EXISTENCE du dîner (AVANT comblage) : si le jour n'a pas de dîner, en créer un depuis le dernier pin courant,
+  // pour que le comblage du soir tourne comme avant (jadis gated par if(dinner)). On NE re-cale PAS ici un dîner déjà présent :
+  // le vrai re-calage « ≤0,9 km du dernier pin » se fait APRÈS le comblage (voir plus bas), exactement comme le déjeuner l'est
+  // après SON comblage. C'ÉTAIT LE BUG #28 : le dîner était re-calé AVANT le comblage, sur un dernier pin pas encore définitif ;
+  // le comblage ajoutait ENSUITE un « à voir » (la Porte Saint-Denis) devenu le vrai dernier pin, jamais re-vérifié -> dîner à 2 km.
+  if(!dinner){ var _lp0=null; for(var z0=out.length-1;z0>=0;z0--){ if(!isMeal(out[z0]) && !out[z0].libre){ _lp0=out[z0]; break; } }
+    if(_lp0){ var _nd0=_pickNearMeal(_lp0, null, lunch?_norm(lunch.nom||''):''); if(_nd0){ dinner=_mealStep(_nd0,'dîner'); if(_usedN&&_usedN.add)_usedN.add(_norm(_nd0.nom)); } } }
   if(dinner){
     var DIN_FLOOR=DINNER, DIN_CEIL=(voyage==='famille')?DIN_FLOOR:21*60;                    // dîner : plancher 20h DUR (invariant) ; plafond souple 21h — SAUF FAMILLE : plafond 20h (enfants -> on ne décale pas le dîner, fin ~22h)
     // COMBLAGE (item 2, fenêtre souple) : on comble avec de VRAIES icônes tant qu'il en reste et qu'une « de plus » RENTRE
@@ -3383,6 +3382,16 @@ function recomposeDay(day, ctx){
     // plus de notable proche (quartier vraiment vide -> un temps libre honnête ≤ ~90 min subsiste). Ne se déclenche JAMAIS en
     // quartier dense (le comblage léger a déjà rempli jusqu'à ~20h -> pas de gros trou).
     while((DIN_FLOOR-t)>90){ var icM=_pickIcon(out.filter(function(s){return !s.libre;}),true); if(!icM)break; var idM=dureeHint(icM); if(!(idM>0))idM=90; if(idM>(DIN_CEIL-t))idM=DIN_CEIL-t; if(idM<40)break; if(!place(_iconStep(icM),idM,null,false))break; } // le lieu notable garde sa VRAIE durée (musée 2h30) ; borné au MÊME plafond que le dîner (DIN_CEIL : 21h hors famille -> le dîner flotte plutôt que raboter le musée ; 20h famille -> borné, dîner à 20h). Aucune règle en plus : découle du profil.
+    // RE-CALAGE DÎNER APRÈS COMBLAGE (le maillon manquant de #28) : le comblage a pu ajouter un « à voir » qui est devenu le
+    // VRAI dernier pin. On re-vérifie donc le dîner contre CE pin, exactement comme le déjeuner l'est après SON comblage :
+    // s'il est à >0,9 km, on le re-choisit parmi les 8 vrais restos les plus proches du dernier pin. Snapshot dense : le
+    // comblage ne fire pas -> dernier pin inchangé -> dîner déjà ≤0,9 km -> aucun swap -> byte-identique.
+    var _lastPin=null; for(var _z2=out.length-1;_z2>=0;_z2--){ if(!isMeal(out[_z2]) && !out[_z2].libre){ _lastPin=out[_z2]; break; } }
+    if(_lastPin && _lastPin.lat!=null && dinner.lat!=null && hav(_lastPin.lat,_lastPin.lng,dinner.lat,dinner.lng)>0.9){
+      var _keepD=_norm(dinner.nom||'');
+      var _ndD=_pickNearMeal(_lastPin, dinner, lunch?_norm(lunch.nom||''):'');
+      if(_ndD && _norm(_ndD.nom)!==_keepD){ dinner=_mealStep(_ndD,'dîner'); if(_usedN&&_usedN.add)_usedN.add(_norm(_ndD.nom)); }
+    }
     // DÎNER : flotte dans [20h,21h]. Se cale dès la fin de l'après-midi ; jamais avant 20h (plancher dur), jamais après 21h.
     var _dinStart=Math.max(DIN_FLOOR, Math.min(t, DIN_CEIL));
     if((_dinStart-t)>45){ var _l0=t; out.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Temps libre',lat:null,lng:null,texte:'Un moment pour souffler avant le dîner : flâner dans le quartier, s\'attabler en terrasse, ou se reposer.',duree:_dinStart-_l0,_t0:_l0,_t1:_dinStart,heure:_F?fmtH(_l0):'',fin:_F?fmtH(_dinStart):''}); t=_dinStart; } // temps libre SEULEMENT si un trou subsiste (rien à placer) — couvre le reste honnêtement
