@@ -3656,6 +3656,40 @@ function finalizeDay(day, ctx){
     });
     if(best && typeof _autourDe==='function'){ var _al=_autourDe(best.nom); if(_al) day.quartier=_al; }
   })();
+  // ===== ALTERNATIVES DE REPAS (B/C) — (re)bâties sur les étapes FINALES, point de convergence unique =====
+  // recomposeDay a pu RE-CHOISIR un repas (via _mealStep, qui NE PORTE PAS .alts) et le DÉPLACER : les .alts dédiées
+  // (bâties au moteur autour de l'ANCIEN emplacement) disparaissent, et le repli _bcAlts tire dans day.cands.gastronomie
+  // -> VIDE dès que gastronomie n'est PAS un thème choisi (la plupart des séjours) -> B/C repas vides à l'écran. Ici on
+  // (re)construit les alternatives autour de l'emplacement FINAL de chaque repas, à partir de ctx.all (vrais restos,
+  // mêlant les gammes, hors chaînes/génériques/déjà-servi). Ne recompute QUE si un repas a < 2 alternatives (les repas
+  // déjà bien pourvus par le moteur ne bougent pas). Aucun effet sur les étapes -> snapshot Paris (noms) inchangé.
+  (function(){
+    var _all=(ctx&&ctx.all)||[]; if(!_all.length) return;
+    var _c=ctx&&ctx.center, _bud=ctx&&ctx.budget, lo=(_bud==='économique'||_bud==='economique')?1:(_bud==='premium')?3:2, hi=lo+1;
+    function _isMealStep(s){ return s && s.theme==='gastronomie' && !s.libre && !(s.foodExp||(s._c&&s._c.foodExp)); }
+    var meals=(day.steps||[]).filter(_isMealStep);
+    if(!meals.length || meals.every(function(m){return Array.isArray(m.alts)&&m.alts.length>=2;})) return; // tout est déjà pourvu
+    // lieux à ne JAMAIS proposer : toute étape du jour + toute alternative déjà retenue (dédup jour, anti-doublon inter-repas)
+    var dayNoms={}, usedM={};
+    (day.steps||[]).forEach(function(s){ if(s&&s.nom) dayNoms[_norm(s.nom)]=1; if(s&&Array.isArray(s.alts)) s.alts.forEach(function(a){ if(a&&a.nom) usedM[_norm(a.nom)]=1; }); });
+    var gp=_all.filter(function(c){ return c && c.theme==='gastronomie' && !(c.foodExp||(c._c&&c._c.foodExp)) && c.lat!=null && c.lng!=null && !CHAINS.test(c.nom||'') && !VAGUE.test(c.nom||'') && !dayNoms[_norm(c.nom||'')]; }); // vrais restaurants uniquement (hors foodExp), jamais une étape du jour
+    if(!gp.length) return;
+    var _gd=_c?gp.map(function(c){return hav(_c.lat,_c.lng,c.lat,c.lng);}).sort(function(a,b){return a-b;}):[];
+    var altR=Math.max(1.2,Math.min(2.5,_gd[5]!=null?_gd[5]:2.5)); // rayon ADAPTATIF : ~1,2 km en ville dense, jusqu'à 2,5 km en petite ville
+    meals.forEach(function(s){
+      if(Array.isArray(s.alts)&&s.alts.length>=2) return; // repas déjà pourvu -> on n'y touche pas
+      if(s.lat==null || s.lng==null){ if(!Array.isArray(s.alts)) s.alts=[]; return; }
+      var cand=gp.filter(function(c){ return !usedM[_norm(c.nom)] && !(c.price&&(c.price<lo||c.price>hi)); })
+        .map(function(c){ return {c:c,d:hav(s.lat,s.lng,c.lat,c.lng)}; })
+        .filter(function(x){ return x.d<=altR; }).sort(function(a,b){ return a.d-b.d; });
+      var tlo=cand.filter(function(x){ return x.c.price===lo; })[0];               // la moins chère de la fourchette, la + proche
+      var thi=cand.filter(function(x){ return x.c.price===hi; })[0];               // la plus chère de la fourchette
+      var picks=[]; if(tlo)picks.push(tlo.c); if(thi&&(!tlo||thi.c!==tlo.c))picks.push(thi.c); // une de chaque gamme = vrai mélange
+      for(var z=0;z<cand.length&&picks.length<2;z++){ if(picks.indexOf(cand[z].c)<0) picks.push(cand[z].c); } // compléter par proximité si une gamme manque
+      picks.forEach(function(c){ usedM[_norm(c.nom)]=1; });
+      s.alts=picks.map(function(c){ return {nom:c.nom,price:c.price||null,adresse:c.address||c.adresse||null,lat:c.lat,lng:c.lng,cat:c.cat||null,extract:c.extract||null,image:c.image||null}; }); // lat/lng portés -> vraies variantes B/C (pin déplaçable)
+    });
+  })();
   return day;
 }
 // ===== MOTEUR À VRAIS LIEUX (porté de archive/planifier_archi_test.html) =====
