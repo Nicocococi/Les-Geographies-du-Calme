@@ -1826,7 +1826,7 @@ const QUERY_EXCLUDE=['sport.fishing']; // réactivées (demandé) : bowling, min
 let TOKEN=null, MAP=null, MARKERS=[], DAYS=[], ACTIVE=1, LANDMARKS=[], AMBIANCE=[];
 let RACCOURCI_MSG=''; // message honnête affiché quand un séjour a été RACCOURCI (ville pauvre : moins de jours pleins que demandé). '' sinon.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
-const APP_VERSION='v329'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
+const APP_VERSION='v330'; // VERSION affichée dans le tampon UI ET loggée en 1re ligne de génération (fin des doutes « bonne version ? »). v330 : les marchés (« Marché Beauvau/d'Aligre ») ne fuient plus en « restaurant » — la frontière de mot après un accent (é) échouait en JS, corrigée en (?![a-z]). v329 : la carte resto affiche enfin la VRAIE description (extract) au lieu de la phrase fabriquée. v328 : descriptions Foursquare (fsq_desc) branchées côté données.
 const REGION_KM=35; // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -2244,7 +2244,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
       && !/shopping_mall|commercial\.outdoor_and_sport|commercial\.florist|commercial\.clothing|commercial\.shopping/i.test((p.category_src||[]).join(' '))
       && (
       /commercial\.food_and_drink|commercial\.marketplace|commercial\.health_food|production\.(winery|brewery|distillery)|catering\.(ice_cream|food_court)/i.test((p.category_src||[]).join(' '))
-      || /marketplace|march[ée]\b|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' ')))
+      || /marketplace|march[ée]s?(?![a-z])|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' ')))
     )),
     tags:{name:p.name},address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
     extract:(p.tags&&(p.tags.extract||p.tags.fsq_desc))||null,image:(p.tags&&p.tags.image)||null, // VAGUE 1 : vraie phrase Wikipédia (prioritaire) OU description Foursquare (repli restos) + vraie photo Commons (si POI matché Wikidata à l'enrich)
@@ -2323,7 +2323,7 @@ async function collectFromBase(dc,themes,budget,voyage){
         && !/shopping_mall|commercial\.outdoor_and_sport|commercial\.florist|commercial\.clothing|commercial\.shopping/i.test((p.category_src||[]).join(' ')) // EXCLUS : centres commerciaux (Forum des Halles…), marchés aux fleurs, galeries marchandes — ce ne sont pas des expériences food
         && (
         /commercial\.food_and_drink|commercial\.marketplace|commercial\.health_food|production\.(winery|brewery|distillery)|catering\.(ice_cream|food_court)/i.test((p.category_src||[]).join(' ')) // UNIVERSEL par CATÉGORIE OSM : tout commerce de bouche, marché, cave/brasserie, glacier, food court
-        || /marketplace|march[ée]\b|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' '))) // repli mots-clés (FSQ/DATAtourisme)
+        || /marketplace|march[ée]s?(?![a-z])|\bmarket\b|food.?court|food.?hall|\bhalle|winer|vignoble|brasserie artisanale|distiller|\bcave\b|gourmet|[ée]picerie|delicatess|\bdeli\b|cheese|fromager|chocolat|confiser|confection|p[âa]tisser|bakery|boulanger|d[ée]gustation|street.?food|night.?market|greengrocer|primeur|ice.?cream|glacier/i.test((p.name||'')+' '+((p.category_src||[]).join(' '))) // repli mots-clés (FSQ/DATAtourisme)
       )), // EXPÉRIENCE food (marché, halle, cave, fromager, chocolatier, glacier…) -> étape de journée, jamais un repas
       tags:{name:p.name},address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
       extract:(p.tags&&(p.tags.extract||p.tags.fsq_desc))||null,image:(p.tags&&p.tags.image)||null, // (fix descriptif) PORTE PRINCIPALE : emporter la vraie phrase Wikipédia (prioritaire) OU la description Foursquare (repli restos) + photo Commons comme mapBasePlace — sans ça, monuments/musées/parcs perdaient leur résumé à l'entrée et retombaient sur le bouche-trou « … du quartier, à voir en passant »
@@ -3140,19 +3140,32 @@ function _orderDaysByRichness(days){
 // RÈGLE DE REPAS UNIQUE (étape 5 — « une seule règle partout ») : cœur de décision PARTAGÉ par les DEUX chemins de choix
 // de repas — recomposeDay._pickNearMeal (chemin densité + passe finale) ET le chemin LLM (pickL/pick/pickNear). Chaque chemin
 // fait SON PROPRE filtrage amont (zone/dédup pour recomposeDay ; budget/chaînes/génériques pour le chemin LLM) puis passe ici
-// la liste de candidats DÉJÀ TRIÉE par distance croissante [{c, d}]. La DÉCISION (étape 2, note-dominant) est ici, une seule fois :
-//   parmi les N=8 plus proches, le mieux noté par  note(0-10) × min(nbAvis/20,1) + 0,04 × min(score,10)  (≥ 3 avis) ;
+// la liste de candidats DÉJÀ TRIÉE par distance croissante [{c, d}] (d = distance en km à l'ancre). La DÉCISION est ici, une seule fois :
+//   parmi les N=8 plus proches, le mieux noté par  note(0-10) × min(nbAvis/20,1) + 0,04 × min(score,10)  − MEAL_DIST_PEN × d  (≥ 3 avis) ;
 //   REPLI = meilleur score composite (méthode historique). Jamais de repas vidé (null seulement si aucun candidat).
+// PROXIMITÉ PRIME (brief #28 « repas trop loin ») : la distance `d` entre DANS le départage des restos notés — chaque km de plus
+//   coûte MEAL_DIST_PEN points de note, donc un resto 2× plus loin doit être NETTEMENT mieux noté pour l'emporter. Sans ça, un
+//   resto noté à 1,5 km battait un bon resto à 200 m (Train Bleu pêché depuis Place des Vosges). Seule la branche NOTÉE change ;
+//   le REPLI score reste À L'IDENTIQUE -> données sans note (villes pauvres + snapshot Paris synthétique) = comportement inchangé.
 // Avant l'étape 5, le chemin LLM classait par « score − dist×3 » (SANS la note) -> la note ne mordait que sur un chemin sur deux.
+// 3 CRITÈRES (ordre de force voulu §brief) : (1) PROXIMITÉ `d` -> MEAL_DIST_PEN par km ; (2) NOTE pondérée par le nb d'avis ;
+// (3) DESCRIPTIF binaire -> DESC_BONUS si le resto a une VRAIE histoire à raconter (extract Wikipédia OU fsq_desc Foursquare).
+// Le descriptif est le critère le PLUS FAIBLE (bonus < écart de note typique < pénalité distance) : il ne renverse qu'un
+// quasi-ex æquo (histoire à raconter, à proximité/note comparables) — jamais un resto nettement plus proche. Le `fsq_desc`
+// existe pour des restos ORDINAIRES (pas seulement les stars Wikipédia) -> « avoir un descriptif » n'est PAS « célèbre & loin »
+// -> ne rouvre pas le bug « resto célèbre à l'autre bout ». Snapshot Paris (restos synthétiques SANS extract) : bonus 0 -> intact.
+var MEAL_DIST_PEN = 3.0;                                      // points de note retranchés par km d'éloignement (dose réglable : ↑ = proximité encore plus dominante)
+var DESC_BONUS = 1.0;                                         // bonus « a un descriptif » (dose réglable) — 3e critère, sous la note ; ~0,33 km d'équivalent-distance
+function _hasDesc(c){ return !!(c && c.extract && String(c.extract).trim().length>=30); } // « y a un descriptif ? » (binaire) : extract réel (Wikipédia/Foursquare), jamais un stub
 function _chooseMeal(sorted, N){
   if(!sorted || !sorted.length) return null;
   N = Math.min(N || 8, sorted.length);
   var bestR=null, brs=-Infinity;
   for(var k=0;k<N;k++){ var c2=sorted[k].c, rt=(typeof c2.rating==='number'?c2.rating:null), rc=c2.ratingCount||0;
-    if(rt!=null && rc>=3){ var sc2=(typeof c2.score==='number'?c2.score:0); var blend=rt*Math.min(rc/20,1)+0.04*Math.min(Math.max(sc2,0),10); if(blend>brs){ brs=blend; bestR=c2; } } }
-  if(bestR) return bestR;                                     // au moins un resto noté parmi les 8 -> mélange note-dominant
-  var best=null,bs=-Infinity;                                 // REPLI (aucun des 8 noté / ville pauvre) : meilleur score composite = méthode historique
-  for(var k2=0;k2<N;k2++){ var sc=(typeof sorted[k2].c.score==='number'?sorted[k2].c.score:0); if(sc>bs){ bs=sc; best=sorted[k2].c; } }
+    if(rt!=null && rc>=3){ var sc2=(typeof c2.score==='number'?c2.score:0), _dk=(typeof sorted[k].d==='number'?Math.max(sorted[k].d,0):0); var blend=rt*Math.min(rc/20,1)+0.04*Math.min(Math.max(sc2,0),10)-MEAL_DIST_PEN*_dk+(_hasDesc(c2)?DESC_BONUS:0); if(blend>brs){ brs=blend; bestR=c2; } } }
+  if(bestR) return bestR;                                     // au moins un resto noté parmi les 8 -> mélange note-dominant PONDÉRÉ PAR LA PROXIMITÉ + descriptif
+  var best=null,bs=-Infinity;                                 // REPLI (aucun des 8 noté / ville pauvre) : meilleur score composite (+ bonus descriptif) = méthode historique
+  for(var k2=0;k2<N;k2++){ var sc=(typeof sorted[k2].c.score==='number'?sorted[k2].c.score:0)+(_hasDesc(sorted[k2].c)?DESC_BONUS:0); if(sc>bs){ bs=sc; best=sorted[k2].c; } }
   return best;
 }
 // RECONSTRUCTION PROPRE DE LA JOURNÉE (appelée en TOUTE FIN de finalizeDay) : après toutes les mutations, on rebâtit
