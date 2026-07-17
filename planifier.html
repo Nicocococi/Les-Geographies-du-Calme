@@ -3016,7 +3016,10 @@ function _bcAlts(day, step, n){
     var near=pool.filter(function(c){return _ok(c,sameTheme);})
       .map(function(c){return {c:c,d:hav(step.lat,step.lng,c.lat,c.lng)};})
       .filter(function(x){return x.d>=0.06 && x.d<=maxD;}).sort(function(a,b){return a.d-b.d;}); // >=60 m : un AUTRE endroit
-    for(var i=0;i<near.length&&res.length<n;i++){ seen[_norm(near[i].c.nom||'')]=1; res.push(near[i].c); }
+    // RE-VÉRIFIER _ok DANS la boucle : le .filter(_ok) ci-dessus s'évalue contre un `res` VIDE (aucune dédup possible à ce
+    // stade) -> deux variantes du même lieu (« Palais de la Découverte » / « … - Universcience », co-localisées) passaient
+    // toutes deux et remplissaient B ET C d'une même étape. Ici res/seen sont à jour -> _ok rejette la 2e (sharesBrand + seen).
+    for(var i=0;i<near.length&&res.length<n;i++){ if(!_ok(near[i].c,sameTheme))continue; seen[_norm(near[i].c.nom||'')]=1; res.push(near[i].c); }
   }
   // 1) MÊME THÈME que l'étape (vivier + repères locaux), à pied — rayon 1,5 km (avant 1,2 : trop serré -> B/C vides)
   _collect(((day.cands&&day.cands[step.theme])||[]).concat(day.localLM||[]), true, 1.5);
@@ -3069,7 +3072,12 @@ function adaptDayToJours(day){
   // DÉDUP AU NIVEAU DU JOUR (étapes + alternatives) : un lieu n'apparaît qu'UNE fois sur toute la journée. Sinon un lieu
   // central (Grand Palais près des Champs-Élysées) est pêché en alternative par CHAQUE étape voisine -> « 3× Grand Palais »
   // dans les cases A/B/C, alors qu'il n'est aucune étape. On sème l'ensemble avec tous les noms d'étapes.
-  var _altUsed={}; (day.steps||[]).forEach(function(s){ if(s&&s.nom&&!s.libre) _altUsed[_norm(s.nom)]=1; });
+  // IDENTITÉ (pas le nom EXACT) : un même lieu physique existe sous des VARIANTES de nom dans la base (« Palais de la
+  // Découverte » vs « … - Universcience »). Une dédup par nom exact laissait chaque étape voisine piocher une variante
+  // DIFFÉRENTE du même lieu -> il s'affichait 2×. On dédup par _sameLieuStep (nom/QID, ou co-loc + tokens-cœur/adresse —
+  // jamais la proximité seule : 2 musées distincts à 100 m restent 2). On sème avec toutes les étapes du jour.
+  var _altUsedPl=(day.steps||[]).filter(function(s){ return s&&s.nom&&!s.libre; }).map(function(s){ return {nom:s.nom,lat:s.lat,lng:s.lng,adresse:s.adresse,qid:(typeof _qidOf==='function'?_qidOf(s):null)}; });
+  function _altTaken(x){ return _altUsedPl.some(function(u){ return _sameLieuStep(u,x); }); }
   (day.steps||[]).forEach(function(step,i){
     const tid='t'+(i+1);
     var a={
@@ -3109,8 +3117,8 @@ function adaptDayToJours(day){
     }
     // DÉDUP JOUR : jamais un lieu déjà utilisé (étape OU alternative d'une autre étape). On pioche jusqu'à 4 puis on garde
     // les 2 premiers ENCORE libres, et on les enregistre -> chaque lieu au plus 1× sur toute la journée.
-    alts=(alts||[]).filter(function(x){ return x && x.nom && !_altUsed[_norm(x.nom)]; }).slice(0,2);
-    alts.forEach(function(x){ _altUsed[_norm(x.nom)]=1; });
+    alts=(alts||[]).filter(function(x){ return x && x.nom && !_altTaken(x); }).slice(0,2);
+    alts.forEach(function(x){ _altUsedPl.push({nom:x.nom,lat:x.lat,lng:x.lng,adresse:x.adresse||x.address}); });
     joursData[jk][tid]={ a:a, b: alts[0]?_bcVariant(alts[0],step,tid):null, c: alts[1]?_bcVariant(alts[1],step,tid):null };
   });
   if(!IV.quartiers) IV.quartiers={};
