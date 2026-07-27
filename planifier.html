@@ -2713,6 +2713,10 @@ function dureeHint(c){if(!c)return 90;
   if(/spa|thermal|thermes|balneo|baln[ée]o|hammam|sauna|massage|thalasso/i.test(s))return 120; // vrai spa / thermes / thalasso = 2h
   if(th==='bienetre')return /parc|jardin|garden|square|\blac\b|point.?de.?vue|panorama|belv[ée]d|bord|berge|\bbois\b|for[eê]t/i.test(s)?60:90; // bien-être « ressourçant » via un parc/jardin/square = ~1h (pas 2h) ; institut/soin sans mot-clé = ~1h30
   if(/mus[eé]e|museum|ch[aâ]teau|castle|palais|palace/i.test(s))return (c&&c.notable)?150:120; // grands musées/monuments : 2h, 2h30 si notable (Louvre, Orsay…)
+  // POI MINCE NON IDENTIFIÉ (kindOf='lieu', pas notable, imp faible) qui n'a matché AUCUN mot-clé d'activité ni de patrimoine
+  // au-dessus (ni sport, ni musée/monument/église, ni parc/nature) = petit repère (croix, borne, plaque, calvaire…) : halte
+  // COURTE ~40 min, PAS 1h30. Placé APRÈS les branches d'activité (randonnée 180, ski/kayak 210…) pour ne jamais les raboter.
+  if(_k==='lieu' && !(c&&c.notable) && (c.imp||0)<0.55 && !/monument|expo|galerie|cath[eé]drale|abbaye|[eé]glise|mus[eé]e|museum|palais|ch[âa]teau/i.test(s))return 40;
   if(th==='culture'||/monument|expo|galerie|cath[eé]drale|abbaye|[eé]glise/i.test(s))return 90;
   if(/square|\bplace\b|fontaine|point.?de.?vue|panorama|belv[ée]d/i.test(s))return 40; // square / place / point de vue = courte halte (~40 min), pas 1h15
   if(/\blac\b|foret|for[êe]t|\bbois\b|r[ée]serve|gorge|cascade/i.test(s))return 75; // grand espace nature (lac, forêt, réserve) = balade ~1h15
@@ -3986,7 +3990,18 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     // RICHESSE (_R) = nb de POI EXPLOITABLES (≤1,2 km, DANS la ville) = thèmes choisis + culture/nature/urbain + vrais restos. MÊME critère que le _Rn du chemin LLM (ligne ~4023). Sert au repli densité (pickAnchor) à préférer un quartier RICHE un peu plus proche à un quartier MAIGRE au loin (task #12, temps libre de 4h). Filtre in-city = même contrainte que le city-clamp de recomposeDay (sinon une ancre de bord passe grâce à la banlieue puis le jour se vide).
     var _destCityR=(dc&&dc.nom)?_norm(dc.nom):'';
     function _inCityR(a){ if(!_destCityR || !a || !a.address) return true; var ad=_norm(a.address); if(ad.indexOf(_destCityR)>=0) return true; var mm=String(a.address).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); return !(mm && _norm(mm[1]) && _norm(mm[1])!==_destCityR); }
-    all.forEach(function(c){ if(!themes.includes(c.theme))return; var T=0,R=0; for(var k=0;k<all.length;k++){var a=all[k];var _dd=hav(c.lat,c.lng,a.lat,a.lng); if(themes.includes(a.theme)&&!(a.theme==='gastronomie'&&!a.foodExp)&&_dd<=_QR)T++; if(_dd<=1.2&&_inCityR(a)&&(themes.includes(a.theme)||a.theme==='culture'||a.theme==='nature'||a.theme==='urbain'||(a.theme==='gastronomie'&&!a.foodExp)))R++;} c._T=T; c._R=R; c._A=ambianceAt(c.lat,c.lng,_QR); if(c._A>_maxA)_maxA=c._A; }); // GASTRO : la densité du thème compte les foodExp (marchés/caves/glaciers/commerces de bouche), PAS les restos (= repas, partout) -> un quartier foodie, pas une zone à restos
+    // FILTRE QUALITÉ (Pas 1, spec épuisement→excursion) : un POI ne COMPTE comme « exploitable » que s'il est un vrai
+    // site visitable. On réutilise kindOf (RÔLE, §4) + le score composite (NOTORIÉTÉ, seuil RELATIF au panier local,
+    // JAMAIS un couperet absolu qui raccourcirait à tort les villes pauvres en données type Bali/Laos). But : un ruisseau
+    // ou une capitelle anonyme (kindOf 'nature'/'place'/'lieu' à score ~0.38) ne gonfle plus le comptage -> le moteur voit
+    // que la ville est VRAIMENT épuisée en qualité et pourra bifurquer en excursion, au lieu de racler des ruisseaux (bug
+    // live Carcassonne J3). Le RÔLE seul ne tranche pas (ruisseau ET Canal du Midi = 'nature') : c'est la NOTORIÉTÉ qui
+    // sépare. Photo/extrait = bonus de RANG ailleurs, JAMAIS une barrière ici (sinon on tue les pépites non-occidentales).
+    var _maxScore=0; for(var _ms=0;_ms<all.length;_ms++){ if((all[_ms].score||0)>_maxScore)_maxScore=all[_ms].score||0; }
+    var _qFloor=0.15*_maxScore; // seuil de notoriété RELATIF au panier local (0 si tout est à 0 -> ne bloque rien)
+    var _AMBIG_KIND={nature:1,place:1,viewpoint:1,sight:1,lieu:1}; // rôles où la CATÉGORIE ne tranche pas bruit vs pépite -> départage par la notoriété
+    function _qOK(a){ if(!a) return false; var k=kindOf(a); if(k==='cinema'||k==='pouvoir') return false; if(_AMBIG_KIND[k] && !a.notable && ((a.imp!=null?a.imp:0)<=0) && (a.score||0)<_qFloor) return false; return true; }
+    all.forEach(function(c){ if(!themes.includes(c.theme))return; var T=0,R=0; for(var k=0;k<all.length;k++){var a=all[k];var _dd=hav(c.lat,c.lng,a.lat,a.lng); if(themes.includes(a.theme)&&!(a.theme==='gastronomie'&&!a.foodExp)&&_dd<=_QR&&_qOK(a))T++; if(_dd<=1.2&&_inCityR(a)&&_qOK(a)&&(themes.includes(a.theme)||a.theme==='culture'||a.theme==='nature'||a.theme==='urbain'||(a.theme==='gastronomie'&&!a.foodExp)))R++;} c._T=T; c._R=R; c._A=ambianceAt(c.lat,c.lng,_QR); if(c._A>_maxA)_maxA=c._A; }); // GASTRO : la densité du thème compte les foodExp (marchés/caves/glaciers/commerces de bouche), PAS les restos (= repas, partout) -> un quartier foodie, pas une zone à restos
     all.forEach(function(c){ if(c._A!=null){var An=_maxA>0?c._A/_maxA:0; c._q=c._T*(An+0.3);} }); // A normalisé PAR VILLE ; +0.3 pour que la densité du thème compte aussi (thèmes de destination où A≈0 partout)
     DAYS=[];RACCOURCI_MSG='';const used=new Set();const usedPlaces=[];const usedKinds=new Set();const usedZones=[];const usedQuartiers=new Set();const usedLandmarks=new Set();const usedShow={cabaret:0,concert:0,theatre:0,footing:0}; // plafonds À 1 PAR SÉJOUR (sans base d'événements)
     // DÉDUP INTER-JOURS ROBUSTE AUX VARIANTES : un lieu utilisé un jour ne revient JAMAIS un autre, même sous un nom
@@ -4008,6 +4023,10 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     const SPREAD_KM=2.5; // étalement inter-jours (grande ville) ; partagé par pickAnchor ET le contrôle de distance du quartier LLM. Repli à 1,2 km pour les petites villes (dans pickAnchor).
     function pickAnchor(extra){
       function elig(minT,maxD,minSp,minR){var _sp=(minSp==null?1.2:minSp);return all.filter(c=>themes.includes(c.theme)&&c._T>=minT&&(!minR||(c._R||0)>=minR)&&!_usedAlready(c)&&!(extra&&extra.has(_norm(c.nom)))&&usedZones.every(z=>hav(z.lat,z.lng,c.lat,c.lng)>_sp)&&!Array.from(used).some(u=>sameKind(c.nom,u,dest))&&(maxD==null||(c.distKm!=null?c.distKm:hav(dc.lat,dc.lng,c.lat,c.lng))<=maxD));}
+      // PAS 2 — candidats par QUALITÉ (pas par densité) : mêmes filtres d'unicité/étalement que `elig`, MAIS on ignore _T
+      // (la densité) et on EXIGE _qOK (rôle visitable + score au-dessus du plancher relatif, cf. Pas 1). Sert au repli
+      // excursion quand le cœur n'a plus de quartier dense : on veut la meilleure PÉPITE restante, isolée ou non.
+      function eligQ(minSp,maxD){var _sp=(minSp==null?1.2:minSp);return all.filter(c=>themes.includes(c.theme)&&_qOK(c)&&!_usedAlready(c)&&!(extra&&extra.has(_norm(c.nom)))&&usedZones.every(z=>hav(z.lat,z.lng,c.lat,c.lng)>_sp)&&!Array.from(used).some(u=>sameKind(c.nom,u,dest))&&(maxD==null||(c.distKm!=null?c.distKm:hav(dc.lat,dc.lng,c.lat,c.lng))<=maxD));}
       // PRÉFÉRER LE CŒUR : ancres intra-cœur (≤ CORE_KM) d'abord ; ancre LOINTAINE (banlieue/excursion) seulement si le cœur est ÉPUISÉ pour ce thème (grande ville -> jamais la banlieue ; petite ville -> excursion quand l'intra-muros est à court)
       // ÉTALEMENT : on préfère un quartier ≥ SPREAD_KM des jours précédents (grande ville -> Marais/Montmartre/Quartier latin, pas 3× le centre) ; repli à 1,2 km si la ville est trop petite pour étaler. (SPREAD_KM défini au scope de la boucle, partagé avec le contrôle LLM.)
       // RÈGLE QUARTIER : on EXIGE ≥ 2 POI du thème dans la zone (c'est ce qui définit un quartier « du thème »), priorité ABSOLUE sur l'étalement et la distance. On essaie donc TOUS les niveaux à _T≥2 d'abord (cœur+étalé -> cœur -> excursion), et seulement en TOUT DERNIER recours un quartier pauvre (_T<2). -> évite d'ancrer une journée « sport » dans un quartier à 1 seul lieu (cause des 4h de temps libre).
@@ -4019,7 +4038,20 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       // BARRE DE RICHESSE (grande ville) : on PRÉFÈRE un quartier RICHE (≥ RICH exploitables, même seuil que la gate LLM) même un peu plus PROCHE (plancher relâché RELAX=1 km) à un quartier MAIGRE au loin. Sinon le motif « spread d'abord » ancrait les jours 4-5 sur une poche périphérique tassée-nature mais creuse (7-8 lieux) → 4 h de temps libre (task #12). Ville pauvre : RICH=0/RELAX=0 → rungs identiques aux historiques → Carcassonne/snapshot Paris INCHANGÉS. Les rungs riches passent AVANT les historiques ; ces derniers restent le repli complet.
       var RICH = bigCity ? 7 : 0, RELAX = bigCity ? 1.0 : 0;
       var av=elig(2,CORE_KM,_sp(SPREAD_KM),RICH); if(!av.length)av=elig(2,CORE_KM,_sp(1.2),RICH); if(RICH&&!av.length)av=elig(2,CORE_KM,Math.max(RELAX,FLOOR),RICH);
-      if(!av.length)av=elig(2,CORE_KM,_sp(SPREAD_KM)); if(!av.length)av=elig(2,CORE_KM,_sp(1.2)); if(!av.length)av=elig(2,CORE_KM,_sp(0)); if(!av.length)av=elig(2,null,_sp(1.2)); if(!av.length)av=elig(0,CORE_KM,_sp(SPREAD_KM)); if(!av.length)av=elig(0,CORE_KM,_sp(1.2)); if(!av.length)av=elig(0,CORE_KM,_sp(0)); if(!av.length)av=elig(0,null,_sp(1.2));
+      if(!av.length)av=elig(2,CORE_KM,_sp(SPREAD_KM)); if(!av.length)av=elig(2,CORE_KM,_sp(1.2)); if(!av.length)av=elig(2,CORE_KM,_sp(0)); if(!av.length)av=elig(2,null,_sp(1.2));
+      // ===== PAS 2 — REPLI EXCURSION QUALITÉ (petite ville, cœur épuisé de quartiers denses) =====
+      // Le cœur n'offre plus AUCUN quartier ≥2 POI du thème. Les anciens crans _T=0 (plus bas) raclaient alors un point
+      // ISOLÉ par pure géométrie — tous à _q=0, donc un ruisseau anonyme tiré au hasard (bug live Carcassonne J3). À la
+      // place : on choisit la meilleure PÉPITE restante par QUALITÉ (_qOK + score composite). D'abord une pépite PROCHE
+      // (≤ CORE_KM : colonne vertébrale « à pied d'abord »), sinon une pépite RÉGIONALE en excursion (le squelette
+      // excursion en aval — bandeau voiture, carhop, bulle REGION — prend le relais). Gardé `!bigCity` -> Paris INCHANGÉ
+      // (métropole toujours derrière la gate, ne passe jamais ici). Repli _T=0 conservé DERRIÈRE (si plus aucune pépite).
+      if(!av.length && !bigCity){
+        var avq=eligQ(_sp(SPREAD_KM),CORE_KM); if(!avq.length)avq=eligQ(_sp(1.2),CORE_KM); if(!avq.length)avq=eligQ(_sp(0),CORE_KM); // pépite PROCHE d'abord (marchable)
+        if(!avq.length){avq=eligQ(_sp(1.2),null); if(!avq.length)avq=eligQ(_sp(0),null);}                                       // sinon EXCURSION régionale (toute distance dans le rayon ingéré)
+        if(avq.length){ avq.sort((a,b)=>{var ak=usedKinds.has(actKind(a))?1:0,bk=usedKinds.has(actKind(b))?1:0;if(ak!==bk)return ak-bk;return (b.score||0)-(a.score||0);}); return avq[0]; }
+      }
+      if(!av.length)av=elig(0,CORE_KM,_sp(SPREAD_KM)); if(!av.length)av=elig(0,CORE_KM,_sp(1.2)); if(!av.length)av=elig(0,CORE_KM,_sp(0)); if(!av.length)av=elig(0,null,_sp(1.2));
       av.sort((a,b)=>{var ak=usedKinds.has(actKind(a))?1:0,bk=usedKinds.has(actKind(b))?1:0;if(ak!==bk)return ak-bk;return (b._q||0)-(a._q||0);}); // meilleur quartier (A×T), en évitant un TYPE déjà fait un autre jour
       return av[0]||null;
     }
@@ -4091,7 +4123,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
             // recomposeDay). Sinon une ancre de BORD (« Parc des Princes ») passe la gate grâce aux POI de banlieue
             // (Boulogne), puis le clamp vide le jour (temps libre béant). Filtre par ville via l'adresse (« <CP> commune »).
             function _inCityA(a){ if(!_destCity || !a || !a.address) return true; var ad=_norm(a.address); if(ad.indexOf(_destCity)>=0) return true; var mm=String(a.address).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); return !(mm && _norm(mm[1]) && _norm(mm[1])!==_destCity); }
-            var _Tn=0,_Rn=0; for(var _k=0;_k<all.length;_k++){var _a=all[_k];if(!_inCityA(_a))continue;var _dd=hav(_gc.lat,_gc.lng,_a.lat,_a.lng);if(themes.includes(_a.theme)&&!(_a.theme==='gastronomie'&&!_a.foodExp)&&_dd<=1.0)_Tn++; if(_dd<=1.2&&(themes.includes(_a.theme)||_a.theme==='culture'||_a.theme==='nature'||_a.theme==='urbain'||(_a.theme==='gastronomie'&&!_a.foodExp)))_Rn++;}
+            var _Tn=0,_Rn=0; for(var _k=0;_k<all.length;_k++){var _a=all[_k];if(!_inCityA(_a))continue;if(!_qOK(_a))continue;var _dd=hav(_gc.lat,_gc.lng,_a.lat,_a.lng);if(themes.includes(_a.theme)&&!(_a.theme==='gastronomie'&&!_a.foodExp)&&_dd<=1.0)_Tn++; if(_dd<=1.2&&(themes.includes(_a.theme)||_a.theme==='culture'||_a.theme==='nature'||_a.theme==='urbain'||(_a.theme==='gastronomie'&&!_a.foodExp)))_Rn++;}
             // ÉTALEMENT INTER-JOURS (quartier LLM) — PAS un seuil figé. On VISE une bulle marchable (BUBBLE_FLOOR ~1,5 km,
             // taille d'une journée à pied) et on RELÂCHE cran par cran, exactement comme le repli densité (elig 2,5→1,2→0).
             // `_spreadTargetKm` renvoie le plus grand palier auquel le POOL de densité peut ENCORE offrir un quartier mieux séparé.
