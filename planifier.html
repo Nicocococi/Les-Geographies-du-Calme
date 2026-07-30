@@ -1799,6 +1799,20 @@ var _QUAL_FSQ={
   keep:['restaurant','fast food','camion de restauration','stand de restauration','cafe','lieu servant','buffet','snack','bistro','brasserie','pizzeria','boulangerie','diner','dim sum','bar','discotheque','karaoke','lounge','clandestin','rooftop','toit terrasse','pub','musee','galerie d art','centre culturel','amphitheatre','art de rue','sculpture','planetarium','opera','site historique','lieu de memoire','monument','palais','eglise','sanctuaire','temple','capitole','observatoire','jardin','parc','plage','rade','canal','court de tennis','terrain de','practice de golf','piste d athletisme','piscine','dojo','salle de boxe','studio de pilates','salle de yoga','patinoire','skatepark','via ferrata','escalade','golf'],
   junk:['parc canin','palais des congres','salle de sport','club de sport','gymnastique','centre commercial','commerce de detail','magasin','boutique','batiment gouvernemental','gouvernement','centre medical','hopital','clinique','hotel','auberge','hebergement','service de','service a domicile','entretien des piscines','medium et astrologue','reparation','education','ecole','universite','tour operateur','voyage et transport','parking','cinema','striptease','bureau'],
   floor:['art et divertissement','sport et loisir','autre evenement','evenement','foire','exposition','theatre','salle de concert','salle de spectacle','complexe des arts','salle de danse','salle de billard','salle de bowling','salle de jeux','salle polyvalente','salle d escalade','escape game','parc de jeux couvert','centre de loisirs','bibliotheque','centre spirituel','autres grands espaces','sentier de randonnee','terrain de jeu','pont','place','belvedere','panorama'] };
+// VETO qualité (chantier 3) : signaux « jamais visitable » qui BATTENT keep (une salle de sport commerciale taguée AUSSI
+// « sport » restait keep — finding B). 3 signaux redondants : (1) CODE FSQ générique gym (langue-indépendant, règle de base) ;
+// (2) repli LIBELLÉ FR (salle/club de sport, gymnastique) ; (3) OSM access_limited. NE vise PAS le parc canin (reste junk :
+// un jardin public avec parc canin garde keep) ni le bon sport (escalade/yoga/tennis…). MIROIR EXACT du Worker.
+var _QVETO_FSQ_IDS=['4bf58dd8d48988d175941735'];
+var _QVETO_FSQ_LABEL_RE=/\bsalle de sport\b|\bclub de sport\b|\bgymnastique\b/;
+var _QVETO_OSM_RE=/(^|\.)access_limited(\.|$)/;
+function _qVeto(catArr,fsqCatIds){
+  var arr=Array.isArray(catArr)?catArr:(catArr?[catArr]:[]);
+  for(var i=0;i<arr.length;i++){var es=String(arr[i]||'');
+    if(_QVETO_OSM_RE.test(es.toLowerCase()))return true;
+    if(_QVETO_FSQ_LABEL_RE.test(_qFold(es)))return true;}
+  if(fsqCatIds){var ids=String(fsqCatIds).split('|');for(var k=0;k<ids.length;k++){if(_QVETO_FSQ_IDS.indexOf(ids[k])>=0)return true;}}
+  return false; }
 function _qVerdictBySource(code,table){ if(!code)return null; var best=null,bl=-1,vs=['keep','junk','floor'];
   for(var i=0;i<vs.length;i++){var arr=table[vs[i]]||[];for(var j=0;j<arr.length;j++){var pref=arr[j];if(code===pref||code.indexOf(pref+'.')===0){if(pref.length>bl){best=vs[i];bl=pref.length;}}}}
   return best; }
@@ -1809,7 +1823,8 @@ function _qVerdictFSQLabel(label){ var tokens=_qFold(label).split(' ').filter(Bo
   return best; }
 // Verdict d'un lieu : on lit CHAQUE entrée brute de category_src, on essaie les 3 matchers (seul le bon
 // touche : un libellé FSQ ne matche pas la grille OSM pointée et inversement) ; décisif keep > junk > floor.
-function _qTaxoVerdict(catArr){ if(!catArr||!catArr.length)return null;var hasK=false,hasJ=false,hasF=false;
+function _qTaxoVerdict(catArr,fsqCatIds){ if(_qVeto(catArr||[],fsqCatIds))return 'junk'; // véto : bat keep (finding B, chantier 3)
+  if(!catArr||!catArr.length)return null;var hasK=false,hasJ=false,hasF=false;
   for(var i=0;i<catArr.length;i++){var e=catArr[i];if(!e)continue;var es=String(e);
     var v1=_qVerdictBySource(es.toLowerCase(),_QUAL_OSM),v2=_qVerdictBySource(es,_QUAL_DT),v3=_qVerdictFSQLabel(es);
     [v1,v2,v3].forEach(function(v){if(v==='keep')hasK=true;else if(v==='junk')hasJ=true;else if(v==='floor')hasF=true;});}
@@ -1819,7 +1834,7 @@ function _qTaxoVerdict(catArr){ if(!catArr||!catArr.length)return null;var hasK=
 // synthétiques sans tags). Neutre par construction tant que la table du Worker et celle de la page concordent
 // (elles sont issues de la même source). C'est LE point de bascule de la migration table qualité (chantier 1).
 function _qVerdict(a){ if(!a)return null; if(a.tags&&a.tags.q)return a.tags.q;
-  return _qTaxoVerdict((a.catsrcArr&&a.catsrcArr.length)?a.catsrcArr:(a.catsrc?String(a.catsrc).split(/\s+/):[])); }
+  return _qTaxoVerdict((a.catsrcArr&&a.catsrcArr.length)?a.catsrcArr:(a.catsrc?String(a.catsrc).split(/\s+/):[]),(a.tags&&a.tags.fsq_cat_ids)||null); }
 // Veto JUNK : true = poubelle universelle (commerce/service/bureau/hôtel/parking…). keep gagne (un lieu qui
 // porte AUSSI une catégorie visitable n'est jamais jeté). Passe par _qVerdict (tags.q du Worker, repli local).
 function _qJunk(a){ if(!a)return false;return _qVerdict(a)==='junk'; }
@@ -1849,6 +1864,10 @@ const MUSEE_CAT_RE=/entertainment\.museum|\bmuseum\b|mus[ée]e/i;
 // déclenche jamais sur une ville non-latine). Acronymes en \b pour éviter les faux positifs (pas de mot commun happé).
 const DROITS_NAME_FR_RE=/\bsacem\b|\bsacd\b|\badagp\b|\bspr[eé]\b|\bscpp\b|\bsppf\b|\bsdrm\b|\bsofica\b|soci[ée]t[ée] de gestion|gestion collective des droits|soci[ée]t[ée] des auteurs/i;
 function _isPouvoir(catArr,name){ var cs=(Array.isArray(catArr)?catArr.join(' '):(catArr||'')); if(MUSEE_CAT_RE.test(cs))return false; if(POUVOIR_CAT_RE.test(cs))return true; if(POUVOIR_NAME_FR_RE.test(name||''))return true; if(DROITS_NAME_FR_RE.test(name||''))return true; return false; }
+// MIGRATION chantier 2 : la PAGE lit tags.pouvoir écrit par le Worker (source de vérité), repli local _isPouvoir si le flag est
+// absent (POI pas encore ré-ingéré/enrichi). Flag SÉPARÉ de tags.q : un lieu de pouvoir reste montrable « en chemin ». Appliqué
+// aux 2 PORTES d'entrée (raw base POI qui portent p.tags.pouvoir) ; les points AVAL gardent _isPouvoir local = garantie testée.
+function _pouvoirVerdict(p){ if(p&&p.tags&&typeof p.tags.pouvoir==='boolean')return p.tags.pouvoir; return _isPouvoir((p&&p.category_src)||[],(p&&p.name)||''); }
 function _pouvoirBlocked(c){ return !!(c&&(c._pouvoir||POUVOIR_NAME_FR_RE.test(c.nom||''))); } // pour les objets déjà normalisés (localLM/AMBIANCE : _pouvoir précalculé ; repli nom FR sinon)
 // Helpers PARTAGÉS (normalizeSteps + recomposeDay) : cinéma d'une étape, identité de deux étapes, lieu de pouvoir d'une étape.
 // Module-level pour que la RÈGLE soit appliquée au VRAI point de montage final (recomposeDay), pas seulement en amont.
@@ -2327,7 +2346,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
   if(/entertainment\.cinema|cin[ée]ma|\bcinema\b|movie theater|multiplex/i.test(_catC+' '+(p.name||'')))return null; // CINÉMA jamais une étape/à-voir — INVARIANT §5, NON conditionné au thème (un cinéma mal typé festif/urbain ne doit pas fuiter quand culture n'est qu'un pool de comblage). Par catégorie (repli nom). Reste possible « en chemin » (façade).
   if(_isVitrine(p.category_src||[],p.name))return null; // HÔTEL PARTICULIER / MANOIR non visitable (tourism.sights.manor) : jamais une ÉTAPE, reste « en chemin » via localLM. Château-MUSÉE (cat museum) non concerné. Même porte #2 que le pouvoir.
   if(_isAnimalFacility(p.category_src||[]))return null; // PARC CANIN / REFUGE ANIMALIER (SPA) non touristique : jamais une ÉTAPE. Par catégorie (« parc canin »/dog_park/animal_shelter), jamais par le nom « spa » (§4). Porte #2.
-  if(_isPouvoir(p.category_src||[],p.name))return null; // LIEU DE POUVOIR non visitable (assemblée/ministère/ambassade/préfecture/mairie…) : jamais une ÉTAPE. PORTE D'ENTRÉE #2 (enrichissement live du quartier) — c'est ELLE qui laissait passer l'Assemblée près de la Concorde (collectFromBase l'avait déjà, pas mapBasePlace). Château-MUSÉE (catégorie museum) non concerné. Le checkpoint normalizeSteps re-vérifie en dernier filet.
+  if(_pouvoirVerdict(p))return null; // LIEU DE POUVOIR non visitable (assemblée/ministère/ambassade/préfecture/mairie…) : jamais une ÉTAPE. PORTE D'ENTRÉE #2 (enrichissement live du quartier) — LIT tags.pouvoir du Worker, repli local _isPouvoir. C'est ELLE qui laissait passer l'Assemblée près de la Concorde. Château-MUSÉE (catégorie museum) non concerné. Le checkpoint normalizeSteps re-vérifie en dernier filet.
   const isFit=FIT_RE.test(p.name);
   if(isFit && /intercontinental|h[ôo]tel|marriott|hilton|hyatt|\britz\b|sofitel|westin|sheraton|kempinski|palace|resort/i.test(p.name))return null;
   var _price=(p.tags&&typeof p.tags.price==='number'&&p.tags.price>0)?p.tags.price:null;
@@ -2380,7 +2399,7 @@ async function collectFromBase(dc,themes,budget,voyage){
     if(/[ée]cole de |[ée]cole d'|studio de danse|dance studio|cours de danse|cours de musique/i.test((p.name||'')+' '+((p.category_src||[]).join(' '))))return; // écoles/studios/cours (par nom OU catégorie : attrape « Micadanses » dont la catégorie = Dance Studio) -> jamais une visite
     if(_isVitrine(p.category_src||[],p.name))return; // HÔTEL PARTICULIER / MANOIR non visitable (tourism.sights.manor) : jamais une ÉTAPE, reste « en chemin » via localLM. Château-MUSÉE (cat museum) non concerné.
     if(_isAnimalFacility(p.category_src||[]))return; // PARC CANIN / REFUGE ANIMALIER (SPA) non touristique : jamais une ÉTAPE. Par catégorie, jamais par le nom « spa » (§4).
-    if(_isPouvoir(p.category_src||[],p.name))return; // LIEU DE POUVOIR non visitable (assemblée/ministère/ambassade/préfecture/mairie…) : jamais une ÉTAPE. Il peut toujours ressortir « en chemin » via localLM (fetch séparé). Par catégorie d'abord, repli nom FR (§4). Un château-MUSÉE (catégorie museum) n'est pas concerné.
+    if(_pouvoirVerdict(p))return; // LIEU DE POUVOIR non visitable (assemblée/ministère/ambassade/préfecture/mairie…) : jamais une ÉTAPE. LIT tags.pouvoir du Worker, repli local _isPouvoir. Il peut toujours ressortir « en chemin » via localLM (fetch séparé). Un château-MUSÉE (catégorie museum) n'est pas concerné.
     if(/\bgymnase\b|\bstade\b|boulodrome|salle (de |des )?sports?|halle des sports/i.test(p.name)&&!/tennis|squash|escalade|grimpe|natation|piscine|aqua|golf|[eé]quitation|poney|nautique|fitness|danse|yoga|boxe|escal/i.test(p.name))return; // SEULEMENT le clairement générique (gymnase/stade/boulodrome/salle des sports) ; centre sportif / complexe / aqualudique GARDÉS
     const _src0=(p.sources&&p.sources[0]&&p.sources[0].src)||'base';
     const pthemes=p.themes&&p.themes.length?p.themes:[p.primary_theme];
@@ -4044,7 +4063,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
     // au centre. On relève au plafond Worker (2000) pour que les quartiers périphériques pèsent dans l'ambiance. NB : le
     // gate _Tn/_Rn n'utilise PAS AMBIANCE (il lit `all` + l'enrich live du quartier) -> ceci ne touche QUE le repli.
     if(useBase){try{const _lj=await _P_amb;if(_lj){
-      AMBIANCE=(_lj.places||[]).filter(p=>p.name&&p.lat&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({nom:p.name,lat:p.lat,lng:p.lng,score:p.score||0,theme:p.primary_theme||'culture',notable:!!p.notable,pop:(p.tags&&typeof p.tags.popularity==='number'?p.tags.popularity:0),address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),_pouvoir:_isPouvoir(p.category_src||[],p.name)}));
+      AMBIANCE=(_lj.places||[]).filter(p=>p.name&&p.lat&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({nom:p.name,lat:p.lat,lng:p.lng,score:p.score||0,theme:p.primary_theme||'culture',notable:!!p.notable,pop:(p.tags&&typeof p.tags.popularity==='number'?p.tags.popularity:0),address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),_pouvoir:_pouvoirVerdict(p)}));
       LANDMARKS=AMBIANCE.filter(p=>p.notable); // repères notables = sous-ensemble
       log('  · '+AMBIANCE.length+' lieux pour l\'ambiance ('+LANDMARKS.length+' notables).');}}catch(e){}}
     // SAISON : on écarte les lieux hors-saison. Par défaut (Indifférent) on bloque 'cold' (le ski n'apparaît qu'en Hiver explicite) -> jamais golf+ski.
