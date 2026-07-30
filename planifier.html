@@ -1806,12 +1806,28 @@ var _QUAL_FSQ={
 var _QVETO_FSQ_IDS=['4bf58dd8d48988d175941735'];
 var _QVETO_FSQ_LABEL_RE=/\bsalle de sport\b|\bclub de sport\b|\bgymnastique\b/;
 var _QVETO_OSM_RE=/(^|\.)access_limited(\.|$)/;
-function _qVeto(catArr,fsqCatIds){
+// Chantier 4 (finding C) : commerce de jardinage étiqueté du SEUL mot nu « Jardin »/« Parc » -> junk. Ces POI n'ont
+// aucun code ni QID -> juge = co-mot commerce/service, sinon repli NOM FR RÉSERVÉ (DATAtourisme France-only, jamais
+// non-latin). Ne s'active que sur mot nu (pas de code pointé -> vrai parc OSM protégé) + signal commerce. MIROIR du Worker.
+var _QVETO_JARDIN_WORD_RE=/^(jardin|parc)$/;
+var _QVETO_JARDIN_SERVICE_RE=/service a domicile|service de|^arbre$|elagage|paysag/;
+var _QVETO_JARDIN_NAME_FR_RE=/[ée]lagage|abattage|paysagis|jardineri|jardinier|p[ée]pini[èe]r|motocultur|\ball[ée]es\b|espaces? verts?|\beurl\b|\bsarl\b|gamm.?vert|jardiland|truffaut|\bbotanic\b|point.?vert/i;
+function _qVetoJardin(arr,name){
+  var soft=false,hard=false,service=false;
+  for(var i=0;i<arr.length;i++){var es=String(arr[i]||''),f=_qFold(es);
+    if(/[a-z]\.[a-z]/.test(es.toLowerCase()))hard=true;
+    if(_QVETO_JARDIN_WORD_RE.test(f))soft=true;
+    if(_QVETO_JARDIN_SERVICE_RE.test(f))service=true;}
+  if(!soft||hard)return false;
+  if(service)return true;
+  return _QVETO_JARDIN_NAME_FR_RE.test(name||''); }
+function _qVeto(catArr,fsqCatIds,name){
   var arr=Array.isArray(catArr)?catArr:(catArr?[catArr]:[]);
   for(var i=0;i<arr.length;i++){var es=String(arr[i]||'');
     if(_QVETO_OSM_RE.test(es.toLowerCase()))return true;
     if(_QVETO_FSQ_LABEL_RE.test(_qFold(es)))return true;}
   if(fsqCatIds){var ids=String(fsqCatIds).split('|');for(var k=0;k<ids.length;k++){if(_QVETO_FSQ_IDS.indexOf(ids[k])>=0)return true;}}
+  if(_qVetoJardin(arr,name))return true;
   return false; }
 function _qVerdictBySource(code,table){ if(!code)return null; var best=null,bl=-1,vs=['keep','junk','floor'];
   for(var i=0;i<vs.length;i++){var arr=table[vs[i]]||[];for(var j=0;j<arr.length;j++){var pref=arr[j];if(code===pref||code.indexOf(pref+'.')===0){if(pref.length>bl){best=vs[i];bl=pref.length;}}}}
@@ -1823,7 +1839,7 @@ function _qVerdictFSQLabel(label){ var tokens=_qFold(label).split(' ').filter(Bo
   return best; }
 // Verdict d'un lieu : on lit CHAQUE entrée brute de category_src, on essaie les 3 matchers (seul le bon
 // touche : un libellé FSQ ne matche pas la grille OSM pointée et inversement) ; décisif keep > junk > floor.
-function _qTaxoVerdict(catArr,fsqCatIds){ if(_qVeto(catArr||[],fsqCatIds))return 'junk'; // véto : bat keep (finding B, chantier 3)
+function _qTaxoVerdict(catArr,fsqCatIds,name){ if(_qVeto(catArr||[],fsqCatIds,name))return 'junk'; // véto : bat keep (finding B gym + finding C jardin-commerce)
   if(!catArr||!catArr.length)return null;var hasK=false,hasJ=false,hasF=false;
   for(var i=0;i<catArr.length;i++){var e=catArr[i];if(!e)continue;var es=String(e);
     var v1=_qVerdictBySource(es.toLowerCase(),_QUAL_OSM),v2=_qVerdictBySource(es,_QUAL_DT),v3=_qVerdictFSQLabel(es);
@@ -1834,7 +1850,7 @@ function _qTaxoVerdict(catArr,fsqCatIds){ if(_qVeto(catArr||[],fsqCatIds))return
 // synthétiques sans tags). Neutre par construction tant que la table du Worker et celle de la page concordent
 // (elles sont issues de la même source). C'est LE point de bascule de la migration table qualité (chantier 1).
 function _qVerdict(a){ if(!a)return null; if(a.tags&&a.tags.q)return a.tags.q;
-  return _qTaxoVerdict((a.catsrcArr&&a.catsrcArr.length)?a.catsrcArr:(a.catsrc?String(a.catsrc).split(/\s+/):[]),(a.tags&&a.tags.fsq_cat_ids)||null); }
+  return _qTaxoVerdict((a.catsrcArr&&a.catsrcArr.length)?a.catsrcArr:(a.catsrc?String(a.catsrc).split(/\s+/):[]),(a.tags&&a.tags.fsq_cat_ids)||null,a.name||(a.tags&&a.tags.name)||''); }
 // Veto JUNK : true = poubelle universelle (commerce/service/bureau/hôtel/parking…). keep gagne (un lieu qui
 // porte AUSSI une catégorie visitable n'est jamais jeté). Passe par _qVerdict (tags.q du Worker, repli local).
 function _qJunk(a){ if(!a)return false;return _qVerdict(a)==='junk'; }
