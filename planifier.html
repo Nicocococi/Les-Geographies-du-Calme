@@ -2581,12 +2581,22 @@ function buildDayCands(cluster,allCore,periph,themes,used,usedKinds){
   Object.keys(cands).forEach(k=>cands[k]=cands[k].sort((a,b)=>(a.periph-b.periph)||(hav(cluster.lat,cluster.lng,a.lat,a.lng)-hav(cluster.lat,cluster.lng,b.lat,b.lng))||(b.score-a.score)));
   return cands;
 }
-// étiquette de la grappe : quartier réel (reverse geocode) sinon "Autour de <lieu phare>"
-async function clusterLabel(cluster){
+// étiquette de la grappe : quartier réel (reverse geocode) sinon un membre DIGNE, sinon la VILLE.
+// Retour BARE (jamais préfixé « Autour de ») — la branche succès rend déjà un nom nu (« Saint-Gervais »),
+// l'appelant wrappe UNE seule fois via _autourDe. Avant, le repli rendait « Autour de <top-score> » -> (i) double
+// wrap « Autour de X et ses environs » et (ii) un POI FAIBLE (skatepark, club, institut, pub) nommait le jour quand
+// le géocodage quartier échouait. Repli DIGNE (§4, par le SIGNAL notable/notoriété — jamais une liste de noms) :
+async function clusterLabel(cluster, dest){
   try{const u='https://api.mapbox.com/geocoding/v5/mapbox.places/'+cluster.lng+','+cluster.lat+'.json?access_token='+TOKEN+'&language=fr&types=neighborhood,locality,place&limit=1';
     const d=await(await fetchT(u,{},8000)).json();const ff=d.features&&d.features[0];if(ff&&ff.text){let lab=ff.text.replace(/[\s–\-\/]+$/,'').trim();if(lab)return lab;}}catch(e){}
+  // 1) un membre NOTABLE (ou porteur de notoriété imp≥0,5) : on nomme le jour d'après lui.
+  const dig=cluster.members.slice().filter(m=>m&&m.nom&&(m.notable||(m.imp||0)>=0.5)).sort((a,b)=>((b.imp||0)-(a.imp||0))||((b.score||0)-(a.score||0)))[0];
+  if(dig) return dig.nom;
+  // 2) sinon la VILLE de destination (honnête et digne) — jamais un POI faible.
+  const dc=dest&&String(dest).trim(); if(dc) return dc;
+  // 3) dernier filet (dest absente) : le mieux noté, faute de mieux.
   const top=cluster.members.slice().sort((a,b)=>b.score-a.score)[0];
-  return top?('Autour de '+top.nom):'Centre-ville';
+  return top?top.nom:'Centre-ville';
 }
 
 // CURATEUR sémantique : dernier filet, rejette tout lieu non présentable (généralise sans liste noire)
@@ -3765,6 +3775,20 @@ function _reidStep(s, all){ // retrouve le POI complet (catégorie/notoriété r
   }
   return best;
 }
+// DURÉE MONUMENT PAR LE NOM (repli, §4) — retourne 150/120 si le NOM d'un lieu NOTABLE porte un mot de GRAND site
+// (cathédrale/basilique/abbaye/collégiale/château/musée/palais/panthéon) et NE porte PAS de mot qui le rendrait court
+// (jardin/parc/square/place/fontaine/marché/halle/café/bar/brasserie/bistro -> « Jardin du Palais Royal » reste un parc).
+// null sinon. Sert UNIQUEMENT à rallonger une durée quand la catégorie ment (voir normalizeSteps b-bis). Jamais le rôle.
+function _nameMonumentDur(v){
+  if(!v) return null;
+  var nn=_norm(v.nom||'');
+  if(!(v.notable || (v.imp||0)>=0.7)) return null;                                             // NOTABLE seulement (garde-fou)
+  if(/\bjardin\b|\bparc\b|\bsquare\b|\bplace\b|fontaine|march[ée]|\bhalle\b|caf[ée]|\bbar\b|brasserie|bistro/.test(nn)) return null; // le nom dit AUSSI court -> on ne force pas
+  if(/cath[ée]drale|basilique|abbaye|coll[ée]giale|\bch[âa]teau\b|\bmus[ée]e\b|museum|\bpalais\b|panth[ée]on/.test(nn)){
+    return (v.imp!=null && v.imp>=0.7)?150:120;
+  }
+  return null;
+}
 function normalizeSteps(day, ctx){
   if(!day || !Array.isArray(day.steps)) return day;
   var all=(ctx&&ctx.all)||[];
@@ -3796,6 +3820,14 @@ function normalizeSteps(day, ctx){
     if(s.theme!=='gastronomie'){
       var view={nom:s.nom,theme:s.theme,cat:s.cat||(full&&full.cat),catsrc:s.catsrc||(full&&full.catsrc),imp:(s.imp!=null?s.imp:(full&&full.imp)),notable:s.notable||(full&&full.notable),_incontournable:s._incontournable,_footing:s._footing,tags:s.tags};
       var d=dureeHint(view);
+      // (b-bis) DURÉE MONUMENT RESCAPÉE — quand la CATÉGORIE MENT (Foursquare tague le café d'une cathédrale, un « jardin »
+      // sur un palais-musée), kindOf tranche par la catégorie AVANT le nom -> Notre-Dame(cat café)=90 / Petit Palais(cat
+      // jardin)=60 au lieu de 2h. Repli NOM FR (§4 : jamais déclenché sur une ville non-latine, comme les autres replis nom
+      // de kindOf) réservé aux lieux NOTABLES (garde-fou faux positifs) dont le nom porte un mot de GRAND site (cathédrale/
+      // basilique/abbaye/château/musée/palais/panthéon) SANS mot de place/parc/resto (« Jardin du Palais Royal » reste un
+      // parc). DURÉE SEULE (le rôle kindOf ne bouge pas -> pas de re-câblage sélection/exclusion) et Math.max (on ne
+      // RACCOURCIT jamais un lieu déjà bien minuté). Repas exemptés (déjà sous ce garde).
+      var dn=_nameMonumentDur(view); if(dn!=null && dn>d) d=dn;
       if(typeof d==='number' && d>0){ s.duree=d; if(s._c) s._c.duree=d; }
     }
     kept.push(s);
@@ -4311,15 +4343,15 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       if(!anchor){
         for(let att=0;att<8;att++){
           const a=pickAnchor(tried);if(!a)break;
-          const q=await clusterLabel({lat:a.lat,lng:a.lng,members:[a]});
+          const q=await clusterLabel({lat:a.lat,lng:a.lng,members:[a]},dest);
           if(!usedQuartiers.has(q)){anchor=a;quartier=q;break;}
           tried.add(_norm(a.nom)); // ce quartier est déjà pris → on écarte ce candidat et on retente plus loin
         }
-        if(!anchor){anchor=pickAnchor();if(anchor)quartier=await clusterLabel({lat:anchor.lat,lng:anchor.lng,members:[anchor]});}
+        if(!anchor){anchor=pickAnchor();if(anchor)quartier=await clusterLabel({lat:anchor.lat,lng:anchor.lng,members:[anchor]},dest);}
       }
       if(!anchor){log('  ⚠ plus d\'ancrage qualitatif — séjour limité à '+i+' jour(s) (aucune invention).',true);break;}
       // LABEL = TOUJOURS le clusterLabel du VRAI ancrage final (jamais le nom LLM), pour le chemin LLM comme pour le repli. Ceinture + bretelles : un label ≠ pins devient structurellement IMPOSSIBLE, même si un géocodage foireux passe entre les mailles (le label collera au point réel des pins).
-      if(anchor){var _lab=await clusterLabel({lat:anchor.lat,lng:anchor.lng,members:[anchor]}); if(_lab)quartier=_lab;}
+      if(anchor){var _lab=await clusterLabel({lat:anchor.lat,lng:anchor.lng,members:[anchor]},dest); if(_lab)quartier=_lab;}
       // LABEL « Autour de [ancre] » sur TOUS les jours : le repère géocodable (Plan C) s'il existe, sinon le label
       // résolu du repli densité (clusterLabel). Fini le label nu « Saint-Gervais » -> « Autour de Saint-Gervais ».
       var _anchorName=_dayRepere||quartier;
