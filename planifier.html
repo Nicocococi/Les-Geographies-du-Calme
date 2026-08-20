@@ -5287,6 +5287,14 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
           if(_qrep){ _gc=await geocodeQuartier(_qrep,dc,_qbb,'poi,address,place'); if(_gc)_gc.src='repère'; }
           if(!_gc){ _gc=await geocodeQuartier(_qname,dc,_qbb); if(_gc)_gc.src='nom'; }
           log('  · Jour '+(i+1)+' : « '+_qname+' »'+(_qrep?(' / repère « '+_qrep+' »'):'')+' → '+(_gc?('['+(_gc.src||'?')+'/'+(_gc.via||'?')+'/'+(_gc.ptype||'?')+'] '+(_gc.nom||'?')+', '+hav(dc.lat,dc.lng,_gc.lat,_gc.lng).toFixed(1)+' km du centre'):'INTROUVABLE')); // DIAGNOSTIC
+          // GARDE-FOU DE DISTANCE (v430). Vécu à Londres : le repère « V&A Museum of Childhood » a été géocodé
+          // sur « Le Valle », à 280 km. Le quartier a bien fini par être écarté — mais pour MAIGREUR, après
+          // avoir consommé une lecture live, et par accident : rien ne regardait la distance. Un quartier
+          // au-delà du rayon régional n'est pas un quartier de la ville, quelle que soit sa richesse.
+          if(_gc && hav(dc.lat,dc.lng,_gc.lat,_gc.lng)>REGION_KM){
+            log('  · Jour '+(i+1)+' : « '+_qname+' » écarté — géocodé à '+Math.round(hav(dc.lat,dc.lng,_gc.lat,_gc.lng))+' km du centre (au-delà de '+REGION_KM+' km, ce n\'est plus la ville) → repli densité.');
+            _gc=null;
+          }
           if(_gc){
             // ON ENRICHIT + MESURE D'ABORD (avant TOUTE décision d'étalement) : la richesse du quartier LLM doit être
             // connue pour être comparée au repli (voir COMPARE-RICHESSE plus bas). Une lecture live de plus sur un jour
@@ -5299,7 +5307,7 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
             // recomposeDay). Sinon une ancre de BORD (« Parc des Princes ») passe la gate grâce aux POI de banlieue
             // (Boulogne), puis le clamp vide le jour (temps libre béant). Filtre par ville via l'adresse (« <CP> commune »).
             function _inCityA(a){ if(!_destCity || !a || !a.address) return true; var ad=_norm(a.address); if(ad.indexOf(_destCity)>=0) return true; var mm=String(a.address).match(/\b\d{4,5}\s+([A-Za-zÀ-ÿ'’\- ]+?)\s*(?:,|$)/); return !(mm && _norm(mm[1]) && _norm(mm[1])!==_destCity); }
-            var _Tn=0,_Rn=0; for(var _k=0;_k<all.length;_k++){var _a=all[_k];if(!_inCityA(_a))continue;if(!_qOK(_a))continue;var _dd=hav(_gc.lat,_gc.lng,_a.lat,_a.lng);if(themes.includes(_a.theme)&&!(_a.theme==='gastronomie'&&!_a.foodExp)&&_dd<=1.0)_Tn++; if(_dd<=1.2&&(themes.includes(_a.theme)||_a.theme==='culture'||_a.theme==='nature'||_a.theme==='urbain'||(_a.theme==='gastronomie'&&!_a.foodExp)))_Rn++;}
+            var _Tn=0,_Rn=0,_Vn=0; for(var _k=0;_k<all.length;_k++){var _a=all[_k];if(!_inCityA(_a))continue;if(!_qOK(_a))continue;var _dd=hav(_gc.lat,_gc.lng,_a.lat,_a.lng);if(themes.includes(_a.theme)&&!(_a.theme==='gastronomie'&&!_a.foodExp)&&_dd<=1.0)_Tn++; var _rep=(_a.theme==='gastronomie'&&!_a.foodExp);if(_dd<=1.2&&(themes.includes(_a.theme)||_a.theme==='culture'||_a.theme==='nature'||_a.theme==='urbain'||_rep))_Rn++;if(_dd<=1.2&&!_rep&&(themes.includes(_a.theme)||_a.theme==='culture'||_a.theme==='nature'||_a.theme==='urbain')){var _dj=(_a.theme!=='festif');if(!_dj){try{_dj=(typeof isDayFestif==='function')&&isDayFestif(_a);}catch(_e){_dj=false;}}if(_dj)_Vn++;}}
             // ÉTALEMENT INTER-JOURS (quartier LLM) — PAS un seuil figé. On VISE une bulle marchable (BUBBLE_FLOOR ~1,5 km,
             // taille d'une journée à pied) et on RELÂCHE cran par cran, exactement comme le repli densité (elig 2,5→1,2→0).
             // `_spreadTargetKm` renvoie le plus grand palier auquel le POOL de densité peut ENCORE offrir un quartier mieux séparé.
@@ -5333,7 +5341,14 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
             // Plus de rejet par DISTANCE (« >7 km ») : Paris-tuné, il cassait LA/Bangkok (quartiers étalés). Le juge
             // UNIVERSEL est la densité de POI autour du point (l'enrich live a déjà ramené les POI DU quartier) :
             // un quartier réel, proche OU lointain, a ≥2 POI du thème + ≥7 exploitables ; un point vide est rejeté ici.
-            else if(_Tn>=2 && _Rn>=7){anchor={lat:_gc.lat,lng:_gc.lng,nom:_qname,distKm:+_qdist.toFixed(1)};quartier=_qname;_didEnrich=true;if(_gc.src==='repère'&&_qrep)_dayRepere=_qrep;log('  · Jour '+(i+1)+' : quartier LLM « '+_qname+' » retenu ('+_Tn+' POI du thème, '+_Rn+' exploitables'+(_keepClose?', chevauchement toléré — repli densité trop pauvre ('+_fbR+' < 7)':'')+', +'+_add+' live).');}
+            // ⚠ ET ≥4 LIEUX À VISITER (v430). Vécu à Londres : « Notting Hill » affichait 256 exploitables et n'a
+            // produit que 4 étapes — un parc, deux restaurants, un pub — puis 390 min de vide, et le jour a été
+            // supprimé. La base n'a AUCUN lieu à moins de 1,2 km de Portobello Road ; les 256 venaient de la lecture
+            // LIVE, qui ramène surtout des restaurants et des bars. Or `_Rn` les compte. Un quartier peut donc être
+            // riche en TABLES et n'avoir rien à VOIR — et la journée se construit sur ce qu'on visite, pas sur ce
+            // qu'on mange. `_Vn` compte donc le vivier de JOURNÉE : ni un repas, ni une sortie réservée au soir.
+
+            else if(_Tn>=2 && _Rn>=7 && _Vn>=4){anchor={lat:_gc.lat,lng:_gc.lng,nom:_qname,distKm:+_qdist.toFixed(1)};quartier=_qname;_didEnrich=true;if(_gc.src==='repère'&&_qrep)_dayRepere=_qrep;log('  · Jour '+(i+1)+' : quartier LLM « '+_qname+' » retenu ('+_Tn+' POI du thème, '+_Rn+' exploitables dont '+_Vn+' à visiter'+(_keepClose?', chevauchement toléré — repli densité trop pauvre ('+_fbR+' < 7)':'')+', +'+_add+' live).');}
             else log('  · Jour '+(i+1)+' : « '+_qname+' » écarté ('+_Tn+' POI du thème / '+_Rn+' exploitables — trop mince pour une journée) → repli densité.');
           }
         }catch(e){}
