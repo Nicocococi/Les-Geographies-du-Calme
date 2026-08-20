@@ -2129,12 +2129,30 @@ var RM_MAX_PREMIER=75;  // idem pour les noms — 3 lots
 var RM_MAX_NOMS=250;    // noms envoyés au fil (a) — courts, donc plafond généreux (Bangkok : 226)
 var TR_MAX_ITEMS=120;   // descriptions envoyées au fil (a) — la route les découpe en lots PARALLÈLES : la latence reste celle d'un appel
 var _TRMAP={};
-function _trTexte(p){ var t=p&&p.tags; if(p&&p.id&&_TRMAP[p.id])return _TRMAP[p.id]; return (t&&(t.extract_fr||t.extract||t.fsq_desc))||null; }
+/* GLOSE REDONDANTE (v428) — mesuré à Bangkok, 10 descriptions sur 94 : en traduisant du thaï, le modèle
+   romanisait le nom PUIS expliquait sa propre romanisation — « Khlong Rop Krung (translittération latine :
+   Khlong Rop Krung) est un canal… ». Le prompt l'interdit désormais, mais les textes DÉJÀ écrits en base
+   resteraient ainsi : on nettoie donc à la LECTURE, ce qui répare l'existant sans réécrire une ligne.
+   DEUX RÈGLES, et la seconde est celle qui demande de la prudence : on ne retire une parenthèse que si elle
+   RÉPÈTE ce qu'elle suit. « Wat Arun (Temple of Dawn) », « (deuxième étage) », « (1789) » doivent survivre —
+   d'où la longueur minimale et la comparaison de contenu, jamais un retrait à l'aveugle. */
+function _sansGlose(t){
+  if(!t) return t;
+  var out=String(t)
+    .replace(/\s*\((?:romanis[^)]*|translitt[^)]*|caract[eè]res\s+latins[^)]*|transcription\s+latine[^)]*|en\s+latin\s*:[^)]*)\)/gi,'');
+  out=out.replace(/([^\s(][^()]{1,60}?)\s*\(([^()]{4,60})\)/g,function(m,a,b){
+    var na=a.trim().toLowerCase(), nb=b.replace(/^[^:]{0,30}:\s*/,'').trim().toLowerCase();
+    if(!nb || nb.length<4) return m;
+    return (na.endsWith(nb)||nb.endsWith(na)) ? a : m;   // la parenthèse répète : on garde le texte, on jette la glose
+  });
+  return out.replace(/\s{2,}/g,' ').replace(/\s+([,.;])/g,'$1').trim();
+}
+function _trTexte(p){ var t=p&&p.tags; if(p&&p.id&&_TRMAP[p.id])return _sansGlose(_TRMAP[p.id]); return _sansGlose((t&&(t.extract_fr||t.extract||t.fsq_desc))||null); }
 function _trSrc(p){ var t=p&&p.tags; if(p&&p.id&&_TRMAP[p.id])return 'fr'; return t?(t.extract_fr?'fr':(t.extract?'wiki':(t.fsq_desc?'fsq':null))):null; }
 // SUBSTITUTION À L'AFFICHAGE, par identifiant de base. Les candidats du jour sont des COPIES (Object.assign) du
 // vivier régional : traduire en mutant l'original n'atteint pas la copie qui finit à l'écran. Plutôt que de courir
 // après chaque copie, on rétablit le texte au moment où il est LU. Aucun effet si le lieu n'a pas été traduit.
-function _trFix(txt,o){ var id=o&&o.id; if(id&&_TRMAP[id])return _TRMAP[id]; return txt; }
+function _trFix(txt,o){ var id=o&&o.id; if(id&&_TRMAP[id])return _sansGlose(_TRMAP[id]); return _sansGlose(txt); }
 // Lance la traduction et l'APPLIQUE aux candidats (par identifiant de base). Rend une promesse
 // qu'on met en parallèle du robot : elle est résolue avant l'assemblage des journées.
 var _TRVUS={}, _TRVUSN={};   // ce qui a DÉJÀ été envoyé pendant cette génération (réinitialisé à chaque run)
@@ -2636,13 +2654,48 @@ var _REG_FR={vegetarian:'options végétariennes',vegan:'options végétaliennes
 //    (un lieu bien cartographié l'est sur tous les champs) : le plafond protège la queue, pas la moyenne.
 var FAITS_MAX=3;
 var _REG_PRIO=['vegan','vegetarian','gluten_free','halal','kosher','lactose_free'];
+// Traductions des sous-types (v429). Un mot inconnu de la table est rendu TEL QUEL plutôt qu'omis : mieux vaut
+// « natation » manquant en français qu'une information perdue.
+var _SPORT_FR={swimming:'natation',tennis:'tennis',climbing:'escalade',fitness:'remise en forme',yoga:'yoga',
+  basketball:'basket',football:'football',soccer:'football',boxing:'boxe',martial_arts:'arts martiaux',running:'course',
+  cycling:'vélo',skating:'patinage',ice_hockey:'hockey',dance:'danse',gymnastics:'gymnastique',badminton:'badminton',
+  table_tennis:'tennis de table',squash:'squash',golf:'golf',equestrian:'équitation',rowing:'aviron',sailing:'voile',
+  surfing:'surf',diving:'plongée',bowling:'bowling',billiards:'billard',pelota:'pelote',petanque:'pétanque',skateboard:'skate'};
+var _MUSEE_FR={art:'musée d\'art',history:'musée d\'histoire',local:'musée local',science:'musée des sciences',
+  technology:'musée des techniques',archaeological:'musée d\'archéologie',military:'musée militaire',
+  nature:'musée d\'histoire naturelle',children:'musée pour enfants',ethnography:'musée d\'ethnographie',
+  maritime:'musée maritime',railway:'musée du chemin de fer',open_air:'écomusée'};
+var _JARDIN_FR={botanical:'jardin botanique',residential:'jardin de quartier',community:'jardin partagé',
+  roof_garden:'jardin sur les toits',vineyard:'vigne',market:'jardin maraîcher'};
+var _CULTE_FR={catholic:'catholique',protestant:'protestante',orthodox:'orthodoxe',anglican:'anglicane',
+  lutheran:'luthérienne',sunni:'sunnite',shia:'chiite',buddhist:'bouddhiste',theravada:'bouddhiste theravada',
+  mahayana:'bouddhiste mahayana',jewish:'juive',hindu:'hindoue',sikh:'sikhe'};
+var _OEUVRE_FR={mural:'fresque murale',statue:'statue',sculpture:'sculpture',graffiti:'street art',
+  street_art:'street art',mosaic:'mosaïque',installation:'installation',bust:'buste',fountain:'fontaine'};
 function _ligneFaits(f){
   if(!f || typeof f!=='object') return '';
-  var out=[];
+  var out=[], T=function(tab,v){ v=String(v||'').toLowerCase(); return tab[v]||v.replace(/_/g,' '); };
+  // 1) LE PLUS FORT D'ABORD : une reconnaissance mondiale se dit avant tout le reste.
+  if(f.patrimoine==='unesco') out.push('patrimoine mondial de l\'Unesco');
+  // 2) LE « QUOI » — ce que le lieu est vraiment, plus précis que le sous-titre de catégorie.
   if(f.cuisine){
     var c=String(f.cuisine).split(/[;,]/)[0].trim().toLowerCase();   // multiple -> la première, pour rester lisible
     if(c) out.push('cuisine '+(_CUIS_FR[c]||c.replace(/_/g,' ')));
   }
+  if(f.sport) out.push(T(_SPORT_FR,f.sport));
+  if(f.musee) out.push(T(_MUSEE_FR,f.musee));
+  if(f.jardin) out.push(T(_JARDIN_FR,f.jardin));
+  if(f.massage) out.push('massage '+String(f.massage).replace(/_/g,' '));
+  if(f.oeuvre) out.push(T(_OEUVRE_FR,f.oeuvre));
+  if(f.culte) out.push('confession '+T(_CULTE_FR,f.culte));
+  // 3) CE QUI DÉCIDE D'UNE VISITE : le prix, puis l'époque.
+  if(f.prix) out.push(_prixFr(f.prix));
+  else if(f.gratuit) out.push('entrée libre');
+  else if(f.payant) out.push('payant');
+  if(f.annee) out.push((f.annee<1900?'édifié en ':'de ')+f.annee);
+  if(!f.patrimoine||f.patrimoine!=='unesco'){ if(f.patrimoine==='classe') out.push('monument classé'); }
+  if(f.artiste) out.push('œuvre de '+f.artiste);
+  else if(f.architecte) out.push('architecture de '+f.architecte);
   if(f.terrasse) out.push('terrasse');
   if(Array.isArray(f.regime) && f.regime.length){                    // UN SEUL régime : le plus spécifique
     for(var i=0;i<_REG_PRIO.length;i++){ if(f.regime.indexOf(_REG_PRIO[i])>=0 && _REG_FR[_REG_PRIO[i]]){ out.push(_REG_FR[_REG_PRIO[i]]); break; } }
@@ -2652,12 +2705,30 @@ function _ligneFaits(f){
   else if(f.acces==='limite') out.push('accès partiel en fauteuil');
   if(f.reserv==='requise') out.push('réservation nécessaire');
   else if(f.reserv==='conseillee') out.push('réservation conseillée');
+  if(f.chiens==='oui') out.push('chiens admis');
+  else if(f.chiens==='laisse') out.push('chiens en laisse');
   if(f.livraison) out.push('livraison');
   if(f.wifi) out.push('wi-fi');
   if(f.clim) out.push('climatisé');
   if(!out.length) return '';
   var s=out.slice(0,FAITS_MAX).join(' · ');
   return s.charAt(0).toUpperCase()+s.slice(1);
+}
+// « 12 EUR » -> « 12 € ». Une devise inconnue est rendue telle quelle : on n'invente pas de conversion.
+function _prixFr(p){
+  var m=String(p).match(/^\s*(\d+(?:[.,]\d+)?)\s*(EUR|€|USD|\$|GBP|£|THB|฿)?\s*$/i);
+  if(!m) return String(p).slice(0,24);
+  var sym={eur:'€','€':'€',usd:'$','$':'$',gbp:'£','£':'£',thb:'฿','฿':'฿'}[(m[2]||'').toLowerCase()]||m[2]||'';
+  return m[1].replace('.',',')+(sym?(' '+sym):'');
+}
+/* MENTION D'ÂGE (v429) — À PART, et volontairement. « À partir de 10 ans » n'est pas un agrément qu'on
+   énumère au fil d'une ligne : c'est une condition d'entrée, et la rater gâche une journée en famille.
+   Elle s'affiche donc sur sa propre ligne d'avertissement. Le BRANCHEMENT sur le filtre « avec qui » est un
+   chantier distinct — celui-ci ne fait qu'informer. Mesuré : la Tour Saint-Jacques interdit les moins de
+   10 ans, un club de nuit les moins de 18. */
+function _mentionAge(f){
+  if(!f || !f.age_min) return '';
+  return (f.age_min>=18) ? 'Réservé aux 18 ans et plus' : ('À partir de '+f.age_min+' ans');
 }
 function _gabarit(data){
   if(!data) return '';
@@ -7559,6 +7630,8 @@ function ivDetailHTML(num, t, i, optOverride) {
   // (« Cuisine libanaise · terrasse · à emporter »). Rien n'est rédigé : on rapporte l'étiquette OSM, ou rien.
   var _fl=(typeof _ligneFaits==='function') ? _ligneFaits(data && data.faits) : '';
   if(_fl) html += '<p class="iv-text iv-faits">' + _escHtml(_fl) + '</p>';
+  var _fa=(typeof _mentionAge==='function') ? _mentionAge(data && data.faits) : '';
+  if(_fa) html += '<p class="iv-note">ⓘ ' + _escHtml(_fa) + '</p>';   // condition d'entrée, pas un agrément
   // CAVEAT D'ACCÈS (marées / sur réservation / accès club) : affiché MÊME sans description. Attaché à l'ÉTAPE (t._caveat) ; on ne l'affiche QUE si la donnée montrée EST bien le lieu de l'étape (data.nom===t.nom) -> il disparaît si on bascule sur une alternative A/B/C (dont le lieu n'a pas ce caveat). §4.
   var _cav=(t && t._caveat && data && _norm(data.nom||'')===_norm(t.nom||'')) ? String(t._caveat) : '';
   if(_cav) html += '<p class="iv-note">ⓘ ' + _escHtml(_cav) + '</p>';
