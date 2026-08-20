@@ -2608,6 +2608,57 @@ function _localite(data){
   var dest=(typeof IV!=='undefined' && IV && IV.dest)?String(IV.dest).trim():'';   // repli fiable, universel
   return dest?('à '+dest):'';
 }
+/* ── LIGNE DE FAITS (v427) — on RAPPORTE, on ne rédige pas.
+   3 391 restaurants de nos bases n'ont aucune description : ni Wikipédia (un bistrot n'a pas d'article), ni
+   Foursquare (interrogé sur 12 % d'entre eux). Mesuré sur 4 151 établissements, la balise `description` d'OSM
+   n'existe que sur 1 à 3 % des lieux — cette piste est morte. Les FAITS, eux, sont là (terrasse 55 % à Paris,
+   cuisine 53 %, accessibilité 50 %) et Geoapify nous les envoyait déjà : on les jetait.
+   RÈGLE : que du positif, et rien d'inventé. Aucune tournure, aucune inférence — la ligne ne dit que ce que
+   l'étiquette dit. Une cuisine inconnue de la table est rendue telle quelle plutôt qu'omise. */
+var _CUIS_FR={lebanese:'libanaise',italian:'italienne',french:'française',japanese:'japonaise',thai:'thaïlandaise',
+  chinese:'chinoise',indian:'indienne',mexican:'mexicaine',spanish:'espagnole',greek:'grecque',vietnamese:'vietnamienne',
+  korean:'coréenne',turkish:'turque',moroccan:'marocaine',tunisian:'tunisienne',algerian:'algérienne',portuguese:'portugaise',
+  german:'allemande',american:'américaine',argentinian:'argentine',brazilian:'brésilienne',peruvian:'péruvienne',
+  ethiopian:'éthiopienne',african:'africaine',asian:'asiatique',mediterranean:'méditerranéenne',international:'internationale',
+  regional:'régionale',basque:'basque',corsican:'corse',savoyard:'savoyarde',alsatian:'alsacienne',provencal:'provençale',
+  seafood:'de la mer',fish:'de la mer',steak_house:'grillades',barbecue:'grillades',vegetarian:'végétarienne',vegan:'végétalienne',
+  russian:'russe',polish:'polonaise',british:'britannique',irish:'irlandaise',belgian:'belge',swiss:'suisse',
+  caribbean:'antillaise',cuban:'cubaine',indonesian:'indonésienne',malaysian:'malaisienne',filipino:'philippine',
+  nepalese:'népalaise',pakistani:'pakistanaise',persian:'persane',syrian:'syrienne',georgian:'géorgienne'};
+var _REG_FR={vegetarian:'options végétariennes',vegan:'options végétaliennes',gluten_free:'sans gluten',
+  halal:'halal',kosher:'casher',lactose_free:'sans lactose'};
+// UNE LIGNE EST UN SOUS-TITRE, PAS UNE FICHE TECHNIQUE. Deux bornes, décidées sur la mesure :
+//  · les six régimes d'OSM sont réduits à UN fragment (le plus spécifique) — sans quoi une seule enseigne
+//    végane bien cartographiée affichait « végétaliennes · végétariennes · sans gluten · sans lactose » ;
+//  · l'ensemble est plafonné à FAITS_MAX, dans un ordre de PRIORITÉ : ce sur quoi on choisit vraiment un
+//    restaurant vient d'abord (quoi on mange, où on s'assoit, si on peut y manger, si on peut y entrer),
+//    le confort ensuite. Espérance mesurée ~2 fragments à Paris centre, mais les étiquettes sont corrélées
+//    (un lieu bien cartographié l'est sur tous les champs) : le plafond protège la queue, pas la moyenne.
+var FAITS_MAX=3;
+var _REG_PRIO=['vegan','vegetarian','gluten_free','halal','kosher','lactose_free'];
+function _ligneFaits(f){
+  if(!f || typeof f!=='object') return '';
+  var out=[];
+  if(f.cuisine){
+    var c=String(f.cuisine).split(/[;,]/)[0].trim().toLowerCase();   // multiple -> la première, pour rester lisible
+    if(c) out.push('cuisine '+(_CUIS_FR[c]||c.replace(/_/g,' ')));
+  }
+  if(f.terrasse) out.push('terrasse');
+  if(Array.isArray(f.regime) && f.regime.length){                    // UN SEUL régime : le plus spécifique
+    for(var i=0;i<_REG_PRIO.length;i++){ if(f.regime.indexOf(_REG_PRIO[i])>=0 && _REG_FR[_REG_PRIO[i]]){ out.push(_REG_FR[_REG_PRIO[i]]); break; } }
+  }
+  if(f.emporter) out.push('à emporter');
+  if(f.acces==='oui') out.push('accessible en fauteuil');
+  else if(f.acces==='limite') out.push('accès partiel en fauteuil');
+  if(f.reserv==='requise') out.push('réservation nécessaire');
+  else if(f.reserv==='conseillee') out.push('réservation conseillée');
+  if(f.livraison) out.push('livraison');
+  if(f.wifi) out.push('wi-fi');
+  if(f.clim) out.push('climatisé');
+  if(!out.length) return '';
+  var s=out.slice(0,FAITS_MAX).join(' · ');
+  return s.charAt(0).toUpperCase()+s.slice(1);
+}
 function _gabarit(data){
   if(!data) return '';
   var ty=(typeof _typeLabel==='function')?_typeLabel(data):'';
@@ -2710,7 +2761,7 @@ function mapBasePlace(p,themes,budget,dc,voyage){
       || /\bsalon de th[ée]|\bmaison de th[ée]|tea.?room|tea.?house/i.test((p.name||'')) // salon de thé : repli NOM NARROW, sans ambiguïté (contrairement à « café »)
     )),
     qid:(p.tags&&p.tags.wikidata_qid)||null,tags:{name:p.name,q:(p.tags&&p.tags.q)||null},event:(p.tags&&p.tags.event)||null,vitalite:(p.tags&&p.tags.vitalite)||null,address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
-    extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null /* (v412) TRADUCTION : `extract_fr` passe EN TÊTE — dès que le fil de fond a tourné sur une ville, tout arrive    en français sans le moindre appel. `extractSrc` dit d'où vient le texte : le Worker n'a le droit d'écrire en    base que le WIKIPÉDIA (conditions Foursquare). `id` est l'identifiant de la ligne à mettre à jour. */,image:(p.tags&&p.tags.image)||null, // VAGUE 1 : vraie phrase Wikipédia (prioritaire) OU description Foursquare (repli restos) + vraie photo Commons (si POI matché Wikidata à l'enrich)
+    extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null,faits:(p.tags&&p.tags.faits)||null /* (v412) TRADUCTION : `extract_fr` passe EN TÊTE — dès que le fil de fond a tourné sur une ville, tout arrive    en français sans le moindre appel. `extractSrc` dit d'où vient le texte : le Worker n'a le droit d'écrire en    base que le WIKIPÉDIA (conditions Foursquare). `id` est l'identifiant de la ligne à mettre à jour. */,image:(p.tags&&p.tags.image)||null, // VAGUE 1 : vraie phrase Wikipédia (prioritaire) OU description Foursquare (repli restos) + vraie photo Commons (si POI matché Wikidata à l'enrich)
     season:(p.tags&&p.tags.season)||seasonOf(p.name,p.category_src||[])};
 }
 async function collectFromBase(dc,themes,budget,voyage){
@@ -2799,7 +2850,7 @@ async function collectFromBase(dc,themes,budget,voyage){
         || /\bsalon de th[ée]|\bmaison de th[ée]|tea.?room|tea.?house/i.test((p.name||'')) // salon de thé : repli NOM NARROW sans ambiguïté
       )), // EXPÉRIENCE food (marché, halle, cave, fromager, chocolatier, glacier…) -> étape de journée, jamais un repas
       qid:(p.tags&&p.tags.wikidata_qid)||null,tags:{name:p.name,q:(p.tags&&p.tags.q)||null},event:(p.tags&&p.tags.event)||null,vitalite:(p.tags&&p.tags.vitalite)||null,address:p.address||null,url:p.url||null,opening_hours:p.opening_hours||null,
-      extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null /* (v412) TRADUCTION : `extract_fr` passe EN TÊTE — dès que le fil de fond a tourné sur une ville, tout arrive    en français sans le moindre appel. `extractSrc` dit d'où vient le texte : le Worker n'a le droit d'écrire en    base que le WIKIPÉDIA (conditions Foursquare). `id` est l'identifiant de la ligne à mettre à jour. */,image:(p.tags&&p.tags.image)||null, // (fix descriptif) PORTE PRINCIPALE : emporter la vraie phrase Wikipédia (prioritaire) OU la description Foursquare (repli restos) + photo Commons comme mapBasePlace — sans ça, monuments/musées/parcs perdaient leur résumé à l'entrée et retombaient sur le bouche-trou « … du quartier, à voir en passant »
+      extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null,faits:(p.tags&&p.tags.faits)||null /* (v412) TRADUCTION : `extract_fr` passe EN TÊTE — dès que le fil de fond a tourné sur une ville, tout arrive    en français sans le moindre appel. `extractSrc` dit d'où vient le texte : le Worker n'a le droit d'écrire en    base que le WIKIPÉDIA (conditions Foursquare). `id` est l'identifiant de la ligne à mettre à jour. */,image:(p.tags&&p.tags.image)||null, // (fix descriptif) PORTE PRINCIPALE : emporter la vraie phrase Wikipédia (prioritaire) OU la description Foursquare (repli restos) + photo Commons comme mapBasePlace — sans ça, monuments/musées/parcs perdaient leur résumé à l'entrée et retombaient sur le bouche-trou « … du quartier, à voir en passant »
       season:(p.tags&&p.tags.season)||seasonOf(p.name,p.category_src||[])});
   });
   log('  -> '+out.length+' candidats issus de la base ('+places.length+' lieux multi-sources, '+themes.join('+')+').');
@@ -5317,9 +5368,9 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var actsArr=steps.filter(s=>s.theme!=='gastronomie'||(themes.includes('gastronomie')&&s._c&&s._c.foodExp)); // les expériences food ne deviennent des activités QUE si gastronomie est un thème CHOISI — sinon le gastronomie ne sert qu'aux repas (le LLM peut en proposer, on les écarte ici)
       // REPÈRES NOTABLES LOCAUX (autour du quartier du jour) — évite le biais du top-500 ville qui sous-couvre la périphérie (ex. Bel-Air à Paris)
       var _dayLM=LANDMARKS;
-      if(useBase){try{var _jlm=_lmPre?{places:_lmPre}:await (await fetchT(API+'/places?lat='+center.lat+'&lng='+center.lng+'&km=2&themes=culture,nature,urbain&limit=200',{},12000)).json();var _loc=(_jlm.places||[]).filter(p=>p.name&&p.lat&&!(p.tags&&p.tags.q==='junk')&&!(p.tags&&p.tags.event&&p.tags.event.endDate&&p.tags.event.endDate<new Date().toISOString().slice(0,10))&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({event:(p.tags&&p.tags.event)||null,vitalite:(p.tags&&p.tags.vitalite)||null,nom:p.name,lat:p.lat,lng:p.lng,_q:(p.tags&&p.tags.q)||null,score:p.score||0,imp:(p.tags&&typeof p.tags.importance==='number'?p.tags.importance:0),notable:!!p.notable,theme:p.primary_theme||'culture',address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),catsrcArr:(p.category_src||[]),extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null,image:(p.tags&&p.tags.image)||null,_pouvoir:_isPouvoir(p.category_src||[],p.name)}));if(_loc.length)_dayLM=_loc;}catch(e){}} // catsrc/catsrcArr CONSERVÉS : le SIGNAL structuré doit voyager jusqu'aux portes de comblage (_offFill/_pickIcon) pour que _qOK/kindOf jugent — sinon un « bord d'eau » anonyme (natural.water) fuit faute de catégorie // LARGE : tous les POI culture/nature/urbain du quartier (notables ET non notables) ; les notables servent aux incontournables, le reste au comblage
+      if(useBase){try{var _jlm=_lmPre?{places:_lmPre}:await (await fetchT(API+'/places?lat='+center.lat+'&lng='+center.lng+'&km=2&themes=culture,nature,urbain&limit=200',{},12000)).json();var _loc=(_jlm.places||[]).filter(p=>p.name&&p.lat&&!(p.tags&&p.tags.q==='junk')&&!(p.tags&&p.tags.event&&p.tags.event.endDate&&p.tags.event.endDate<new Date().toISOString().slice(0,10))&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({event:(p.tags&&p.tags.event)||null,vitalite:(p.tags&&p.tags.vitalite)||null,nom:p.name,lat:p.lat,lng:p.lng,_q:(p.tags&&p.tags.q)||null,score:p.score||0,imp:(p.tags&&typeof p.tags.importance==='number'?p.tags.importance:0),notable:!!p.notable,theme:p.primary_theme||'culture',address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),catsrcArr:(p.category_src||[]),extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null,faits:(p.tags&&p.tags.faits)||null,image:(p.tags&&p.tags.image)||null,_pouvoir:_isPouvoir(p.category_src||[],p.name)}));if(_loc.length)_dayLM=_loc;}catch(e){}} // catsrc/catsrcArr CONSERVÉS : le SIGNAL structuré doit voyager jusqu'aux portes de comblage (_offFill/_pickIcon) pour que _qOK/kindOf jugent — sinon un « bord d'eau » anonyme (natural.water) fuit faute de catégorie // LARGE : tous les POI culture/nature/urbain du quartier (notables ET non notables) ; les notables servent aux incontournables, le reste au comblage
       // LEVIER 1 (amont) — SALLES FESTIVES VISITABLES : le vivier culture/nature/urbain ci-dessus rate les lieux à VOIR mal taggés « festif » (Philharmonie, Grande Halle). On les récupère par un appel festif SÉPARÉ puis on ne GARDE que ce que _isDayIcon valide (salles notables) : jamais un bar/club/discothèque n'entre dans _dayLM. Injecter ICI rend TOUS les consommateurs de _dayLM sûrs par construction (en-chemin/comblage/incontournables ne voient que du visitable).
-      if(useBase){try{var _jff=_fvPre?{places:_fvPre}:await (await fetchT(API+'/places?lat='+center.lat+'&lng='+center.lng+'&km=2&themes=festif&limit=120',{},12000)).json();var _fv=(_jff.places||[]).filter(p=>p.name&&p.lat&&!(p.tags&&p.tags.q==='junk')&&!(p.tags&&p.tags.event&&p.tags.event.endDate&&p.tags.event.endDate<new Date().toISOString().slice(0,10))&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({event:(p.tags&&p.tags.event)||null,vitalite:(p.tags&&p.tags.vitalite)||null,nom:p.name,lat:p.lat,lng:p.lng,_q:(p.tags&&p.tags.q)||null,score:p.score||0,imp:(p.tags&&typeof p.tags.importance==='number'?p.tags.importance:0),notable:!!p.notable,theme:p.primary_theme||'festif',address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),catsrcArr:(p.category_src||[]),extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null,image:(p.tags&&p.tags.image)||null,_pouvoir:_isPouvoir(p.category_src||[],p.name)})).filter(function(v){return _isDayIcon(v);});if(_fv.length){var _lmNoms=new Set((_dayLM||[]).map(function(L){return _norm(L.nom);}));_fv.forEach(function(v){if(!_lmNoms.has(_norm(v.nom)))_dayLM=_dayLM.concat(v);});}}catch(e){}}
+      if(useBase){try{var _jff=_fvPre?{places:_fvPre}:await (await fetchT(API+'/places?lat='+center.lat+'&lng='+center.lng+'&km=2&themes=festif&limit=120',{},12000)).json();var _fv=(_jff.places||[]).filter(p=>p.name&&p.lat&&!(p.tags&&p.tags.q==='junk')&&!(p.tags&&p.tags.event&&p.tags.event.endDate&&p.tags.event.endDate<new Date().toISOString().slice(0,10))&&!kidExcluded(p.name,(p.category_src||[]).join(' '),voyage)).map(p=>({event:(p.tags&&p.tags.event)||null,vitalite:(p.tags&&p.tags.vitalite)||null,nom:p.name,lat:p.lat,lng:p.lng,_q:(p.tags&&p.tags.q)||null,score:p.score||0,imp:(p.tags&&typeof p.tags.importance==='number'?p.tags.importance:0),notable:!!p.notable,theme:p.primary_theme||'festif',address:p.address||null,cat:cleanCat(p.category_src),catsrc:((p.category_src||[]).join(' ')).toLowerCase(),catsrcArr:(p.category_src||[]),extract:_trTexte(p),id:p.id||null,extractSrc:_trSrc(p),nomLatin:(p.tags&&p.tags.name_latin)||null,faits:(p.tags&&p.tags.faits)||null,image:(p.tags&&p.tags.image)||null,_pouvoir:_isPouvoir(p.category_src||[],p.name)})).filter(function(v){return _isDayIcon(v);});if(_fv.length){var _lmNoms=new Set((_dayLM||[]).map(function(L){return _norm(L.nom);}));_fv.forEach(function(v){if(!_lmNoms.has(_norm(v.nom)))_dayLM=_dayLM.concat(v);});}}catch(e){}}
       // 1 à 2 INCONTOURNABLES du quartier (notables à proximité, TOUS thèmes), même HORS thème choisi -> évite le mono-itinéraire
       if(_dayLM&&_dayLM.length){
         var _exIco=new Set(actsArr.concat(mealsArr).map(x=>_norm(x.nom)));
@@ -7503,6 +7554,11 @@ function ivDetailHTML(num, t, i, optOverride) {
     if(_bt && _bt.length>=20 && !_FAB_TXT_RE.test(_bt) && _norm(_bt)!==_norm((data&&data.nom)||'')) html += '<p class="iv-text iv-llm">' + _escHtml(_bt) + '</p>'; // 2) B : phrase du robot, filtrée
     else { var _gab=_gabarit(data); if(_gab) html += '<p class="iv-text iv-gabarit">' + _escHtml(_gab) + '</p>'; } // 3) A : gabarit factuel (type + localité), filet de sécurité
   }
+  // LIGNE DE FAITS (v427) : indépendante de la description — un musée qui a son résumé Wikipédia peut malgré
+  // tout être « accessible en fauteuil », et un bistrot sans une ligne nulle part devient enfin lisible
+  // (« Cuisine libanaise · terrasse · à emporter »). Rien n'est rédigé : on rapporte l'étiquette OSM, ou rien.
+  var _fl=(typeof _ligneFaits==='function') ? _ligneFaits(data && data.faits) : '';
+  if(_fl) html += '<p class="iv-text iv-faits">' + _escHtml(_fl) + '</p>';
   // CAVEAT D'ACCÈS (marées / sur réservation / accès club) : affiché MÊME sans description. Attaché à l'ÉTAPE (t._caveat) ; on ne l'affiche QUE si la donnée montrée EST bien le lieu de l'étape (data.nom===t.nom) -> il disparaît si on bascule sur une alternative A/B/C (dont le lieu n'a pas ce caveat). §4.
   var _cav=(t && t._caveat && data && _norm(data.nom||'')===_norm(t.nom||'')) ? String(t._caveat) : '';
   if(_cav) html += '<p class="iv-note">ⓘ ' + _escHtml(_cav) + '</p>';
