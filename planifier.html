@@ -2264,6 +2264,15 @@ function _isShopStep(s){ if(!s) return false; if(!(s.foodExp||(s._c&&s._c.foodEx
    jamais par le thème : un musée choisi en gastronomie reste une grande visite.
    ⚠ On se borne aux natures qui FERMENT. Une place, un parc, un belvédère, une œuvre de rue se voient à
      toute heure : leur appliquer un couvre-feu retirerait des étapes parfaitement légitimes. */
+/* GRANDE VISITE (v481, §6) — seuils LUS DANS LA DONNÉE, jamais choisis.
+   · `GRANDE_VISITE_MIN` : la durée canonique se distribue en 40 / 90 / 120 / 150 min sur les 1003
+     musées et monuments des 7 bases (101 · 383 · 480 · 39). Le creux est entre 90 et 120 : au-dessus,
+     ce sont les lieux « on entre et on reste » ; en dessous, une statue ou une petite église.
+   · `GRANDE_VISITE_RATIO` : sur 94 grandes visites servies, 6 sont rabotées — trois à 80 % (120/150),
+     et trois à 40 %, 57 %, 60 %. Les deux tiers tombent dans ce creux : on écarte les trois cas
+     sévères sans toucher aux trois autres, qui ne posent aucun problème au voyageur. */
+var GRANDE_VISITE_MIN = 120;      // en deçà, ce n'est pas une « grande visite » (statue, petite église)
+var GRANDE_VISITE_RATIO = 2/3;    // en deçà de cette part de la durée due, on ne la programme pas ICI
 function _isGrandeVisiteStep(s){ if(!s || s.libre || s.openEnd) return false;
   if(s.theme==='gastronomie') return false;              // les repas ont leurs propres créneaux (§5-2)
   var k=null; try{ k=kindOf(s._c||s); }catch(e){ return false; }
@@ -4628,7 +4637,21 @@ function _ohWindow(oh){
   var open=null, close=null;
   s.split(';').forEach(function(rule){
     rule=rule.trim(); if(!rule) return; var low=rule.toLowerCase();
-    if(/\b(ph|sh)\b/.test(low)||/sunrise|sunset|dusk|dawn/.test(low)) return; // fériés / heures variables -> ignorés
+    if(/sunrise|sunset|dusk|dawn/.test(low)) return;   // heures variables (lever/coucher du soleil) -> illisibles
+    /* ⚠⚠ « PH » ACCOLÉ À DES JOURS NORMAUX N'EST PAS UNE RÈGLE DE FÉRIÉS (v481).
+       L'intention d'origine est juste : une règle qui ne parle QUE des jours fériés (« PH 10:00-14:00 »)
+       ne dit rien de la semaine ordinaire, donc on l'ignore. Mais le test portait sur la PRÉSENCE du mot,
+       si bien que « Tu-Su,PH 09:00-16:00 » — un horaire parfaitement ordinaire où PH est simplement
+       ACCOLÉ à la plage de jours — était jeté en entier. Résultat : plus aucune fenêtre lisible, donc
+       AUCUN contrôle d'horaire, donc le lieu programmable à n'importe quelle heure.
+       VÉCU : « Bangkokian Museum » servi à 17h43 alors qu'il ferme à 16h. Le contrôle de `place()`
+       fonctionnait parfaitement — il n'avait simplement jamais de fenêtre à appliquer.
+       ⚠️ RÈGLE : on ne saute que si PH/SH est le SEUL descripteur de jours. Dès qu'un jour ordinaire
+          est présent dans la règle, elle décrit bien la semaine et on la lit.
+       📏 Mesuré sur les 7 bases : 4125 horaires, 189 illisibles (5 %) — dont ~15 à cause de ce motif.
+          Le reste est légitimement illisible (« closed », « sunrise-sunset », texte libre) ou n'a
+          besoin d'aucun contrôle (« 24/7 » = aucune contrainte, traité plus haut par un `return null`). */
+    if(/\b(ph|sh)\b/.test(low) && !/\b(mo|tu|we|th|fr|sa|su)\b/.test(low)) return;
     var tm=rule.match(/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}(\s*,\s*\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})*/); if(!tm) return;
     tm[0].split(',').forEach(function(tr){var mm=/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/.exec(tr);if(mm){var a=_ohMin(mm[1]),b=_ohMin(mm[2]);if(a!=null&&b!=null){if(b<=a)b+=1440;if(open==null||a<open)open=a;if(close==null||b>close)close=b;}}});
   });
@@ -5187,7 +5210,8 @@ function _orderDaysByRichness(days){
 // -> ne rouvre pas le bug « resto célèbre à l'autre bout ». Snapshot Paris (restos synthétiques SANS extract) : bonus 0 -> intact.
 var MEAL_DIST_PEN = 3.0;                                      // points de note retranchés par km d'éloignement (dose réglable : ↑ = proximité encore plus dominante)
 var MEAL_PREF_KM = 0.9;                                       // PLAFOND « ville dense » : rayon (km) au-delà duquel on NE choisit PAS un repas s'il y a assez de choix dedans
-var MEAL_MIN_POOL = 3;                                        // « assez de choix » = au moins N restos dans les 900 m ; en dessous (zone trouée) on élargit -> le repas peut alors dépasser 900 m
+var MEAL_NATURE_MAXDET = 0.4;                                 // §5-2 (v480) : détour MAXIMAL accepté pour obtenir une VRAIE table plutôt qu'un bar/comptoir. Au-delà, la proximité reprend la main (leçon v469, mesurée : un dîner au comptoir à 300 m vaut mieux qu'un restaurant à 11 km).
+var MEAL_MIN_POOL = 3;                                      // « assez de choix » = au moins N restos dans les 900 m ; en dessous (zone trouée) on élargit -> le repas peut alors dépasser 900 m
 function _hasDesc(c){ return !!(c && c.extract && String(c.extract).trim().length>=30); } // « y a un descriptif ? » (binaire) : extract réel (Wikipédia/Foursquare), jamais un stub
 // LIBELLÉ DE SORTIE DU SOIR (helper partagé, fix #5b) : titre + texte génériques d'un bar/adresse de soirée. Utilisé par la
 // SÉLECTION (planDay) ET par le RE-CALAGE géométrique de recomposeDay (swap de bar près du dîner) -> une seule formule.
@@ -5287,6 +5311,39 @@ function _chooseMeal(sorted, N, opts){
         return _w.open<=_svc.deb && _svc.deb<_w.close;
       });
       if(_ouv2.length) sorted=_ouv2;
+    }
+  }
+  /* ⚠⚠ UN REPAS SE PREND À TABLE — MAIS PAS À N'IMPORTE QUEL PRIX (v480, §5-2).
+     LA v469 AVAIT MESURÉ CETTE PISTE FAUSSE ET ELLE AVAIT RAISON — sur la base d'alors. Écarter ici
+     les candidats qui ne sont pas des tables gagnait 3 cas et coûtait des sauts de 10 et 11 km, des
+     trous de 150 à 180 min, des dîners tardifs : en restreignant le vivier, on poussait la table très
+     loin de la chaîne. La leçon inscrite au §6 tient toujours : **dans un quartier pauvre en tables,
+     la PROXIMITÉ prime sur la NATURE.**
+     ⚠️ CE QUI A CHANGÉ, ET POURQUOI ON ROUVRE : la panne de moisson (w462) privait quatre villes de
+        toute leur taxonomie OSM — Lisbonne n'avait que 90 lieux gourmands. Sur cette base, le filtre
+        ne POUVAIT que jeter la table au loin. Base rétablie (479 vraies tables), « Lost In - Esplanada
+        Bar » est **toujours servi en repas** avec **100 vraies tables à moins d'un kilomètre**, dont 11
+        à 300 m. Le défaut n'était donc pas de données : il est ici.
+     ⚠️ ON NE REFAIT PAS LA MÊME ERREUR : le filtre est **borné par la distance**. On n'écarte les
+        non-tables que si la meilleure VRAIE table reste à portée — dans le rayon « ville dense », ou à
+        moins de `MEAL_NATURE_MAXDET` de plus que le meilleur candidat toutes natures confondues. Dans
+        un quartier réellement dépourvu, la règle **cède d'elle-même** et le comportement v469 revient
+        à l'identique. C'est la même forme que les gardes anti-éloignement du §6 : un re-choix ne peut
+        que RAPPROCHER.
+     ⚠️ LISTE BLANCHE, JAMAIS LISTE NOIRE (leçon `sport-leak`, §6) : on GARDE ce que `kindOf` reconnaît
+        comme une table, plus le kind indéterminé `lieu` — une catégorie muette n'est pas une preuve
+        que le lieu n'est pas un restaurant (§4). Ce sont exactement les deux kinds que l'audit de
+        campagne accepte, donc la règle et son contrôle ne peuvent pas diverger. */
+  if(opts && opts.slot && (opts.slot==='dîner' || opts.slot==='déjeuner') && typeof kindOf==='function'){
+    var _tables=sorted.filter(function(x){
+      var k=null; try{ k=kindOf((x.c && (x.c._c||x.c))||null); }catch(e){}
+      return !k || k==='restaurant' || k==='lieu';
+    });
+    if(_tables.length && _tables.length<sorted.length){
+      var _d0=(typeof sorted[0].d==='number')?sorted[0].d:0;      // le plus proche, toutes natures
+      var _dT=(typeof _tables[0].d==='number')?_tables[0].d:0;    // la vraie table la plus proche
+      // la nature ne l'emporte QUE si elle ne nous éloigne pas : sinon on garde le vivier d'origine.
+      if(_dT<=Math.max(MEAL_PREF_KM, _d0+MEAL_NATURE_MAXDET)) sorted=_tables;
     }
   }
   N = Math.min(N || 8, sorted.length);
@@ -5582,6 +5639,18 @@ function recomposeDay(day, ctx){
     for(var mm=0;mm<all.length;mm++){ var c=all[mm];
       if(!c||c.theme!=='gastronomie'||c.foodExp||c.lat==null||c.lng==null) continue;
       if(!_hasDesc(c)) continue;                                             // uniquement les restos DÉCRITS
+      /* ⚠⚠ UN UPGRADE DESCRIPTIF NE DOIT PAS DÉGRADER LA NATURE (v480, §5-2) — LA VRAIE CAUSE DE #77.
+         Mesuré : le vivier que cette passe construit ne contenait qu'UN candidat (« Lost In - Esplanada
+         Bar », le seul lieu DÉCRIT à moins de 900 m). `_chooseMeal` n'avait donc rien à départager, et
+         ses filtres — y compris la règle de nature — sont non destructifs par conception : avec un
+         vivier d'un seul élément, ils ne peuvent rien écarter. La règle « privilégier le lieu décrit »
+         écrasait ainsi la règle « un repas est une table », en silence.
+         C'est pourquoi les sondes précédentes ne trouvaient rien : le défaut n'est pas dans la DÉCISION,
+         il est dans la CONSTITUTION du vivier. Un bar mieux décrit qu'un restaurant reste un bar.
+         ⚠️ NON DESTRUCTIF PAR CONSTRUCTION : si aucune vraie table décrite n'est proche, `cands` reste
+            vide et la passe rend `null` — le repas courant est conservé tel quel. Aucun repas perdu. */
+      if(typeof kindOf==='function'){ var _kd=null; try{ _kd=kindOf(c._c||c); }catch(e){}
+        if(_kd && _kd!=='restaurant' && _kd!=='lieu') continue; }
       if(!inZone(c.lat,c.lng,c.address||c.adresse)) continue;
       if(_norm(c.nom)===_keep) continue;
       if(otherNom && _norm(c.nom)===otherNom) continue;                      // jamais 2× le même repas
@@ -5618,6 +5687,28 @@ function recomposeDay(day, ctx){
       // Le plafond est une règle de CATÉGORIE (« on ne visite pas un musée à 22h »), vraie que la donnée horaire existe ou non.
       // Conséquence : le snapshot Paris SYNTHÉTIQUE (sans horaires) voit ses étapes tardives coupées -> re-figé (il gelait le défaut).
       if(s.theme!=='festif' && start>=EVE_CEIL) return false;
+      /* ⚠⚠ UNE GRANDE VISITE SE FAIT ENTIÈREMENT, OU PAS ICI (v481, tâche #75).
+         VÉCU : le British Museum servi **86 min au lieu de 150**, à 19h24. La journée londonienne avait
+         consommé 580 min avant lui — il n'était pas mal ORDONNÉ, il arrivait en dernier dans un budget
+         déjà vide, et on le rabotait pour l'y faire entrer.
+         ⚠️ CETTE RÈGLE NE DÉPEND D'AUCUNE DONNÉE EXTÉRIEURE, et c'est ce qui la rend indispensable :
+            elle compare le temps restant à la durée DUE. Le contrôle d'horaires juste au-dessus ne peut
+            rien pour ces cas — mesuré, les trois lieux concernés (British Museum, Musée des Arts et
+            Métiers, Muséum d'Histoire Naturelle) n'ont **aucun `opening_hours` en base**. Les musées les
+            plus célèbres sont précisément ceux qu'OpenStreetMap documente le moins.
+         ⚠️ SEUIL LU DANS LA DONNÉE, pas choisi : sur 94 grandes visites servies, 6 sont rabotées —
+            trois à 80 % (120/150, acceptable) et trois à 40 %, 57 % et 60 %. Les deux tiers tombent dans
+            ce creux. On écarte donc 3 cas sur 94 et on ne touche pas aux trois autres.
+         ⚠️ ON N'AMPUTE PAS LE SÉJOUR : `return false` veut dire « pas à cette place ». Le lieu reste
+            dans le vivier — il pourra être servi un autre jour, et le comblage met une étape légère à sa
+            place. C'est le même mécanisme que pour un lieu fermé, qui existe depuis la v221.
+         ⚠️ ET LE FILET ANTI-TEMPS-LIBRE GARDE LA MAIN : il appelle `place()` avec une durée pleine pour
+            boucher un gros trou (§6) ; comme il passe la durée canonique, il satisfait le seuil et n'est
+            donc jamais bloqué par cette règle. Les deux règles ne se contredisent pas. */
+      if(typeof _isGrandeVisiteStep==='function' && _isGrandeVisiteStep(s)){
+        var _can=0; try{ _can=dureeHint(s._c||s)||0; }catch(e){}
+        if(_can>=GRANDE_VISITE_MIN && d < _can*GRANDE_VISITE_RATIO) return false;
+      }
     }
     s._t0=start;s.duree=d;s._t1=start+d; if(_F){s.heure=fmtH(start);s.fin=fmtH(start+d);} s.openEnd=!!openEnd;
     // TRAJET depuis l'étape précédente (item 3, AFFICHAGE seul — ne modifie NI horaires NI snapshot) : distance réelle,
@@ -6939,7 +7030,32 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       // Le LLM choisit la variété/qualité mais en sélectionne souvent trop peu -> on comble les trous
       // du PLANNING (pas du pool) avec les meilleures activités encore dispo (à pied d'abord),
       // AVANT de nommer un temps libre. Auto-régulé : si le LLM a déjà bien rempli, rien n'est ajouté.
-      var mealsArr=steps.filter(s=>s.theme==='gastronomie'&&!(s._c&&s._c.foodExp)).slice(0,2); // repas = restos/cafés uniquement
+      /* ⚠⚠ LE POINT DE DÉSIGNATION DU REPAS (v480, §5-2) — c'est ICI que se jouait la tâche #77.
+         Le commentaire d'origine l'avouait sans le voir : « repas = restos/CAFÉS uniquement ». Le filtre
+         ne regardait que `foodExp` (marché, glacier, cave) ; un BAR ou un centre commercial passait.
+         ⚠️ ET C'EST LE SEUL ENDROIT QUI COMPTE, quelle que soit la porte d'entrée : peu importe d'où
+            vient l'étape (robot, remplissage, incontournable), c'est ici qu'elle est DÉSIGNÉE repas.
+            Poser la règle plus haut aurait laissé les autres portes ouvertes — le motif d'échec que ce
+            projet a payé douze fois. Mesuré : les re-calages de fin de journée ne se déclenchent que si
+            le repas est LOIN (> 1,3 km), donc un bar PROCHE n'était jamais revu ; c'est pourquoi la v469,
+            qui n'avait corrigé que `_chooseMeal`, ne pouvait pas l'attraper.
+         ⚠️ ON NE REMPLACE PAS ICI, ON ÉCARTE : le complément « repas GARANTIS » juste en dessous voit
+            alors `mealsArr.length < 2` et fournit une VRAIE table, avec sa propre garde de distance.
+            Les écartés sont gardés en réserve (`_mealsRejet`) et réinjectés si — et seulement si — le
+            complément échoue : une ville sans une seule table garde ses deux repas (§5-4). */
+      var _mealsCand=steps.filter(s=>s.theme==='gastronomie'&&!(s._c&&s._c.foodExp));
+      var _mealsRejet=[];
+      if(typeof kindOf==='function'){
+        var _garde=[];
+        _mealsCand.forEach(function(s){
+          var k=null; try{ k=kindOf(s._c||s); }catch(e){}
+          // LISTE BLANCHE (leçon `sport-leak`, §6) : la table, plus le kind indéterminé `lieu` — une
+          // catégorie muette n'est pas une preuve que le lieu n'est pas un restaurant (§4).
+          if(!k || k==='restaurant' || k==='lieu') _garde.push(s); else _mealsRejet.push(s);
+        });
+        _mealsCand=_garde;
+      }
+      var mealsArr=_mealsCand.slice(0,2);
       var actsArr=steps.filter(s=>s.theme!=='gastronomie'||(themes.includes('gastronomie')&&s._c&&s._c.foodExp)); // les expériences food ne deviennent des activités QUE si gastronomie est un thème CHOISI — sinon le gastronomie ne sert qu'aux repas (le LLM peut en proposer, on les écarte ici)
       // REPÈRES NOTABLES LOCAUX (autour du quartier du jour) — évite le biais du top-500 ville qui sous-couvre la périphérie (ex. Bel-Air à Paris)
       var _dayLM=LANDMARKS;
@@ -6982,7 +7098,45 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
           gpool=gpool.concat(_gall.filter(c=>!_usedAlready(c))); // restos PAS déjà servis un autre jour (identité robuste aux variantes)
           // FILET DE RÉUTILISATION SUPPRIMÉ (brief villes pauvres) : en ville pauvre, mieux vaut RACCOURCIR/assumer un creux que répéter un resto d'un autre jour.
         }
+        /* ⚠⚠ LA ONZIÈME PORTE — LE COMPLÉMENT DE REPAS (v480, §5-2).
+           C'est ICI que « Lost In - Esplanada Bar » entrait, et c'est pourquoi la v469 avait cherché
+           en vain : elle a corrigé `_chooseMeal` (les RE-choix), alors que ce bloc-ci **ne l'appelle
+           jamais** — il prend le premier candidat de `gpool`, ordonné par score et distance. Ensuite,
+           les deux re-calages de fin de journée ne se déclenchent QUE si le repas est LOIN (> 1,3 km) :
+           un bar proche n'est donc jamais revu. Mesuré : 3 des 3 `REPAS-PAS-RESTO` de Lisbonne, avec
+           **100 vraies tables à moins d'un kilomètre**.
+           ⚠️ MÊME RÈGLE, MÊME GARDE-FOU QUE `_chooseMeal` — on ne fait pas une seconde règle qui
+              divergerait : liste BLANCHE (`restaurant`, plus le kind indéterminé `lieu` — une catégorie
+              muette n'est pas une preuve, §4), repli NON destructif, et surtout **borne de distance** :
+              on ne remonte les vraies tables que si la plus proche n'est pas plus loin que le meilleur
+              candidat toutes natures + `MEAL_NATURE_MAXDET`. Dans un quartier réellement dépourvu, la
+              règle cède et la proximité reprend la main (leçon v469, §6).
+           ⚠️ ON RÉORDONNE, ON NE RETIRE RIEN : les non-tables restent dans `gpool`, simplement après.
+              Une ville sans une seule vraie table garde donc ses deux repas. */
+        (function(){
+          if(gpool.length<2 || typeof kindOf!=='function') return;
+          var _dC=function(g){ try{ return (typeof g.d==='number') ? g.d : hav(center.lat,center.lng,g.lat,g.lng); }catch(e){ return 0; } };
+          var _estTable=function(g){ var k=null; try{ k=kindOf(g&&(g._c||g)); }catch(e){} return !k || k==='restaurant' || k==='lieu'; };
+          var _t=[], _autres=[];
+          gpool.forEach(function(g){ (_estTable(g)?_t:_autres).push(g); });   // tri STABLE : l'ordre de pertinence est conservé dans chaque groupe
+          if(!_t.length || !_autres.length) return;
+          var _d0=_dC(gpool[0]), _dT=_dC(_t[0]);
+          if(_dT<=Math.max(MEAL_PREF_KM, _d0+MEAL_NATURE_MAXDET)) gpool=_t.concat(_autres);
+        })();
         for(var gi=0;gi<gpool.length && mealsArr.length<2;gi++){var g=gpool[gi];if(gch.has(_norm(g.nom)))continue;if(_usedAlready(g))continue;gch.add(_norm(g.nom));mealsArr.push(Object.assign({},g,{_c:g,theme:'gastronomie',titre:mealsArr.length===0?'Déjeuner gourmand':'Dîner du soir',texte:_mealTxt(g.nom,mealsArr.length===0?'déjeuner':'dîner')}));}
+      }
+      /* ⚠ LE FILET DU §5-4 — MIEUX VAUT UN REPAS IMPARFAIT QUE PAS DE REPAS. Si, après le complément,
+         la journée n'a toujours pas ses deux repas, on réinjecte ce que la règle de nature avait écarté.
+         C'est la même doctrine que les replis non destructifs de `_chooseMeal` : la règle cède devant
+         la pénurie, elle ne vide jamais une journée. Sans ce filet, une ville dont le seul lieu de
+         restauration est un comptoir perdrait son dîner — ce qui est pire que le défaut corrigé. */
+      if(mealsArr.length<2 && _mealsRejet.length){
+        var _gch2=new Set(mealsArr.map(s=>_norm(s.nom)));
+        for(var _rj=0;_rj<_mealsRejet.length && mealsArr.length<2;_rj++){
+          var _r=_mealsRejet[_rj]; if(_gch2.has(_norm(_r.nom))) continue;
+          _gch2.add(_norm(_r.nom)); mealsArr.push(_r);
+          log('  · repas de repli (aucune vraie table disponible) : '+_r.nom);
+        }
       }
       // réservoir d'activités encore dispo (hors repas, hors déjà choisies), qualité + proximité d'abord
       var chosenNoms=new Set(actsArr.map(s=>_norm(s.nom)));
