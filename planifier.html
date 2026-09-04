@@ -2983,7 +2983,14 @@ function _auditLive(DAYS, ctx){
     /* (8) SOUS-TITRE MANQUANT — ce que l'utilisateur LIT sous le nom (§6, libellés). */
     reels.forEach(function(s){
       if(s.theme==='gastronomie') return;
-      var ty=null; try{ ty=(typeof _typeLabel==='function')?_typeLabel(s._c||s):null; }catch(e){}
+      /* (v508) ⚠ L'AUDIT DOIT JUGER CE QUE LE VOYAGEUR VOIT. Il lisait `s._c||s` — la FICHE d'abord —
+         alors que les trois points d'affichage réels reçoivent l'objet de rendu, qui porte la catégorie
+         de l'ÉTAPE. Les deux vues divergent depuis que des portes bâtissent une étape neuve (v484/v485/
+         v490) : l'audit pouvait donc crier « TYPE-INCONNU » sur une fiche parfaitement sous-titrée à
+         l'écran, ou taire l'inverse. Même famille que la v493 : un audit qui ne regarde pas la bonne
+         vue rassure sur ce qu'il ne mesure pas. */
+      var ty=null; try{ var _vTy=(typeof _vueLieu==='function')?_vueLieu(s):(s._c||s);
+        ty=(typeof _typeLabel==='function')?_typeLabel(_vTy):null; }catch(e){}
       if(!ty) V.push(J+'TYPE-INCONNU '+(s.nom||'?'));
     });
   });
@@ -8333,7 +8340,9 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         _addCav(s, 'Visite programmée en fin de journée — vérifiez les horaires de fermeture.');
       });
       // VITALITÉ : mention honnête sur un lieu qui PROGRAMME — aucun spectacle précis annoncé, on dit que le lieu VIT.
-      steps.forEach(s=>{var _vt=_vitTxt(s._c||s);if(_vt)_addCav(s,_vt);});
+      // (v508) vue FUSIONNÉE, comme les mentions marées/réservation depuis la v502 : la vitalité peut être
+      // portée par l'ÉTAPE (les portes transportent `tags` depuis la v485), et la fiche seule la rate.
+      steps.forEach(s=>{var _vt=_vitTxt((typeof _vueLieu==='function')?_vueLieu(s):(s._c||s));if(_vt)_addCav(s,_vt);});
       // MARÉES : mention sur les activités de MER. Le SURF est toujours océan ; les AUTRES activités nautiques (kayak/paddle/voile/plongée) ne reçoivent la mention QUE si un signal côtier FIABLE apparaît dans la catégorie ou le nom — jamais un plan d'eau intérieur (lac/rivière = pas de marées). §4 : par le SIGNAL (kind + marqueur côtier), jamais une liste de noms de villes.
       var _TIDE_KINDS={surf:1,nautique:1,plongee:1};
       var _MER_RE=/\bplage|beach|oc[ée]an|littoral|c[ôo]ti[èe]re?|coast|seaside|baln[ée]a|\bmarine?\b|maritim|estran|\bmer\b/i;
