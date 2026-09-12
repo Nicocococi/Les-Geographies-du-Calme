@@ -3191,7 +3191,7 @@ const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v531'; // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v533'; // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -4650,7 +4650,7 @@ function buildDayCands(cluster,allCore,periph,themes,used,usedKinds){
     allCore.filter(c=>c.theme==='gastronomie'&&!used.has(_norm(c.nom))).map(c=>Object.assign({},c,{d:hav(cluster.lat,cluster.lng,c.lat,c.lng)})).filter(c=>c.d<1.6).sort((a,b)=>a.d-b.d).slice(0,4).forEach(add);
   }
   // BIEN-ÊTRE composite : emprunter des lieux nature paisibles (jardin, eau, forêt, point de vue) comme ressourcement
-  if(themes.includes('bienetre')&&!themes.includes('nature')){
+  if(themes.includes('bienetre')&&!themes.includes('nature')&&!(cands.bienetre&&cands.bienetre.length)){ // (v533) REPLI seulement — cf. buildDayAround : versé d'office, il évinçait les vrais lieux de bien-être
     (cands.nature||[]).slice(0,4).forEach(c=>add(Object.assign({},c,{theme:'bienetre',wellness:true})));
   }
   // MIN 1 activité par thème CHOISI
@@ -4818,7 +4818,24 @@ function buildDayAround(center,all,themes,used,usedKinds,isUsed){
   // repas : gastronomie marchable
   if(!(cands.gastronomie&&cands.gastronomie.length)){near(all.filter(c=>c.theme==='gastronomie'&&!used.has(_norm(c.nom)))).filter(c=>c.d<=WALK).sort((a,b)=>a.d-b.d).slice(0,4).forEach(add);}
   // bien-être composite : emprunter la nature paisible marchable
-  if(themes.includes('bienetre')&&!themes.includes('nature')){near(all.filter(c=>c.theme==='nature'&&!used.has(_norm(c.nom)))).filter(c=>c.d<=WALK).sort((a,b)=>b.score-a.score).slice(0,4).forEach(c=>add(Object.assign({},c,{theme:'bienetre',wellness:true})));}
+  /* ═══ (v533) LE PARC EMPRUNTÉ EST UN REPLI, PLUS UN VERSEMENT D'OFFICE ═══════════════════════════
+     ⚠️⚠️ RÈGLE DE COMPENSATION QUI A SURVÉCU À SA CAUSE (§0 P10, 2e occurrence après la v508).
+     Elle versait D'OFFICE 4 lieux NATURE relabellisés `bienetre` dans le vivier du jour. Écrite quand
+     le thème n'avait presque aucun lieu en base — AVANT le nettoyage des salons de beauté (w459) et
+     AVANT la mutualisation des thèmes (w475). La cause a disparu, les effets secondaires non.
+     📏 MESURÉ EN SUIVANT UN LIEU DE BOUT EN BOUT (Londres, bien-être seul, 3 j, 12/09) : le vivier du
+        jour contenait 8 VRAIS lieux de bien-être (Yotopia, Timo Massage, Acroyoga…) et la journée
+        servie affichait « Whitehall Garden », « Leicester Square », « Lincoln's Inn Fields » — qui
+        portent `themes:["nature"]` en base, sans une trace de bien-être. 56 lieux de bien-être
+        disponibles dans 1,2 km du barycentre, ZÉRO servi.
+     TROIS DÉGÂTS D'UN SEUL COUP, et le troisième est le pire :
+       · les 4 parcs OCCUPENT 4 places sur 8 et évincent autant de vrais lieux ;
+       · le badge MENT au voyageur (un square affiché « bien-être ») — famille #76/v484 ;
+       · le filet §5-1 (v530) compte ces étapes comme le thème SERVI, donc il ne se déclenche jamais.
+     ⚠️ ON NE SUPPRIME PAS LE REPLI, ON LE BORNE — §5-4, un thème ne doit jamais être vidé : dans une
+        ville réellement dépourvue (Carcassonne : 6 lieux `keep`, 0 dans la bulle) le parc paisible
+        reste la seule réponse honnête. Il n'entre donc QUE si le vivier n'a aucun vrai candidat. */
+  if(themes.includes('bienetre')&&!themes.includes('nature')&&!(cands.bienetre&&cands.bienetre.length)){near(all.filter(c=>c.theme==='nature'&&!used.has(_norm(c.nom)))).filter(c=>c.d<=WALK).sort((a,b)=>b.score-a.score).slice(0,4).forEach(c=>add(Object.assign({},c,{theme:'bienetre',wellness:true})));}
   // MIN 1 par thème : si rien à pied -> UN saut voiture vers le meilleur lieu QUALITATIF (jamais de filler médiocre)
   themes.forEach(th=>{if(cands[th]&&cands[th].length)return;const far=all.filter(c=>c.theme===th&&!used.has(_norm(c.nom))).map(c=>Object.assign({},c,{d:hav(center.lat,center.lng,c.lat,c.lng)})).sort((a,b)=>(b.score-b.d*0.2)-(a.score-a.d*0.2))[0];if(far)add(far);});
   // ===== JOKER VOITURE (auto-régulé) : si la bulle marchable est trop pauvre pour remplir la journée,
@@ -7727,21 +7744,35 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
        REQUÊTE). Sur une ville neuve, où l'on attend déjà, la reprise média ne coûte donc AUCUNE seconde
        de plus — c'est le même raisonnement que la vague de traduction.
        Mêmes deux régimes que ci-dessus, et pour la même raison produit. Repli silencieux. */
+    /* ===== LA SOURCE OVERTURE (v532) — `/ensure-overture` =====
+       ⚠️⚠️ INDISPENSABLE DEPUIS LA w480, PAS UN CONFORT. Overture a été SORTI de l'ingestion : ses
+       21 tuiles portaient le budget d'une ingestion en ville dense à 55 appels sur les 50 autorisés,
+       et les derniers tombaient en silence (mesuré : Paris a perdu 2864 lieux Geoapify, Londres 1506,
+       tandis que Carcassonne — non dense — restait stable). Sans cette troisième requête, une ville
+       neuve naîtrait donc SANS Overture : sans bien-être, sans le sport mutualisé, sans les visites
+       insolites. C'est le même raisonnement, la même forme et le même repli silencieux que les deux
+       appels ci-dessus — et pour la même raison : **le plafond Cloudflare est PAR REQUÊTE**, donc une
+       requête à elle repart avec un budget neuf. Les trois partent ENSEMBLE : sur une ville neuve, où
+       l'on attend déjà, la troisième ne coûte aucune seconde de plus. */
     try{
       var _etUrl=API+'/ensure-themes?lat='+dc.lat+'&lng='+dc.lng+'&km='+Math.min(REGION_KM,30);
       var _emUrl=API+'/ensure-media?lat='+dc.lat+'&lng='+dc.lng+'&km='+Math.min(REGION_KM,30);
+      var _eoUrl=API+'/ensure-overture?lat='+dc.lat+'&lng='+dc.lng+'&km='+Math.min(REGION_KM,30);
       if(_ens&&_ens.ingested){
         var _duo=await Promise.all([
           fetchT(_etUrl,{},45000).then(function(r){return r.json();}).catch(function(){return null;}),
-          fetchT(_emUrl,{},45000).then(function(r){return r.json();}).catch(function(){return null;})
+          fetchT(_emUrl,{},45000).then(function(r){return r.json();}).catch(function(){return null;}),
+          fetchT(_eoUrl,{},45000).then(function(r){return r.json();}).catch(function(){return null;})
         ]);
-        var _et=_duo[0], _em=_duo[1];
+        var _et=_duo[0], _em=_duo[1], _eo=_duo[2];
         if(_et&&_et.ok&&_et.ecrits>0)log('  · complément de captation : '+_et.ecrits+' lieux à visiter ajoutés'+((_et.restant>0)?' ('+_et.restant+' au prochain passage)':'')+' ✔');
+        if(_eo&&_eo.ok&&_eo.ecrits>0)log('  · source Overture : '+_eo.ecrits+' lieux ajoutés'+((_eo.restant>0)?' ('+_eo.restant+' au prochain passage)':'')+' ✔');
         if(_em&&_em.ok&&_em.traites>0)log('  · photos et descriptions : '+(_em.avec_photo||0)+' photo(s) et '+(_em.avec_desc||0)+' description(s) sur '+_em.traites+' lieux'+((_em.restant>0)?' ('+_em.restant+' au prochain passage)':'')+' ✔');
         log('  ⏱ complément de captation : '+_el()+' s.');
       }else{
         fetchT(_etUrl,{},45000).catch(function(){});   // on ne l'attend pas : le voyageur suivant en profitera
         fetchT(_emUrl,{},45000).catch(function(){});   // idem — les photos ne changent JAMAIS l'itinéraire, seulement la fiche
+        fetchT(_eoUrl,{},45000).catch(function(){});   // idem — le verrou de zone du Worker rend l'appel quasi gratuit s'il a déjà tourné
       }
     }catch(_et2){}
     log('Le thème pilote la carte : collecte des lieux réels…');
@@ -8590,7 +8621,24 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         if(p.theme==='gastronomie'){ var _pfk=foodKind(p._c||p); if(_pfk&&dayFoodKinds.has(_pfk))continue; if(dayFoodKinds.size>=2)continue; } // unicité de sous-type + PLAFOND 2 activités food/jour (validé « 1 à 2 max »)
         var _capP=(!themes.includes(p.theme)&&p.theme!=='gastronomie')?COMPACT:BUBBLE; // icône/comblage HORS-THÈME -> zone compacte ; activité DU THÈME -> bulle marchable
         if(_walkOnly && !p._incontournable && (p._d!=null?p._d:hav(center.lat,center.lng,p.lat,p.lng))>_capP)continue; // BULLE MARCHABLE (villes denses) : pas de remplissage hors zone ; en ville peu pourvue (_walkOnly faux) on laisse passer (excursion)
-        var kf=actKind(p);if(kf&&(dayKinds.has(kf)||usedKinds.has(kf)))continue; // jamais 2x le même type (ni d'un jour à l'autre)
+        /* ⚠️⚠️ (v533) LA GARDE DE VARIÉTÉ NE S'APPLIQUE PLUS AU THÈME CHOISI — SAUF LA NATURE `spa`.
+           Elle interdit deux fois la même NATURE dans la journée ET d'un jour à l'autre. Juste pour le
+           comblage hors-thème ; mais sur un thème MONO-NATURE elle interdit le thème entier dès le 2e
+           lieu, et dès le jour 2. 📏 Part des lieux concernés (w475) : gastronomie 1 % · nature 1 % ·
+           urbain 2 % · festif 3 % · culture 4 % · SPORT 47 % · BIEN-ÊTRE 100 %. Ce n'est pas une règle
+           de diversité générale : c'est une règle écrite pour le SPORT (11 à 18 sous-types) qui attrape
+           le bien-être par accident.
+           ✅ DÉCISION PRODUIT (Nicoco, 12/09), et elle tranche un conflit réel entre deux règles :
+              « un seul SPA par jour — autrement ça fait massage, massage et massage, ce qui n'est pas
+              concevable. Mais s'il y a d'autres POI apparentés bien-être il faut les proposer. »
+              Donc `spa` GARDE son plafond (l'invariant `tests/invariants.js` « pas 2 spa/massage le même
+              jour » reste DÛ et vert), et tout le reste du thème choisi est libéré : maison de thé,
+              pilates, yoga, jardin botanique, cloître — les natures que la mutualisation w475 a rendues
+              disponibles. Un séjour bien-être peut donc enchaîner spa + maison de thé + pilates.
+           📏 COÛT ASSUMÉ ET MESURÉ : lever la garde SANS l'exception `spa` rendrait 59 % de journées à
+              ≥2 POI au lieu de 18 % — mais servirait deux massages d'affilée. L'écart est le prix de la
+              règle produit, pas un défaut de code. */
+        var kf=actKind(p);var _duThemeChoisi=themes.includes(p.theme)&&kf!=='spa';if(kf&&!_duThemeChoisi&&(dayKinds.has(kf)||usedKinds.has(kf)))continue; // jamais 2x le même type HORS-THÈME — et jamais 2 spas, même dans le thème choisi
         if(dayNoms.some(function(n){return sharesBrand(n,p.nom,dest);}))continue;
         if(dayActs.some(function(a){return a.lat&&hav(a.lat,a.lng,p.lat,p.lng)<0.08;}))continue; // ANTI-DOUBLON DE LIEU : deux POIs à < 80 m = le même endroit (ex. « Monument à la République » + « Place de la République ») -> on n'en garde qu'un
         if(!p.titre)Object.assign(p,fallbackProse(p));
