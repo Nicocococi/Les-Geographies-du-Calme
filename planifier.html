@@ -2561,6 +2561,36 @@ function _isPouvoirStep(s){ return !!s && s.theme!=='gastronomie' && _isPouvoir(
 function _isSpaStep(s){ if(!s) return false; var c=((s.catsrc||'')+' '+((s._c&&s._c.catsrc)||'')+' '+(s.cat||'')).toLowerCase(); if(/piscine|\bpool\b|swimming/.test(c)) return false; return /\bspa\b|hammam|sauna|thermal|thermes|thalasso|baln[ée]o|\bmassage\b|wellness|beauty\.spa|leisure\.spa|service\.beauty/.test(c); }
 // BOUTIQUE DE BOUCHE (chocolaterie/pâtisserie/fromager/épicerie fine/cave/glacier) d'une étape : un commerce foodExp sans horaire lisible ne doit pas démarrer la matinée à 8h30 (bug live Carcassonne : « Chocolaterie Nougalet » à 8h30). Détection PAR CATÉGORIE (activité gastronomie foodExp), jamais par nom. EXCLUS : marchés/halles (ouvrent tôt, à l'aube) et cafés/salons de thé (ouvrent tôt) — comme le spa exclut les piscines. Sert au plancher 10h dans place() (les vrais horaires priment s'ils existent).
 function _isShopStep(s){ if(!s) return false; if(!(s.foodExp||(s._c&&s._c.foodExp))) return false; var c=((s.catsrc||'')+' '+((s._c&&s._c.catsrc)||'')+' '+(s.cat||'')).toLowerCase(); if(/marketplace|march[ée]|\bhalle|catering\.cafe|salon.?de.?th[ée]|\bcaf[ée]\b/.test(c)) return false; return true; }
+
+/* ⚠️⚠️ (v534) « OUVRE TÔT » DOIT CONNAÎTRE LES PLANCHERS — DEUX RÈGLES JUSTES QUI SE CONTREDISAIENT.
+   VÉCU Londres v533, bien-être 3 j : la journée démarre à 8h30, la 1re étape « Timo Massage Therapy »
+   est poussée à 10h → 90 min de temps libre au BORD de la journée, alors que « St. James's Park »
+   (ouvre 5h) et « Covent Garden Piazza » étaient dans la MÊME chaîne et servis l'après-midi.
+   📏 SONDE : `SONDE-chaine 7 activite(s) … [bienetre] Timo Massage Therapy (SANS HORAIRE) … ;
+      SONDE-tete retenue : Timo Massage Therapy`.
+   LA CAUSE, et aucune des deux règles n'est fautive prise isolément :
+     · la tête de chaîne juge « ouvre tôt » sur `_ohWindow` SEUL → **un lieu sans horaire est réputé
+       ouvrir tôt**, donc éligible à la tête ;
+     · `place()` applique ENSUITE un PLANCHER à 10h aux spas et aux boutiques de bouche sans horaire
+       (« un hammam n'ouvre pas à 8h30 ») — décision juste, mais que la tête de chaîne ignorait.
+   La tête choisit donc un lieu qu'elle croit matinal, et le placement le repousse de 90 minutes.
+   RÈGLE : un seul juge pour « ce lieu peut-il ouvrir la journée ? », qui applique les MÊMES planchers
+   que `place()`. On ne change AUCUN plancher et on n'écarte AUCUN lieu — on ne lui refuse que la TÊTE,
+   exactement comme le glacier (v401). Le spa garde sa place, à son heure.
+   ⚠️ Posée aux TROIS portes de tête (sport · ouvre-tôt · repli glacier) — §0 P5, jamais une seule. */
+function _ouvreTotStep(x){
+  if(!x) return false;
+  var _w=_ohWindow(x.opening_hours||(x._c&&x._c.opening_hours));
+  if(_w) return _w.open<=9*60;            // de VRAIS horaires priment toujours
+  /* ⛔ LE JUMEAU « BOUTIQUE DE BOUCHE » A ÉTÉ ESSAYÉ ET RETIRÉ — MESURÉ, IL DÉGRADE (§0 P6).
+     `place()` applique le MÊME plancher de 10h aux boutiques ; il était donc tentant d'écrire
+     `!_isSpaStep(x) && !_isShopStep(x)`. 📏 Mesuré : `tests/haltes-gourmandes.js` tombe à 19/20 —
+     contrôle (C), « les marchés ne subissent aucun plafond de séjour » : 2 marchés → 1 sur 3 jours.
+     CAUSE : changer la TÊTE de chaîne change TOUTE la géométrie du jour (leçon B3, 09/09), et sur
+     une journée gourmande la cascade coûte une immersion. Le défaut vécu porte sur le SPA ; on
+     corrige ce qu'on a mesuré, pas ce qui lui ressemble. Le plancher boutique reste dans `place()`. */
+  return !_isSpaStep(x);
+}
 /* GRANDE VISITE — un lieu où l'on ENTRE et où l'on RESTE : musée, monument, château. Sert (a) à la
    remonter tôt dans la journée et (b) à lui appliquer une fenêtre d'ouverture PRAGMATIQUE quand la
    donnée n'en donne aucune. Jugé par `kindOf`, la source unique du projet (§4) — jamais par le nom,
@@ -3191,7 +3221,7 @@ const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v533'; // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v534'; // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -6512,15 +6542,15 @@ function recomposeDay(day, ctx){
     //      journée à 11h à cause d'un lieu qui n'ouvre que tard (effet de bord de l'item 1 « horaires d'ouverture ») ;
     //  (4) repli : le plus proche de l'ancre (comportement historique).
     var si=-1; for(var f=0;f<withC.length;f++){ if(withC[f]._footing){ si=f; break; } }
-    if(si<0){ var spb=Infinity; for(var sp=0;sp<withC.length;sp++){ if(kindOf(withC[sp])==='sport'){ var sw=_ohWindow(withC[sp].opening_hours||(withC[sp]._c&&withC[sp]._c.opening_hours)); if(sw && sw.open>9*60) continue; var ds=center?hav(center.lat,center.lng,withC[sp].lat,withC[sp].lng):sp; if(ds<spb){spb=ds;si=sp;} } } } // « sport en tête » par la NATURE du lieu (kindOf) : une piscine ouvre la matinée qu'elle soit choisie en SPORT ou en BIEN-ÊTRE (spa-piscine = les deux). Ne fait que réordonner des étapes déjà présentes ; seulement si ouverte tôt (≤ 9h)
-    if(si<0){ var sb=Infinity; for(var i=0;i<withC.length;i++){ var ohw=_ohWindow(withC[i].opening_hours||(withC[i]._c&&withC[i]._c.opening_hours)); if(ohw && ohw.open>9*60) continue; var d=center?hav(center.lat,center.lng,withC[i].lat,withC[i].lng):i; if(d<sb){sb=d;si=i;} } }
+    if(si<0){ var spb=Infinity; for(var sp=0;sp<withC.length;sp++){ if(kindOf(withC[sp])==='sport'){ if(!_ouvreTotStep(withC[sp])) continue; var ds=center?hav(center.lat,center.lng,withC[sp].lat,withC[sp].lng):sp; if(ds<spb){spb=ds;si=sp;} } } } // « sport en tête » par la NATURE du lieu (kindOf) : une piscine ouvre la matinée qu'elle soit choisie en SPORT ou en BIEN-ÊTRE (spa-piscine = les deux). Ne fait que réordonner des étapes déjà présentes ; seulement si ouverte tôt (≤ 9h)
+    if(si<0){ var sb=Infinity; for(var i=0;i<withC.length;i++){ if(!_ouvreTotStep(withC[i])) continue; var d=center?hav(center.lat,center.lng,withC[i].lat,withC[i].lng):i; if(d<sb){sb=d;si=i;} } }
     if(si<0){ si=0; var sb2=Infinity; for(var i2=0;i2<withC.length;i2++){var d2=center?hav(center.lat,center.lng,withC[i2].lat,withC[i2].lng):i2; if(d2<sb2){sb2=d2;si=i2;}} }
     // (5) UN GLACIER N'OUVRE JAMAIS LA JOURNÉE (brief Nicoco, vécu Paris v401 : « Pedone · Glacier » en 1re étape à 10h00).
     //     Un café, une boulangerie, un marché : oui. Une glace : c'est une pause d'après-midi. On ne le retire PAS de la journée,
     //     on lui refuse seulement la TÊTE — il sera replacé plus tard par la chaîne. Repli honnête : si la journée n'a QUE des glaciers, on garde.
     if(si>=0 && _isGlacier(withC[si])){
       var gb=Infinity,gi=-1;
-      for(var g=0;g<withC.length;g++){ if(_isGlacier(withC[g])) continue; var ohg=_ohWindow(withC[g].opening_hours||(withC[g]._c&&withC[g]._c.opening_hours)); if(ohg&&ohg.open>9*60) continue; var dg=center?hav(center.lat,center.lng,withC[g].lat,withC[g].lng):g; if(dg<gb){gb=dg;gi=g;} }
+      for(var g=0;g<withC.length;g++){ if(_isGlacier(withC[g])) continue; if(!_ouvreTotStep(withC[g])) continue; var dg=center?hav(center.lat,center.lng,withC[g].lat,withC[g].lng):g; if(dg<gb){gb=dg;gi=g;} }
       if(gi<0){ for(var g2=0;g2<withC.length;g2++){ if(_isGlacier(withC[g2])) continue; var dg2=center?hav(center.lat,center.lng,withC[g2].lat,withC[g2].lng):g2; if(dg2<gb){gb=dg2;gi=g2;} } }
       if(gi>=0) si=gi;
     }
