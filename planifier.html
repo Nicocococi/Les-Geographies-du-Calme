@@ -3221,7 +3221,7 @@ const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v534'; // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v535'; // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -7094,7 +7094,21 @@ function recomposeDay(day, ctx){
        ⚠️ SANS RISQUE POUR LE SNAPSHOT : une journée dense démarre à 8h30, l écart est nul. */
     (function(){
       var _p0=null; for(var _z=0;_z<out.length;_z++){ if(out[_z] && !out[_z].libre && out[_z]._t0!=null){ _p0=out[_z]; break; } }
-      if(_p0 && (_p0._t0-(8*60+30))>_GAP){
+      /* ⚠️ (v535) UN DÉPART CONTRAINT N'EST PAS UN VIDE — DÉCISION PRODUIT (Nicoco, 12/09).
+         Mot pour mot : *« si vraiment de vraiment y a pas de choix, je préfère que la journée commence
+         à 10h plutôt que d'afficher temps libre entre 8h30 et 10h »*.
+         Le bloc « Temps libre » a du sens AU MILIEU d'une journée : il dit qu'il y a un creux entre deux
+         étapes. Avant la PREMIÈRE étape, il ne dit rien de plus que « ta journée commence plus tard » —
+         et il donne l'impression d'un défaut là où il n'y a qu'une contrainte d'ouverture.
+         RÈGLE : on n'annonce le vide du matin QUE si la première étape AURAIT PU commencer plus tôt.
+         Si elle ne le pouvait pas (horaires réels tardifs, ou plancher spa/boutique à 10h), la journée
+         démarre simplement à son heure.
+         ⚠️ LE JUGE EST `_ouvreTotStep`, CELUI DE LA v534 — jamais un second seuil écrit à côté (motif
+         v461 : deux tables font le même travail, une seule est tenue à jour). Il répond exactement à la
+         question posée : « ce lieu peut-il ouvrir la journée ? ».
+         ⚠️ ON NE TOUCHE À RIEN D'AUTRE : aucune étape retirée, aucun horaire changé, et les trous ENTRE
+         étapes restent nommés comme avant (§ honnêteté, v491). Seul l'affichage du bord change. */
+      if(_p0 && (_p0._t0-(8*60+30))>_GAP && _ouvreTotStep(_p0)){
         _filled.push({libre:true,theme:'libre',nom:'Temps libre',titre:'Matinée libre',lat:null,lng:null,
           texte:'Rien à visiter dans ce secteur avant le déjeuner : le quartier est calme et peu pourvu le matin. Prenez votre temps — un café, une grasse matinée, une flânerie sans but.',
           _t0:8*60+30,_t1:_p0._t0,duree:_p0._t0-(8*60+30)});
