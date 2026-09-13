@@ -3222,7 +3222,7 @@ const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v537'; // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v538'; // v537 : la journée-excursion est livrée — on cesse de prédire, on MESURE (motif v496) : le vivier de la journée est bâti des deux côtés et on ne part que si la région sert strictement plus. // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -7371,9 +7371,41 @@ function normalizeSteps(day, ctx){
   function _trimScore(s){ return (_majorLieu(s)?1000:0)+(_themes.indexOf(s.theme)>=0?60:0)+(s._incontournable?40:0)+(s.imp||0)*10+(s.duree||0)/1000; } // plus BAS = coupé en premier
   function _actMin(arr){ var m=0; arr.forEach(function(s){ if(s&&!s.libre&&s.theme!=='gastronomie'&&!s.openEnd) m+=(s.duree||0); }); return m; }
   var _cut=function(){ return day.steps.filter(function(s){return s&&!s.libre&&s.theme!=='gastronomie'&&!s.openEnd&&!s._footing;}); };
+  /* ═══ (v538) LE DÉFAUT DE TRANSPORT ÉTAIT ICI — LE RE-BUDGET COUPAIT LE THÈME DEMANDÉ ═══
+     ⚠️⚠️ Famille consignée quatre fois sans jamais être élucidée (v519, v520, 09/09, v536) sous le nom
+     « un lieu retenu dans dayActs disparaît de la journée servie ». Suivi de bout en bout le 13/09 par
+     la méthode du 09/09 (instrumenter TOUS les points de passage et suivre UN objet), le point de perte
+     est cette boucle, et la ligne fautive est la PONDÉRATION de `_trimScore` :
+         notoriété = 1000 · thème CHOISI = 60.
+     Un lieu du thème demandé ne pouvait donc JAMAIS l'emporter sur une icône hors-thème notable — et
+     les icônes le sont presque toutes, puisqu'elles sont choisies pour leur notoriété. 📏 Mesuré sur
+     8 villes × 7 thèmes × 3 jours (168 journées) : 23 coupes de re-budget, dont **14 (61 %) frappent un
+     POI d'un thème CHOISI — et dans les 14 cas il restait au moins un comblage hors-thème à couper**.
+     Cas témoin, celui du carnet : Londres J1 bien-être, total 550 min pour un budget de 540 → on coupe
+     « Drop-in Silence in the heart of the West End », le SECOND (et dernier) lieu de bien-être de la
+     journée, alors que six parcs et places hors-thème attendaient. Dix minutes de dépassement, et le
+     thème demandé tombe à un seul POI.
+     LA RÈGLE — c'est celle de la v530, appliquée à la COUPE au lieu de l'échange : on ne coupe un POI
+     d'un thème choisi que lorsqu'il n'y a plus de comblage hors-thème à couper. BORNÉE au quota produit
+     (`THEME_QUOTA`=2, « au minimum 2 POI de ce ou ces thèmes ») : au-delà de deux représentants, le
+     thème redevient un candidat ordinaire — sans quoi on couperait un monument majeur pour garder un
+     huitième square sur un séjour nature. ⚠️ Le bonus est ADDITIF, jamais un veto : si tout est protégé,
+     le moins important est coupé quand même et la boucle termine (le garde `_cut().length>1` tient).
+     📏 Campagne 8 villes, graine 20260825 : 101 journées INCHANGÉES, signalements 154 → 145 ;
+     THEME-VIDE-BIENETRE 7 → 4 sur Séville+Bangkok, SAME-KIND 26 → 24, JOURNEE-SURCHARGEE 2 → 1,
+     MUSEE-COURT 1 → 0 — aucune catégorie en hausse. Coût assumé : −4 étapes (Lisbonne 2, Séville 2),
+     la chaîne n'étant plus la même.
+     ⛔ VARIANTE ESSAYÉE ET ÉCARTÉE — protéger le thème choisi SANS quota : 2 signalements de moins
+     (SAME-KIND) sur Séville+Bangkok, mais la règle devient non bornée et contredit le §5-1 (« les
+     thèmes choisis PLUS 1–n icônes »). On préfère la règle bornée au gain cosmétique. */
+  var _RB_QUOTA=2;
   var _guard=0;
   while(_actMin(day.steps)>_ACT_BUDGET && _cut().length>1 && _guard++<50){
-    var pool=_cut(), worst=pool[0]; for(var q=1;q<pool.length;q++){ if(_trimScore(pool[q])<_trimScore(worst)) worst=pool[q]; } // la moins importante
+    var pool=_cut();
+    var _rbN={}; pool.forEach(function(x){ if(_themes.indexOf(x.theme)>=0) _rbN[x.theme]=(_rbN[x.theme]||0)+1; });
+    var _rbProt=function(x){ return (_themes.indexOf(x.theme)>=0 && (_rbN[x.theme]||0)<=_RB_QUOTA) ? 100000 : 0; };
+    var _rbSc=function(x){ return _rbProt(x)+_trimScore(x); };
+    var worst=pool[0]; for(var q=1;q<pool.length;q++){ if(_rbSc(pool[q])<_rbSc(worst)) worst=pool[q]; } // la moins importante, thème demandé protégé jusqu'au quota
     day.steps=day.steps.filter(function(s){return s!==worst;});
   }
 
