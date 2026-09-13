@@ -3216,12 +3216,13 @@ function ivThemeLevels(counts){
   return out;
 }
 let FESTIF_MSG=''; // fix #3 : alerte honnête festif+famille — le profil famille DÉSACTIVE la sortie nocturne garantie (bars/clubs), on le DIT au lieu de laisser un thème muet. '' sinon.
+var _EXC_JOUR=0; // (v537) numéro du jour courant — `pickAnchor` est définie HORS de la boucle, donc `i` n'y est PAS celui de la boucle (il résout sur le `var i` de la phase d'assemblage, hoisté → NaN). Bug du premier essai, attrapé avant livraison.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Seuil de la gate `/near` : en dessous de N restaurants déjà connus dans la bulle marchable, on va lire
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v536'; // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v537'; // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -7996,7 +7997,58 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       var FLOOR = bigCity ? BUBBLE_FLOOR : 0; function _sp(v){ return Math.max(v, FLOOR); }
       // BARRE DE RICHESSE (grande ville) : on PRÉFÈRE un quartier RICHE (≥ RICH exploitables, même seuil que la gate LLM) même un peu plus PROCHE (plancher relâché RELAX=1 km) à un quartier MAIGRE au loin. Sinon le motif « spread d'abord » ancrait les jours 4-5 sur une poche périphérique tassée-nature mais creuse (7-8 lieux) → 4 h de temps libre (task #12). Ville pauvre : RICH=0/RELAX=0 → rungs identiques aux historiques → Carcassonne/snapshot Paris INCHANGÉS. Les rungs riches passent AVANT les historiques ; ces derniers restent le repli complet.
       var RICH = bigCity ? 7 : 0, RELAX = bigCity ? 1.0 : 0;
-      var av=elig(2,CORE_KM,_sp(SPREAD_KM),RICH); if(!av.length)av=elig(2,CORE_KM,_sp(1.2),RICH); if(RICH&&!av.length)av=elig(2,CORE_KM,Math.max(RELAX,FLOOR),RICH);
+      var av=elig(2,CORE_KM,_sp(SPREAD_KM),RICH);
+      /* (v537) LE CŒUR N'A PLUS DE QUARTIER DISTINCT -> on regarde la RÉGION avant d'accepter un
+         chevauchement. `rankRegion`/`pickRegion` sont déjà écrites et déjà justes : 📏 leur classement
+         met la NOTORIÉTÉ en tête (Wikidata), pas le score (plat sans FSQ, §0 P1d) — mesuré, il rend le
+         Pont du Gard à Nîmes, les Châteaux de Lastours à Carcassonne, Bayonne à Biarritz.
+         ⚠️ REPLI TOTAL : sans grappe assez fournie on poursuit la cascade normale — le pire cas de cette
+         règle est le comportement d'avant, elle ne peut donc pas coûter une journée. */
+      if(!av.length && _EXC_FAIT<_EXC_MAX){ try{
+        /* ═══ (v537) ON CESSE DE PRÉDIRE, ON MESURE — LE MOTIF v496 ═══
+           📏 TROIS CRITÈRES ESSAYÉS LE 13/09 POUR DEVINER SI UNE GRAPPE RÉGIONALE TIENDRA UNE JOURNÉE,
+           AUCUN NE SÉPARE : taille de la grappe (>=12), lieux du thème (>=8), et DEUX VRAIES TABLES à
+           moins de 3 km — l'hypothèse la mieux fondée, puisqu'une journée demande deux repas.
+           **Carcassonne passe les trois**, et pourtant sa journée part à Lastours, ne tient pas, et le
+           rappel de secteur la ramène au centre : coût net 2 étapes et 4 signalements pour ZÉRO
+           excursion. Régler un seuil de plus serait une devinette — ce que le §0 interdit.
+           LA RÈGLE : on bâtit le VIVIER DE LA JOURNÉE des DEUX CÔTÉS (`buildDayAround`, pur, aucun
+           appel réseau) et on ne part en excursion que si elle offre STRICTEMENT PLUS d'activités que
+           le cœur. ⚠️ Par construction elle ne peut pas régresser : à égalité ou en dessous on tombe
+           dans la cascade normale, c'est-à-dire EXACTEMENT la v536.
+           📏 MESURÉ, et c'est la séparation qu'aucun seuil ne donnait :
+             · Biarritz  « Maison de l'Infante » 15,5 km -> 12 activités contre 8 au cœur  -> ON PART
+             · Biarritz  « Villa Saraléguinéa »   9,7 km ->  4 activités contre 8          -> on reste
+             · Biarritz  « Bid'a Parc »           7,5 km -> 12 activités contre 13         -> on reste
+             · Carcassonne « Moulin de Trèbes »   7,2 km ->  4 activités contre 5          -> on reste
+             · Carcassonne « Cassoulet Gourmand » 34,9 km ->  1 activité  contre 5          -> on reste
+           ⚠️ CE QU'ON COMPARE EST LE VIVIER, PAS LA JOURNÉE FINIE. Bâtir la journée entière deux fois
+           coûterait un second `_enrich` par jour (le plafond de `tests/latence-jamais-pire.js` tombe) et
+           dédoublerait les registres anti-doublon. Le vivier est ce dont la journée est faite : c'est la
+           mesure la plus fidèle qui soit gratuite. Le VRAI résultat est gardé par `tests/excursion-jamais-pire.js`.
+           ⚠️ AUCUN SEUIL SUR LA GRAPPE : `rankRegion` classe par NOTORIÉTÉ (Wikidata), donc il survit à
+           l'émancipation FSQ (§0 P1d) ; une grappe minuscule rend un vivier minuscule et perd toute seule. */
+        var _rp=all.filter(c=>themes.includes(c.theme)&&!_usedAlready(c)&&!(extra&&extra.has(_norm(c.nom)))&&((c.distKm!=null?c.distKm:hav(dc.lat,dc.lng,c.lat,c.lng))>CORE_KM));
+        var _rc=rankRegion(clusterList(_rp,1.2),themes);
+        var _ch=pickRegion(_rc,1,usedZones);
+        if(_ch.length){ var _m=_ch[0].members.slice().sort((a,b)=>((b.notable?1:0)-(a.notable?1:0))||((b.score||0)-(a.score||0)))[0];
+          if(_m){
+            // ANCRE DU CŒUR — on déroule la cascade normale dans une copie locale, sans rien décider.
+            var _avC=elig(2,CORE_KM,_sp(1.2),RICH); if(RICH&&!_avC.length)_avC=elig(2,CORE_KM,Math.max(RELAX,FLOOR),RICH);
+            if(!_avC.length)_avC=elig(2,CORE_KM,_sp(SPREAD_KM)); if(!_avC.length)_avC=elig(2,CORE_KM,_sp(1.2)); if(!_avC.length)_avC=elig(2,CORE_KM,_sp(0)); if(!_avC.length)_avC=elig(2,null,_sp(1.2));
+            if(!_avC.length)_avC=elig(0,CORE_KM,_sp(SPREAD_KM)); if(!_avC.length)_avC=elig(0,CORE_KM,_sp(1.2)); if(!_avC.length)_avC=elig(0,CORE_KM,_sp(0)); if(!_avC.length)_avC=elig(0,null,_sp(1.2));
+            _avC.sort(function(a,b){var ak=usedKinds.has(actKind(a))?1:0,bk=usedKinds.has(actKind(b))?1:0;if(ak!==bk)return ak-bk;if(bigCity){var dr=(b._R||0)-(a._R||0);if(dr)return dr;}return (b._q||0)-(a._q||0);});
+            var _aC=_avC[0]||null;
+            // COMPTE DES ACTIVITÉS SERVABLES — un RESTAURANT ne compte pas : c'est un repas (§5-2), jamais une activité.
+            var _actCnt=function(a){ if(!a) return -1; try{ var _cc=buildDayAround({lat:a.lat,lng:a.lng},all,themes,used,usedKinds,_usedAlready), _n=0;
+              Object.keys(_cc).forEach(function(_t){ (_cc[_t]||[]).forEach(function(_x){ if(!_x) return; if(_x.theme==='gastronomie' && !_x.foodExp) return; _n++; }); }); return _n; }catch(_e){ return -1; } };
+            var _nE=_actCnt(_m), _nC=_actCnt(_aC);
+            if(_nE>_nC){ _EXC_ON=true;
+              log('  · Jour '+_EXC_JOUR+' : JOURNÉE-EXCURSION — le cœur n\'offre plus de quartier distinct, et la grappe régionale sert PLUS ('+_nE+' activités contre '+_nC+' au cœur) : « '+_m.nom+' », à '+((_m.distKm!=null?_m.distKm:hav(dc.lat,dc.lng,_m.lat,_m.lng)).toFixed(1))+' km.');
+              return _m; }
+            log('  · Jour '+_EXC_JOUR+' : excursion ÉCARTÉE — « '+_m.nom+' » ne sert que '+_nE+' activités contre '+_nC+' au cœur ; on reste en ville.');
+          } }
+      }catch(_ex){} } if(!av.length)av=elig(2,CORE_KM,_sp(1.2),RICH); if(RICH&&!av.length)av=elig(2,CORE_KM,Math.max(RELAX,FLOOR),RICH);
       if(!av.length)av=elig(2,CORE_KM,_sp(SPREAD_KM)); if(!av.length)av=elig(2,CORE_KM,_sp(1.2)); if(!av.length)av=elig(2,CORE_KM,_sp(0)); if(!av.length)av=elig(2,null,_sp(1.2));
       // ===== PAS 2 — REPLI EXCURSION QUALITÉ (petite ville, cœur épuisé de quartiers denses) =====
       // Le cœur n'offre plus AUCUN quartier ≥2 POI du thème. Les anciens crans _T=0 (plus bas) raclaient alors un point
@@ -8111,7 +8163,29 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
        sa durée ≈ nombre d'appels EN SÉQUENCE × durée d'un appel. On compte donc les DEUX : le temps ET le
        nombre d'appels, par poste. Purement observationnel — aucune décision n'en dépend. */
     var _T1={enrich:0,nEnrich:0,pre:0,nPre:0}; _GEOQ={ms:0,n:0};
+    /* ═══ (v537) JOURNÉE-EXCURSION — ON RÉUTILISE `carhop`, LE DRAPEAU QUI EXISTE DÉJÀ ═══
+       📏 MESURÉ (12-13/09) : le moteur SORT déjà du centre — Carcassonne·urbain sert le Lac de la
+       Cavayère et le Parc Aquaviva à 7 km. Ce qui l'arrête n'est PAS la distance mais la COMMUNE :
+       `_inCity` lit l'adresse, donc « 11000 Carcassonne » passe à 7 km tandis que « 11600 Lastours »
+       est supprimé à 12 km. (J'avais écrit la veille « l'itinéraire ne sort jamais du centre » : c'était
+       FAUX, mesuré sur deux thèmes seulement — §0 P2.)
+       ⚠️ ET L'EXEMPTION EXISTE DÉJÀ : `recomposeDay` l.6508 est gardé par `if(!s.carhop){…}` — un lieu
+       marqué `carhop` échappe AU CLAMP COMMUNE ET À LA BULLE. On n'écrit donc aucune exemption neuve,
+       on réutilise celle du projet. Sa condition actuelle (l.4895) est un filet par MANQUE
+       (`actCount<DAY_MIN_ACT`) : il ne se déclenche que sur une journée déjà maigre, donc jamais à
+       Carcassonne dont le centre remplit ses journées. On ajoute un déclenchement par ÉPUISEMENT.
+       📏 LE SIGNAL EST LE PREMIER CRAN DE LA CASCADE (quartier du thème à >=SPREAD_KM des jours déjà
+       posés) : Carcassonne 58/0/0 · Nîmes 100/2/0 · PARIS 245/57/27 · LONDRES 220/42/17. « Le cœur
+       n'offre plus aucun quartier DISTINCT » sépare exactement les deux mondes, et les métropoles n'y
+       tombent JAMAIS : la règle produit « ne jamais casser une ville dense » est tenue par la MESURE.
+       ⚠️ `bigCity` ne convient PAS comme garde (= `all.length>=500`, donc VRAI pour Carcassonne 654 et
+       Nîmes 878) : c'est un signal de taille de vivier, pas de densité. Essayé, mesuré nul.
+       DÉCISION PRODUIT (Nicoco, 12/09) : « 1 voire 2 jours en centre-ville, puis on ouvre les vannes
+       vers 1 voire 2 destinations en voiture » — dosage copié sur `_footMax` (1 jusqu'à 4 j, 2 au-delà,
+       AUCUNE sous 3 j : un séjour court doit voir la ville). */
+    var _EXC_MAX = (duree>=5?2:(duree>=3?1:0)), _EXC_FAIT=0, _EXC_ON=false;
     for(let i=0;i<duree;i++){
+      _EXC_ON=false; _EXC_JOUR=i+1;
       // DENSITÉ RÉSIDUELLE (v404) : avant de choisir le quartier du jour i, on retire du comptage ce que les jours
       // précédents ont pris. Jour 1 : rien de réservé -> densités identiques à l'historique (Paris/Carcassonne intacts).
       if(i>0){ try{ _reserverZone(usedZones[usedZones.length-1]); _densites(); }catch(_e){} }
@@ -8325,6 +8399,17 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
       usedZones.push(center); // ÉTALEMENT : on marque la ZONE du jour DÈS sa sélection (PHASE 1), pour que les jours suivants s'en écartent. Avant : poussé en fin de construction — mais les jours ne sont plus bâtis en séquence, donc on marque ici.
       log('Jour '+(i+1)+' · '+quartier+(excursion?' — excursion ~'+Math.round(anchor.distKm)+' km (voiture)':'')+' · ancrage : '+anchor.nom);
       let cands=buildDayAround(center,all,themes,used,usedKinds,_usedAlready);
+      /* (v537) JOURNÉE-EXCURSION : on marque les candidats `carhop` — le drapeau EXISTANT que
+         `recomposeDay` (l.6508) exempte du clamp commune ET de la bulle. Aucune exemption neuve n'est
+         écrite : sans ce marquage, l'ancre régionale est choisie puis TOUTES ses étapes sont supprimées
+         parce qu'elles portent le nom d'une autre commune (Lastours, Montolieu, Nages-et-Solorgues).
+         ⚠️⚠️ LES RESTAURANTS SONT MARQUÉS EUX AUSSI — décision produit de Nicoco (13/09) : « un resto fait
+         aussi l'objet du nouvel itinéraire plutôt que d'avoir à faire plein d'aller-retours ». On déjeune
+         SUR PLACE, pas à 13 km. 📏 Et c'est la mesure qui lui donne raison : en excluant les tables du
+         marquage, le moteur n'avait aucune table autorisée là-bas et servait un MARCHÉ comme repas
+         (`REPAS-FOODEXP`, violation du §5-2). Exclure les tables ne protégeait donc rien — ça FABRIQUAIT
+         le défaut. Le §5-2 (un repas est une vraie table) garde la main, il est hors du bloc `carhop`. */
+      if(_EXC_ON){ _EXC_FAIT++; try{ Object.keys(cands).forEach(function(_t){ (cands[_t]||[]).forEach(function(_c){ if(_c) _c.carhop=true; }); }); }catch(_ex){} }
       const nbBrut=Object.values(cands).reduce((a,b)=>a+b.length,0);
       log('  · curateur qualité (déterministe) sur '+nbBrut+' lieux…');
       cands=await curateCands(cands,themes.map(t=>THEME_LABEL[t]).join(' + '),_qOK);
