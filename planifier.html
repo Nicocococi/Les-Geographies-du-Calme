@@ -1121,6 +1121,17 @@ body.iv-active .result-header { display: none; }   /* ancien bandeau absorbé da
 .iv-mk-inner.approx span { color: #8A7B5E; }
 .iv-mk-inner.approx.active { background: var(--terracotta-dk); border-color: #fff; }
 .iv-mk-inner.approx.active span { color: #fff; }
+/* (v539) LE PIN DIT SON NOM AU SURVOL. Avant, le pin ne portait qu'un NUMÉRO : pour savoir ce que c'était il fallait
+   quitter la carte des yeux et retrouver la ligne dans la liste. Sur une carte de marche, c'est le geste qu'on fait le
+   plus souvent. L'étiquette est posée sur le ROOT (non pivoté) — `inner` subit un rotate(-45deg), donc y mettre du texte
+   l'aurait fait pencher. Elle ne capte JAMAIS le pointeur (pointer-events:none) : sinon elle volerait le survol au pin
+   qu'elle décrit et ferait clignoter le ruban. */
+.iv-mk-lbl { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(4px);
+  white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis;
+  font: 600 0.72rem/1.25 'Inter',sans-serif; color: #241810; background: rgba(250,246,239,0.96);
+  border: 1px solid rgba(181,151,106,0.45); border-radius: 8px; padding: 0.22em 0.5em;
+  box-shadow: 0 3px 10px -3px rgba(0,0,0,0.35); pointer-events: none; opacity: 0; transition: opacity .16s ease, transform .16s ease; }
+.iv-mk-lbl.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 .iv-map-legend { position: absolute; left: 16px; bottom: 16px; z-index: 5; background: rgba(255,255,255,0.92);
   backdrop-filter: blur(6px); border-radius: 12px; padding: 0.5em 0.7em; font: 600 0.72rem/1.3 'Inter',sans-serif;
   color: var(--noir); box-shadow: 0 4px 14px -6px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 0.3em; }
@@ -3222,7 +3233,7 @@ const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v538'; // v537 : la journée-excursion est livrée — on cesse de prédire, on MESURE (motif v496) : le vivier de la journée est bâti des deux côtés et on ne part que si la région sert strictement plus. // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v539'; // v539 (carte, étape 1/3) : la carte ne portait AUCUN nom de lieu — les POI étaient cachés en bloc, monuments compris. Seuls les grands repères (filterrank ≤ 1) reviennent. + le pin dit son nom au survol (liste ET carte) + une échelle, le cadrage étant adaptatif. // v538 : // v537 : la journée-excursion est livrée — on cesse de prédire, on MESURE (motif v496) : le vivier de la journée est bâti des deux côtés et on ne part que si la région sert strictement plus. // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -11423,6 +11434,7 @@ function ivRefreshHeight(step) {
 function ivHl(i, on) {
   const st = document.getElementById('iv-step-' + i); if (st) st.classList.toggle('hl', on);
   const mk = IV.dayMk[i]; if (mk && mk.inner) mk.inner.classList.toggle('active', on);
+  if (mk && mk.name) mk.name.classList.toggle('on', on);   // (v539) le pin dit son nom
   // FIL DU TEMPS — SURVOL (v290, brief ruban_hover) : on augmente CE MÊME handler (highlight du pin) pour tracer le ruban
   // JUSQU'AU pin de l'étape survolée. Précis par construction (étape N -> ruban à N). Desktop/dynamique uniquement. Le
   // mouseleave (on=false) ne touche PAS le ruban -> aucun flicker entre étapes ; le retour au COMPLET se fait sur le
@@ -11452,6 +11464,12 @@ async function ivInitMap() {
   IV.map = new mapboxgl.Map({ container: 'iv-map', style: MAPBOX_STYLE, center: [0, 20], zoom: 1.4, attributionControl: false, cooperativeGestures: _mob });
   IV.map.addControl(new mapboxgl.AttributionControl({ compact: true }));
   IV.map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+  /* (v539) ÉCHELLE — le produit est un voyage À PIED : la seule question qu'on pose à une carte de marche est
+     « est-ce à trois cents mètres ou à deux kilomètres ? ». Le cadrage étant adaptatif (fitBounds par journée), le
+     zoom n'est JAMAIS le même d'un jour à l'autre : sans échelle, l'œil n'a aucun étalon et compare des distances
+     qui ne sont pas comparables. Posée en haut à gauche : le coin bas-gauche porte déjà le logo Mapbox (décalé par
+     le CSS) et le bas-droit l'attribution compacte. Sous `try` — une carte ne doit jamais tomber pour un ornement. */
+  try { if (mapboxgl.ScaleControl) IV.map.addControl(new mapboxgl.ScaleControl({ maxWidth: 90, unit: 'metric' }), 'top-left'); } catch(e) {}
   if (_mob) {
     // la hauteur est gérée par le CSS (90px = aperçu / 300px = déplié via .iv-map-open) — pas de height inline qui l'écraserait
     setTimeout(() => { if (IV.map) IV.map.resize(); }, 60);
@@ -11503,7 +11521,28 @@ function ivEditorialStyle() {
     }
     else if (l.type === 'symbol') {
       // On cache SEULEMENT les POI/transports/aéroports (bruit). On GARDE les labels de RUES, QUARTIERS et PLANS D'EAU (Seine).
-      if (/(poi|transit|airport)/.test(id)) { IV.map.setLayoutProperty(id, 'visibility', 'none'); }
+      if (/(transit|airport)/.test(id)) { IV.map.setLayoutProperty(id, 'visibility', 'none'); }
+      /* ⚠️ (v539) ON RENDAIT UNE CARTE SANS AUCUN NOM DE LIEU. La ligne d'origine cachait `poi|transit|airport` en bloc,
+         au motif — juste — que les POI Mapbox sont du BRUIT : chaque pressing, chaque agence bancaire y a son étiquette.
+         Mais elle emportait avec eux **Notre-Dame, le Louvre, la Tour Eiffel**. Or sur une carte qu'on lit en MARCHANT,
+         le grand repère est le premier outil d'orientation — avant même le nom de la rue. On se repère à la cathédrale,
+         pas au numéro de la voie.
+         LA RÈGLE : on ne garde que le HAUT du classement Mapbox (`filterrank` 0 = le plus important ; ≤ 1 retient les
+         monuments et grands équipements et laisse tomber le commerce de quartier). Signal STRUCTUREL fourni par le style,
+         jamais une liste de noms (§4) : identique à Paris, Bangkok ou Bali.
+         ⚠️ Le filtre existant est CONSERVÉ et intersecté (`all`), jamais remplacé — l'écraser ferait réapparaître des
+         couches que le style avait déjà bornées pour d'autres raisons.
+         ⚠️ `filterrank` peut manquer selon la version du style : `coalesce` le remplace alors par 9, donc l'étiquette est
+         écartée. Le pire cas est la carte d'AVANT (aucun nom de lieu), jamais une carte bruitée. */
+      else if (/poi/.test(id)) { try {
+        const _f = IV.map.getFilter(id);
+        const _maj = ['<=', ['coalesce', ['get', 'filterrank'], 9], 1];
+        IV.map.setFilter(id, _f ? ['all', _f, _maj] : _maj);
+        IV.map.setPaintProperty(id, 'text-color', '#5d4423');                       // encre chaude : un repère n'est pas une rue
+        IV.map.setPaintProperty(id, 'text-halo-color', '#faf6ef');
+        IV.map.setPaintProperty(id, 'text-halo-width', 1.8);
+        IV.map.setLayoutProperty(id, 'text-size', ['interpolate', ['linear'], ['zoom'], 11, 11.5, 14, 13, 17, 14.5]);
+      } catch(e) {} }
       else {
         IV.map.setPaintProperty(id, 'text-color', '#241810');            // encre marron TRÈS FONCÉE (contraste FORT ; #463424 rendait trop pâle sur le fond crème, surtout en petit)
         IV.map.setPaintProperty(id, 'text-halo-color', '#faf6ef'); IV.map.setPaintProperty(id, 'text-halo-width', 1.6); // halo clair net (un peu plus serré -> le petit texte ne se délave pas)
@@ -11543,14 +11582,19 @@ function ivEditorialStyle() {
   } catch(e){} }
 }
 
-function ivMakeMarker(num, precision, color) {
+function ivMakeMarker(num, precision, color, label) {
   const root = document.createElement('div');
+  root.style.position = 'relative';
   const inner = document.createElement('div');
   inner.className = 'iv-mk-inner' + (precision === 'approx' ? ' approx' : '');
   if (color && precision !== 'approx') inner.style.setProperty('--mk', color); // (étape 4) pin coloré par le RÔLE (kind) ; approx reste blanc
   const lbl = document.createElement('span'); lbl.textContent = num; inner.appendChild(lbl);
   root.appendChild(inner);
-  return { root, inner };
+  /* (v539) le NOM du lieu, masqué par défaut, révélé par ivHl au survol (liste OU pin — les deux passent par ivHl,
+     donc survoler une ligne de la colonne nomme aussi le pin sur la carte, et réciproquement). */
+  let name = null;
+  if (label) { name = document.createElement('div'); name.className = 'iv-mk-lbl'; name.textContent = label; root.appendChild(name); }
+  return { root, inner, name };
 }
 
 async function ivCoords(num, tid, opt) {
@@ -11583,12 +11627,13 @@ async function ivSetMapDay(num) {
     const c0 = coordsArr[i];
     if (!c0) { IV.dayMk.push({ tid: t.id, marker: null, inner: null, trueLL: null }); return; }
     if (c0.precision === 'approx') anyApprox = true;
-    const { root, inner } = ivMakeMarker(i + 1, c0.precision, ivTheme(t).c);
+    let _nm = ''; try { const _d = ivOpt(num, t.id, ivCurOpt(num, t.id)); _nm = (_d && (_d.nomLatin || _d.nom)) || ''; } catch(e) {}
+    const { root, inner, name } = ivMakeMarker(i + 1, c0.precision, ivTheme(t).c, _nm);
     root.addEventListener('mouseenter', () => ivHl(i, true));
     root.addEventListener('mouseleave', () => ivHl(i, false));
     root.addEventListener('click', () => { const st = document.getElementById('iv-step-' + i); if (st) { st.scrollIntoView({ behavior: 'smooth', block: 'center' }); ivOpenStep(st, true); } });
     const mk = new mapboxgl.Marker({ element: root, anchor: 'bottom' }).setLngLat([c0.lng, c0.lat]).addTo(IV.map);
-    IV.dayMk.push({ tid: t.id, marker: mk, inner, trueLL: { lng: c0.lng, lat: c0.lat } });
+    IV.dayMk.push({ tid: t.id, marker: mk, inner, name, trueLL: { lng: c0.lng, lat: c0.lat } });
   });
   const lg = document.getElementById('iv-legend'); if (lg) lg.style.display = anyApprox ? 'flex' : 'none';
   // Re-désempile à chaque changement de zoom (lié une seule fois).
