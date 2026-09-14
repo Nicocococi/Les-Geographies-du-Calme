@@ -3233,7 +3233,7 @@ const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v539'; // v539 (carte, étape 1/3) : la carte ne portait AUCUN nom de lieu — les POI étaient cachés en bloc, monuments compris. Seuls les grands repères (filterrank ≤ 1) reviennent. + le pin dit son nom au survol (liste ET carte) + une échelle, le cadrage étant adaptatif. // v538 : // v537 : la journée-excursion est livrée — on cesse de prédire, on MESURE (motif v496) : le vivier de la journée est bâti des deux côtés et on ne part que si la région sert strictement plus. // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v540'; // v540 (carte) : le RUBAN était tracé depuis les pins DÉCALÉS par le désempilement pixel (34 px), pas depuis les vraies positions — l'itinéraire piéton partait donc de points faux de 30 à 60 m, que Directions recalait sur la rue la plus proche. `ivFitDay` prenait déjà la précaution inverse ; le tracé et le fil du temps l'appliquent enfin. + le nom porté par le pin suit la variante A/B/C (porte oubliée de la v539). // v539 (carte, étape 1/3) : la carte ne portait AUCUN nom de lieu — les POI étaient cachés en bloc, monuments compris. Seuls les grands repères (filterrank ≤ 1) reviennent. + le pin dit son nom au survol (liste ET carte) + une échelle, le cadrage étant adaptatif. // v538 : // v537 : la journée-excursion est livrée — on cesse de prédire, on MESURE (motif v496) : le vivier de la journée est bâti des deux côtés et on ne part que si la région sert strictement plus. // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -11718,7 +11718,16 @@ function _ivRouteSetData(data) {
 }
 function ivDrawRoute() {
   if (!IV.map) return;
-  const coords = IV.dayMk.filter(m => m.marker).map(m => { const ll = m.marker.getLngLat(); return [ll.lng, ll.lat]; });
+  // ⚠️ (v540) ON TRACE DEPUIS LES VRAIES POSITIONS (trueLL), JAMAIS DEPUIS LES PINS DÉCALÉS.
+  // `ivDecluster` écarte les pins en espace PIXEL (34 px mini entre deux pointes) pour qu'aucun n'en cache
+  // un autre : c'est une décision d'AFFICHAGE. Or ce tracé lisait `marker.getLngLat()`, donc la position
+  // APRÈS décalage — l'itinéraire piéton était calculé sur des points faux de 30 à 60 m, que Directions
+  // recalait ensuite sur la rue la plus proche (d'où des détours et un ruban qui ne passe pas par le lieu).
+  // `ivFitDay` prenait DÉJÀ la précaution inverse (« on cadre sur les VRAIES positions … pas sur les pins
+  // décalés ») ; elle n'avait simplement jamais été appliquée ici. Un pin peut donc être à 30 px de son
+  // ruban — artefact de lisibilité assumé — mais le RUBAN, lui, dit la vérité du parcours.
+  // Effet de bord heureux : la clé de cache ne dépend plus du zoom, donc un zoom ne relance plus Directions.
+  const coords = IV.dayMk.filter(m => m.marker).map(m => { const ll = m.trueLL || m.marker.getLngLat(); return [ll.lng, ll.lat]; });
   if (coords.length < 2) return;
   const key = coords.map(c => c[0].toFixed(5) + ',' + c[1].toFixed(5)).join(';');   // clé de cache = suite ORDONNÉE des coords
   IV._routeKey = key; IV._routeCache = IV._routeCache || {}; IV._routePending = IV._routePending || {};
@@ -11814,7 +11823,11 @@ function _ivFilInit(num) {
 }
 function _ivFilInitNow(num) {
   if (!IV.map || !IV.map.getLayer || !IV.map.getLayer('iv-route-line')) return;
-  const pins = [], mkIdx = []; IV.dayMk.forEach((m, i) => { if (m && m.marker) { const ll = m.marker.getLngLat(); pins.push([ll.lng, ll.lat]); mkIdx.push(i); } });
+  // ⚠️ (v540) MÊMES POSITIONS QUE LE TRACÉ (trueLL), sinon le fil du temps dérive. Ces pins ne servent pas à
+  // dessiner : ils servent à projeter chaque étape en FRACTION le long de la ligne. Si la ligne est bâtie sur
+  // les vraies positions et le mapping sur les positions décalées, le ruban s'arrête au mauvais endroit au
+  // survol. Une règle se pose à TOUTES les portes (§0 P5) — ici il y en a deux, et c'est la même position.
+  const pins = [], mkIdx = []; IV.dayMk.forEach((m, i) => { if (m && m.marker) { const ll = m.trueLL || m.marker.getLngLat(); pins.push([ll.lng, ll.lat]); mkIdx.push(i); } });
   if (pins.length < 2) return;
   // INTERRUPTEUR (brief §1) : dynamique coupé -> ruban COMPLET statique (tracé rues + dégradé intacts), aucun dessin ni hover.
   if (!IV_FIL_DYNAMIC) { _ivFilReveal(1); return; }
@@ -11876,20 +11889,25 @@ async function ivMoveMarker(num, i, tid) {
   const c = await ivCoords(num, tid, ivCurOpt(num, tid));
   if (!c) return;
   const mk = IV.dayMk[i];
+  // (v540) LE NOM PORTÉ PAR LE PIN (v539) DOIT SUIVRE LA VARIANTE : cette porte change le LIEU d'une étape
+  // (bascule A/B/C). Sans ça le pin annonçait au survol le nom du lieu PRÉCÉDENT — une étiquette qui ment est
+  // pire que pas d'étiquette. Deuxième porte du même chantier, oubliée en v539 (§0 P5).
+  let _nm = ''; try { const _d = ivOpt(num, tid, ivCurOpt(num, tid)); _nm = (_d && (_d.nomLatin || _d.nom)) || ''; } catch(e) {}
   if (mk && mk.marker) {
     mk.trueLL = { lng: c.lng, lat: c.lat };
     mk.marker.setLngLat([c.lng, c.lat]);
     if (mk.inner) mk.inner.classList.toggle('approx', c.precision === 'approx');
+    if (mk.name) mk.name.textContent = _nm;
     ivFitDay();
     ivDecluster();
   }
   else if (mk && !mk.marker) {
-    const { root, inner } = ivMakeMarker(i + 1, c.precision);
+    const { root, inner, name } = ivMakeMarker(i + 1, c.precision, null, _nm);
     root.addEventListener('mouseenter', () => ivHl(i, true));
     root.addEventListener('mouseleave', () => ivHl(i, false));
     root.addEventListener('click', () => { const st = document.getElementById('iv-step-' + i); if (st) { st.scrollIntoView({ behavior: 'smooth', block: 'center' }); ivOpenStep(st, true); } });
     const m = new mapboxgl.Marker({ element: root, anchor: 'bottom' }).setLngLat([c.lng, c.lat]).addTo(IV.map);
-    IV.dayMk[i] = { tid, marker: m, inner, trueLL: { lng: c.lng, lat: c.lat } };
+    IV.dayMk[i] = { tid, marker: m, inner, name, trueLL: { lng: c.lng, lat: c.lat } };
     ivFitDay();
     ivDecluster();
   }
