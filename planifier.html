@@ -3246,13 +3246,33 @@ function ivThemeLevels(counts){
   return out;
 }
 let FESTIF_MSG=''; // fix #3 : alerte honnête festif+famille — le profil famille DÉSACTIVE la sortie nocturne garantie (bars/clubs), on le DIT au lieu de laisser un thème muet. '' sinon.
+/* CAPTATION PARTIELLE (v545) — une source de lieux n'a pas répondu à l'ingestion d'une ville NEUVE.
+   ⚠️⚠️ POURQUOI CE MESSAGE EXISTE, ET POURQUOI IL NE POUVAIT PAS ÊTRE REMPLACÉ PAR CE QUI EXISTAIT DÉJÀ.
+   Le Worker DIT quand une source échoue (`ok:false` + `tuiles{total,erreurs,http}`, w481) — et la page
+   n'écoutait pas : elle n'avait QUE des branches de SUCCÈS (`if(_eo && _eo.ok && _eo.ecrits>0)`).
+   📏 Et les deux filets qu'on croyait suffisants ne couvrent PAS ce cas :
+     · le GRISAGE des thèmes vient d'`ivProbeRichesse`, lancée au CHOIX DE LA VILLE — donc AVANT
+       l'ingestion. Sur une ville neuve `IV_TR` vaut null et RIEN n'est grisé (cf. sa déclaration).
+     · `THEMES_MSG` est bien calculé sur la base réelle, mais il ne parle qu'en dessous de 3 POI pour un
+       thème CHOISI : un thème qui tombe à 5 ou 8, et les icônes appauvries, passent en silence.
+   ⚠️ ET SURTOUT, QUAND IL PARLE, IL ACCUSE LA DESTINATION (« à Lisbonne, le bien-être est très peu
+   présent ») alors que la ville n'y est pour rien : c'est notre captation qui a échoué. On mentirait au
+   voyageur sur la CAUSE. Doctrine du projet (v491, v498, v543) : quand on ne peut pas servir, on le DIT.
+   ⚠️ DEUX RÉGIMES, ET LA DISTINCTION LIMITE LE BRUIT (leçon v498 : une mention affichée partout n'est
+   plus lue). On n'affirme que ce qu'on SAIT :
+     · `ok === false` = échec AVÉRÉ, le Worker le dit → message au voyageur ;
+     · réponse absente (timeout 45 s, réseau) = on ne sait pas si la route a échoué ou continué côté
+       Worker → JOURNAL SEULEMENT, jamais d'affirmation à l'écran.
+   ⚠️ Et il n'est dû que sur une ville FRAÎCHEMENT ingérée : c'est le seul cas où l'on attend les trois
+   réponses (sur une ville déjà en base, les appels partent sans être attendus — et rien n'est dégradé). */
+let CAPTATION_MSG='';
 var _EXC_JOUR=0; // (v537) numéro du jour courant — `pickAnchor` est définie HORS de la boucle, donc `i` n'y est PAS celui de la boucle (il résout sur le `var i` de la phase d'assemblage, hoisté → NaN). Bug du premier essai, attrapé avant livraison.
 const PERIPHERY_KM=15; // périphérie proche (injection d'un thème manquant)
 // Seuil de la gate `/near` : en dessous de N restaurants déjà connus dans la bulle marchable, on va lire
 // Geoapify en direct ; au-dessus, c'est du temps dépensé pour rien. 15 = deux repas, leurs alternatives (3 par
 // repas) et la marge du filtre budget. Le quartier de Bercy, qui a motivé `/near`, en comptait 1.
 const NEAR_MIN_FOOD=15;
-const APP_VERSION='v544'; // v544 : un refus de budget n'est NI une panne NI une démonstration — le bandeau rouge disait « le produit est cassé » alors que rien ne l'est, et les phrases commençaient par « La démonstration… », ce qui excusait le refus au lieu de l'expliquer (décision produit Nicoco, 16/09). Carte dans la palette du site (titre Lora + pourquoi + QUAND), texte du Worker ÉCHAPPÉ, et le bouton de génération est MASQUÉ tant que la limite tient — proposer une action qui échouera à coup sûr est malhonnête — puis REMIS à chaque ouverture du formulaire (sinon une limite d'un jour condamne l'onglet). // v543 : le Worker s'arrêtait bien à 50 €/mois (w485) mais la page ne le DISAIT PAS — `llm()` se repliait sur '' devant le 429 `budget_mensuel`, donc elle aurait servi un itinéraire SANS AUCUN TEXTE. La règle était à moitié inatteignable. Un drapeau posé au seul point d'appel du LLM + deux points d'arrêt, et le refus s'affiche TEL QUEL (« Veuillez réessayer » est faux : rien ne changera avant le 1er du mois). // v542 : le crédit des sources annonçait « Powered by Foursquare » alors que FSQ ne sert plus AUCUN lieu (mesuré sur 27 485 lieux : foursquare 0,0 %, geoapify/OSM 81,7 %, overture 14,9 %, datatourisme 2,1 %). Ce n'était plus une dette contractuelle mais une information FAUSSE au voyageur. On crédite ce qu'on sert (§0 P10) ; la condition de retour de l'obligation est écrite au point d'ajout. // v541 (carte) : les pins étaient EMPILÉS, pas déplacés — `position:relative` posé en v539 sur le marqueur écrasait le `position:absolute` de `.mapboxgl-marker`, donc les dix pins retombaient dans le flux et se décalaient de 28 px × leur rang (mesuré en ligne : 28·56·84…224). Coordonnées justes, projection juste, MISE EN PAGE fausse. // v540 (carte) : le RUBAN était tracé depuis les pins DÉCALÉS par le désempilement pixel (34 px), pas depuis les vraies positions — l'itinéraire piéton partait donc de points faux de 30 à 60 m, que Directions recalait sur la rue la plus proche. `ivFitDay` prenait déjà la précaution inverse ; le tracé et le fil du temps l'appliquent enfin. + le nom porté par le pin suit la variante A/B/C (porte oubliée de la v539). // v539 (carte, étape 1/3) : la carte ne portait AUCUN nom de lieu — les POI étaient cachés en bloc, monuments compris. Seuls les grands repères (filterrank ≤ 1) reviennent. + le pin dit son nom au survol (liste ET carte) + une échelle, le cadrage étant adaptatif. // v538 : // v537 : la journée-excursion est livrée — on cesse de prédire, on MESURE (motif v496) : le vivier de la journée est bâti des deux côtés et on ne part que si la région sert strictement plus. // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
+const APP_VERSION='v546'; // v546 : une source en panne ARRÊTE la génération, et on dit que c'est temporaire (décision produit Nicoco, 16/09). Geoapify était la DERNIÈRE source muette (w489) : chaque tuile portait `.catch(()=>[])` et le throw global était avalé, donc une panne totale rendait un tableau vide que l'ingestion prenait pour un succès — puis `/ensure` estampillait `ensure_zone`, un CACHE PERMANENT, et la ville restait pauvre POUR TOUJOURS, sans message. Le Worker retire désormais le verrou quand la source a échoué (sa raison — ne pas re-payer Foursquare — est morte avec w484, §0 P10), et la page affiche le refus dans la carte w488 existante au lieu de poursuivre et d'accuser la destination (« quasi absents de cette destination » était un mensonge sur la cause). Un « quand » de plus, jamais un septième message. // v545 : une source de lieux qui ne répond pas ne doit plus être silencieuse — la page n'avait QUE des branches de SUCCÈS sur les trois compléments de captation, alors que le Worker dit franchement `ok:false` avec ses tuiles en échec (w481). Le journal donne désormais les chiffres, et le voyageur d'une ville FRAÎCHEMENT ingérée est averti que la couverture est partielle, sans jargon et sans accuser la destination (THEMES_MSG, lui, aurait dit « à Lisbonne le bien-être est très peu présent » — un mensonge sur la cause). Échec AVÉRÉ (`ok===false`) → message ; simple absence de réponse → journal seulement. // v544 : un refus de budget n'est NI une panne NI une démonstration — le bandeau rouge disait « le produit est cassé » alors que rien ne l'est, et les phrases commençaient par « La démonstration… », ce qui excusait le refus au lieu de l'expliquer (décision produit Nicoco, 16/09). Carte dans la palette du site (titre Lora + pourquoi + QUAND), texte du Worker ÉCHAPPÉ, et le bouton de génération est MASQUÉ tant que la limite tient — proposer une action qui échouera à coup sûr est malhonnête — puis REMIS à chaque ouverture du formulaire (sinon une limite d'un jour condamne l'onglet). // v543 : le Worker s'arrêtait bien à 50 €/mois (w485) mais la page ne le DISAIT PAS — `llm()` se repliait sur '' devant le 429 `budget_mensuel`, donc elle aurait servi un itinéraire SANS AUCUN TEXTE. La règle était à moitié inatteignable. Un drapeau posé au seul point d'appel du LLM + deux points d'arrêt, et le refus s'affiche TEL QUEL (« Veuillez réessayer » est faux : rien ne changera avant le 1er du mois). // v542 : le crédit des sources annonçait « Powered by Foursquare » alors que FSQ ne sert plus AUCUN lieu (mesuré sur 27 485 lieux : foursquare 0,0 %, geoapify/OSM 81,7 %, overture 14,9 %, datatourisme 2,1 %). Ce n'était plus une dette contractuelle mais une information FAUSSE au voyageur. On crédite ce qu'on sert (§0 P10) ; la condition de retour de l'obligation est écrite au point d'ajout. // v541 (carte) : les pins étaient EMPILÉS, pas déplacés — `position:relative` posé en v539 sur le marqueur écrasait le `position:absolute` de `.mapboxgl-marker`, donc les dix pins retombaient dans le flux et se décalaient de 28 px × leur rang (mesuré en ligne : 28·56·84…224). Coordonnées justes, projection juste, MISE EN PAGE fausse. // v540 (carte) : le RUBAN était tracé depuis les pins DÉCALÉS par le désempilement pixel (34 px), pas depuis les vraies positions — l'itinéraire piéton partait donc de points faux de 30 à 60 m, que Directions recalait sur la rue la plus proche. `ivFitDay` prenait déjà la précaution inverse ; le tracé et le fil du temps l'appliquent enfin. + le nom porté par le pin suit la variante A/B/C (porte oubliée de la v539). // v539 (carte, étape 1/3) : la carte ne portait AUCUN nom de lieu — les POI étaient cachés en bloc, monuments compris. Seuls les grands repères (filterrank ≤ 1) reviennent. + le pin dit son nom au survol (liste ET carte) + une échelle, le cadrage étant adaptatif. // v538 : // v537 : la journée-excursion est livrée — on cesse de prédire, on MESURE (motif v496) : le vivier de la journée est bâti des deux côtés et on ne part que si la région sert strictement plus. // v536 : « un seul spa par JOUR » était appliqué « par SÉJOUR » — l'exception spa de la v533 retombait sur `usedKinds` (registre inter-jours). Londres bien-être 3 j : J2 et J3 refusaient leurs 3 candidats alors qu'un spa différent était disponible. Journées à ZÉRO POI du thème 13 → 8 sur 3 villes. // v535 : un départ CONTRAINT n'est pas un vide — si la 1re étape ne pouvait pas ouvrir plus tôt (horaires, plancher spa/boutique), la journée démarre à son heure au lieu d'afficher « Temps libre » avant elle. Décision produit. // v534 : « ouvre tôt » ignorait le PLANCHER SPA/BOUTIQUE de place() — un spa sans horaire était réputé matinal, prenait la tête de chaîne, puis était repoussé à 10h : 90 min de vide au bord de la journée alors qu'un parc ouvert dès l'aube attendait dans la même chaîne. // v533 : le bien-être n'était pas perdu, il était REMPLACÉ — 4 parcs versés d'office sous l'étiquette « bienetre » (compensation survivant à sa cause) évinçaient les vrais lieux, mentaient au badge et neutralisaient le filet §5-1 ; et la garde de variété interdisait un thème MONO-NATURE dès son 2e lieu. Le spa garde son plafond d'1/jour (décision produit). // v532 : troisième requête de complément — `/ensure-overture` (Overture sorti de l'ingestion en w480, budget d'appels : 55 mesurés sur 50 autorisés en ville dense). // v530 : un POI d'un thème choisi qui manque PREND LA PLACE d'un comblage hors-thème (échange, jamais un ajout) — jours sans aucun POI du thème 8 → 5.
 const REGION_KM=35,RAPPEL_MAX=2,RAPPEL_MIN_LIBRES=12; // 12 = de quoi tenir une VRAIE journée (une journée consomme ~7 lieux) — seuil du rappel sans décalage (v515) // rayon régional pour les journées-excursion (canoë, accro, base de loisirs…)
 const CARHOP_KM=20; // JOKER : rayon max d'un saut voiture EN JOURNÉE quand la bulle marchable est trop pauvre
 const CORE_KM=6; // CŒUR URBAIN : on n'ancre une journée en BANLIEUE/excursion (> CORE_KM du centre) que si le cœur est ÉPUISÉ pour le thème. Grande ville -> jamais la banlieue ; petite ville -> excursion permise quand l'intra-muros est à court.
@@ -7796,6 +7816,10 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
   _DEST_NOM=dest||'';   // (v458) mémorisé pour `_estDestination` : une fiche au nom de la ville n'est pas un lieu
   themes=(themes||[]).slice(0,2);
   saison=saison||''; // ''=indifférent
+  /* (v545) REMIS À ZÉRO ICI, ET SURTOUT PAS AVEC LES AUTRES MESSAGES : le bloc des compléments de
+     captation s'exécute AVANT la remise à zéro groupée (`DAYS=[];RACCOURCI_MSG='';…`), qui l'effacerait.
+     C'est le défaut v491 exactement — une règle posée en amont d'une passe qui reconstruit. */
+  CAPTATION_MSG='';
   if(!dest||!themes.length){throw new Error('Destination et au moins 1 thème requis.');}
   {
     const _t0=Date.now();const _el=function(){return ((Date.now()-_t0)/1000).toFixed(1);}; // ⏱ chrono par phase (diagnostic vitesse — affichage seul)
@@ -7827,8 +7851,29 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         if(_ens.ingested)log('  ⏱ ingestion de la ville (une seule fois dans sa vie) : '+_el()+' s.');
         else if(_ens.inProgress)log('  · base en cours de préparation (autre requête)…');
         else if(_ens.error==='daily_cap'&&!(_ens.count>0))throw new Error(_ens.message||'Le quota de nouvelles destinations est atteint pour aujourd’hui — réessayez demain.');
+        /* ⚠️⚠️ UNE SOURCE EN PANNE ARRÊTE LA GÉNÉRATION, ET ON DIT QUE C'EST TEMPORAIRE (v546, w489).
+           Décision produit de Nicoco, 16/09 : « si la ville est incomplète, on empêche de générer et on
+           le dit ». Sans cette branche, la panne suivait le FAIL-OPEN historique : on poursuivait sur une
+           ville quasi vide et l'on tombait plus bas sur « les thèmes choisis sont quasi absents de cette
+           destination » — une phrase qui **accuse la ville d'un manque qui est le nôtre**. C'est la leçon
+           v545 dans sa forme la plus grave : le voyageur renonce à une destination qui n'y est pour rien.
+           ⚠️ CE N'EST PAS UN SEPTIÈME MESSAGE : c'est la forme w488 déjà en place (titre · pourquoi ·
+           quand), affichée par la MÊME carte que le refus de budget. Un seul gabarit, un « quand » de
+           plus — jamais une seconde table (motif v461).
+           ⚠️ ET SEULEMENT SUR UNE VILLE NEUVE : `/ensure` ne rend ce motif que dans son chemin
+           d'ingestion, donc uniquement quand la ville n'était PAS couverte. Une ville déjà en base ne
+           passe jamais par là — une panne de source n'y bloque rien, et c'est voulu : elle n'a plus
+           besoin d'aucune source extérieure pour être servie.
+           ⚠️ CÔTÉ WORKER, le verrou de zone a été RETIRÉ avant cette réponse : sans cela, ce refus
+           deviendrait DÉFINITIF — la ville resterait gravée pauvre et le message reviendrait à chaque
+           visite, pour toujours. Les deux moitiés ne se livrent pas l'une sans l'autre. */
+        else if(_ens.error==='source_indisponible'){
+          if(_ens.tuiles)log('  &#9888; source de lieux INDISPONIBLE — '+String((_ens.tuiles.erreurs||0)+' tuile(s) en échec sur '+(_ens.tuiles.total||0)+(_ens.tuiles.http?' ('+JSON.stringify(_ens.tuiles.http)+')':'')).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'.',true);
+          var _es=new Error(_ens.message||'L’une de nos sources de lieux n’a pas répondu — réessayez dans quelques minutes.');
+          _es._honnete=true; _es._titre=_ens.titre||'Incident temporaire de notre côté'; _es._suite=_ens.suite||''; throw _es;
+        }
       }
-    }catch(_eq){if(_eq&&_eq.message&&/quota de nouvelles destinations/i.test(_eq.message))throw _eq;}
+    }catch(_eq){if(_eq&&(_eq._honnete||(_eq.message&&/quota de nouvelles destinations/i.test(_eq.message))))throw _eq;}
     /* ===== COMPLÉMENT DE CAPTATION (v455) — le trou de Londres ne doit plus jamais atteindre un visiteur =====
        L'ingestion ne demande QU'UN appel centré pour la culture et l'urbain, plafonné pour toute la ville :
        les quartiers un peu excentrés naissent vides (mesuré à Brixton : 62 lieux, dont 59 restaurants → la
@@ -7883,6 +7928,33 @@ async function buildDAYS(dest, duree, voyage, budget, saison, themes){
         if(_et&&_et.ok&&_et.ecrits>0)log('  · complément de captation : '+_et.ecrits+' lieux à visiter ajoutés'+((_et.restant>0)?' ('+_et.restant+' au prochain passage)':'')+' ✔');
         if(_eo&&_eo.ok&&_eo.ecrits>0)log('  · source Overture : '+_eo.ecrits+' lieux ajoutés'+((_eo.restant>0)?' ('+_eo.restant+' au prochain passage)':'')+' ✔');
         if(_em&&_em.ok&&_em.traites>0)log('  · photos et descriptions : '+(_em.avec_photo||0)+' photo(s) et '+(_em.avec_desc||0)+' description(s) sur '+_em.traites+' lieux'+((_em.restant>0)?' ('+_em.restant+' au prochain passage)':'')+' ✔');
+        /* ===== (v545) LA BRANCHE D'ÉCHEC — elle n'existait pas =====
+           Les trois lignes ci-dessus ne testent QUE le succès. Le Worker, lui, dit franchement quand une
+           source tombe (`ok:false` + `tuiles{total,erreurs,http}`, w481) : personne ne l'écoutait. C'est le
+           piège déjà consigné le 13/09, retourné — une fenêtre qui ne montre que les SUCCÈS fait croire
+           qu'il n'y a pas d'échec.
+           📏 Ce qu'on perd sans le dire : `/ensure-overture` apporte le bien-être, le sport mutualisé et les
+           visites insolites (w475/w480) ; `/ensure-themes` les lieux à visiter des quartiers excentrés
+           (le trou de Brixton : 4 jours demandés, 2 rendus). La ville naît amputée et tout le monde croit
+           qu'elle est pauvre. */
+        var _capDet=function(r){                       // les CHIFFRES, jamais « une erreur est survenue »
+          var t=r&&r.tuiles, s;
+          if(t&&t.total) s=t.erreurs+' tuile(s) en échec sur '+t.total+(t.http?' ('+JSON.stringify(t.http)+')':'');
+          else s=(r&&(r.detail||r.etape))||'sans détail';
+          /* ⚠️ ÉCHAPPÉ : ce texte vient du WORKER (codes HTTP, messages d'erreur tronqués) et le journal
+             passe par innerHTML. Un `<` suffirait à casser l'affichage. Même règle qu'en v544. */
+          return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        };
+        var _capKO=0;                                  // échecs AVÉRÉS seulement (voir la déclaration de CAPTATION_MSG)
+        [[_et,'complément de captation'],[_eo,'source Overture'],[_em,'photos et descriptions']].forEach(function(p){
+          var r=p[0], nom=p[1];
+          if(r && r.ok===false){ _capKO++; log('  &#9888; '+nom+' INDISPONIBLE — '+_capDet(r)+'.',true); }
+          else if(!r)          { log('  &#9888; '+nom+' : pas de réponse dans le délai — on ne sait pas si la moisson a abouti (aucune conclusion tirée).',true); }
+        });
+        /* ⚠️ AUCUN JARGON, ET SURTOUT AUCUNE ACCUSATION DE LA DESTINATION : le visiteur n'a pas à connaître
+           « Overture » ni « 429 ». Et le message est ACTIONNABLE — relancer marche vraiment : le verrou de
+           zone du Worker se libère dès qu'il RESTE du travail (v426) et les routes sont rejouables. */
+        if(_capKO) CAPTATION_MSG='Cette destination vient d\'être ajoutée à nos cartes et '+(_capKO>1?'plusieurs de nos sources de lieux n\'ont pas répondu':'l\'une de nos sources de lieux n\'a pas répondu')+' : sa couverture est encore partielle. Relancez la génération dans quelques minutes, l\'itinéraire sera plus riche.';
         log('  ⏱ complément de captation : '+_el()+' s.');
       }else{
         fetchT(_etUrl,{},45000).catch(function(){});   // on ne l'attend pas : le voyageur suivant en profitera
@@ -10964,6 +11036,10 @@ async function initJoursTabs(duree, dest, budget, periode, styleLabel) {
   document.documentElement.classList.add('iv-active'); document.body.classList.add('iv-active'); // active le fond « couleur du temps » sur toute la page (retiré au retour wizard)
   container.innerHTML =
     `<div class="iv-wrap">`+
+      /* (v545) EN PREMIER, ET C'EST VOLONTAIRE : il donne la CAUSE des deux messages qui suivent. Sans lui,
+         THEMES_MSG dirait « à Lisbonne le bien-être est très peu présent » — ce qui accuse la destination
+         d'un manque qui est le nôtre. L'ordre de lecture rétablit la vérité. */
+      ((typeof CAPTATION_MSG!=='undefined'&&CAPTATION_MSG)?`<p class="iv-raccourci">${CAPTATION_MSG}</p>`:``)+
       ((typeof RACCOURCI_MSG!=='undefined'&&RACCOURCI_MSG)?`<p class="iv-raccourci">${RACCOURCI_MSG}</p>`:``)+
       ((typeof FESTIF_MSG!=='undefined'&&FESTIF_MSG)?`<p class="iv-raccourci">${FESTIF_MSG}</p>`:``)+
       ((typeof THEMES_MSG!=='undefined'&&THEMES_MSG)?`<p class="iv-raccourci">${THEMES_MSG}</p>`:``)+
